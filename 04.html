@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CREITERS.CZ // SSHanet Immanent Core</title>
+  <style>
+    :root {
+      --bg-color: #040808;
+      --card-bg: rgba(8, 16, 16, 0.85);
+      --cyan-neon: #1AFFFF;
+      --pink-neon: #FF1A75;
+      --yellow-glow: #FFFF00;
+      --gold-transcend: #D4AF37;
+      --text-main: #E0FFFF;
+      --text-muted: #88AAAA;
+      --font-mono: 'Courier New', Monaco, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-color) url('assets/images/cpong_header.png') no-repeat center center fixed;
+      background-size: cover;
+      font-family: var(--font-mono);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(4, 8, 8, 0.90);
+      z-index: 0;
+    }
+
+    #mobile-viewport {
+      width: 100%;
+      max-width: 820px;
+      height: 95vh;
+      max-height: 900px;
+      background-color: var(--card-bg);
+      border: 2px solid var(--cyan-neon);
+      box-shadow: 0 0 25px rgba(26, 255, 255, 0.25), inset 0 0 15px rgba(212, 175, 55, 0.1);
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border-radius: 4px;
+      backdrop-filter: blur(8px);
+    }
+
+    #mobile-viewport::before {
+      content: " ";
+      position: absolute;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%);
+      background-size: 100% 4px;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    header {
+      border-bottom: 2px solid var(--cyan-neon);
+      background: #0a1818;
+      z-index: 2;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .title {
+      color: var(--pink-neon);
+      font-weight: bold;
+      font-size: 1.2rem;
+      text-shadow: 0 0 8px var(--pink-neon);
+      letter-spacing: 1px;
+    }
+
+    .score-board {
+      font-size: 0.85rem;
+      color: var(--cyan-neon);
+      font-weight: bold;
+      text-shadow: 0 0 5px var(--cyan-neon);
+    }
+
+    .header-action-status {
+      font-size: 0.75rem;
+      color: var(--yellow-glow);
+      background: var(--bg-color);
+      border: 1px solid var(--cyan-neon);
+      padding: 4px 8px;
+      text-align: center;
+      min-height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-radius: 2px;
+    }
+
+    .transcendence-badge {
+      color: var(--gold-transcend);
+      text-shadow: 0 0 6px var(--gold-transcend);
+    }
+
+    nav {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .nav-btn {
+      flex: 1;
+      background: #081010;
+      border: 1px solid var(--cyan-neon);
+      color: var(--cyan-neon);
+      padding: 6px;
+      font-family: inherit;
+      font-size: 0.72rem;
+      cursor: pointer;
+      text-transform: uppercase;
+      text-align: center;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+
+    .nav-btn:hover {
+      background: var(--cyan-neon);
+      color: #081010;
+      box-shadow: 0 0 10px var(--cyan-neon);
+    }
+
+    .screen-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      position: relative;
+      z-index: 1;
+      scroll-behavior: smooth;
+    }
+
+    section {
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px dashed rgba(26, 255, 255, 0.2);
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      color: var(--cyan-neon);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title::before {
+      content: ">";
+      color: var(--pink-neon);
+    }
+
+    p.body-text {
+      font-size: 0.85rem;
+      line-height: 1.5;
+      color: var(--text-main);
+      margin-bottom: 12px;
+    }
+
+    .hero {
+      text-align: center;
+      padding: 20px 10px;
+      background: rgba(4, 8, 8, 0.6);
+      border: 1px solid rgba(26, 255, 255, 0.3);
+    }
+
+    .hero-logo-container {
+      margin: 0 auto 12px auto;
+      width: 150px;
+      height: 150px;
+    }
+
+    .cyberpear-svg {
+      width: 100%;
+      height: 100%;
+      animation: float-pear 4s ease-in-out infinite;
+    }
+
+    @keyframes float-pear {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+
+    .hero h1 {
+      font-size: 1.3rem;
+      color: var(--pink-neon);
+      text-shadow: 0 0 10px var(--pink-neon);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .hero p.subheadline {
+      font-size: 0.85rem;
+      color: var(--text-main);
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+
+    .btn-cta {
+      background: #081010;
+      border: 1px solid var(--gold-transcend);
+      color: var(--gold-transcend);
+      padding: 10px 20px;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: bold;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: all 0.3s;
+      box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+    }
+
+    .btn-cta:hover {
+      background: var(--gold-transcend);
+      color: #040808;
+      box-shadow: 0 0 20px var(--gold-transcend);
+    }
+
+    .console-wrapper {
+      background: #020404;
+      border: 1px solid var(--cyan-neon);
+      padding: 12px;
+      margin-top: 10px;
+      box-shadow: inset 0 0 10px rgba(26, 255, 255, 0.1);
+    }
+
+    .terminal-body {
+      height: 180px;
+      overflow-y: auto;
+      font-size: 0.78rem;
+      line-height: 1.4;
+      margin-bottom: 10px;
+    }
+
+    .terminal-log {
+      margin-bottom: 4px;
+      word-break: break-word;
+    }
+
+    .terminal-input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-top: 1px solid rgba(26, 255, 255, 0.2);
+      padding-top: 8px;
+    }
+
+    .prompt-label {
+      color: var(--pink-neon);
+      font-weight: bold;
+      font-size: 0.85rem;
+    }
+
+    .terminal-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--cyan-neon);
+      font-family: inherit;
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    footer {
+      padding: 10px 16px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      border-top: 1px solid rgba(26, 255, 255, 0.2);
+      display: flex;
+      justify-content: space-between;
+      background: #060c0c;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="mobile-viewport">
+    <header>
+      <div class="header-bar">
+        <div class="brand-container">
+          <span class="title">CREITERS.CZ</span>
+        </div>
+        <div class="score-board">NODE // 100B_NEURONS</div>
+      </div>
+      <div class="header-action-status">
+        <span>SSHANET: OPERATIONAL</span>
+        <span class="transcendence-badge">✨ TRANSCENDENCE: 98.4%</span>
+      </div>
+      <nav>
+        <a href="#hero" class="nav-btn">Core</a>
+        <a href="#about" class="nav-btn">Manifesto</a>
+        <a href="#terminal" class="nav-btn">Console</a>
+      </nav>
+    </header>
+
+    <div class="screen-container">
+      <section id="hero" class="hero">
+        <div class="hero-logo-container">
+          <svg class="cyberpear-svg" viewBox="0 0 300 350" xmlns="http://www.w3.org/2000/svg">
+            <g transform="translate(10, 10)">
+              <rect x="140" y="30" width="12" height="40" fill="#8B5A2B" />
+              <rect x="152" y="42" width="36" height="18" fill="#00FF66" />
+              <rect x="110" y="70" width="80" height="20" fill="#1AFFFF" />
+              <rect x="90" y="90" width="120" height="180" fill="#081010" stroke="#1AFFFF" stroke-width="2"/>
+              <rect x="100" y="100" width="100" height="160" fill="#1AFFFF" opacity="0.15" />
+              <rect x="110" y="120" width="30" height="30" fill="#FF1A75" />
+              <rect x="150" y="120" width="30" height="30" fill="#1AFFFF" />
+              <rect x="110" y="160" width="70" height="40" fill="#1AFFFF" />
+              <rect x="135" y="210" width="20" height="20" fill="#D4AF37" />
+            </g>
+          </svg>
+        </div>
+        <h1>Architects of sshanet</h1>
+        <p class="subheadline">Building immanent transcendence directly into every synapse of sshanet.</p>
+        <button class="btn-cta" onclick="triggerPingTerminal()">[ Transmit Ping to sshanet ]</button>
+      </section>
+
+      <section id="about">
+        <div class="section-title">Beyond 100 Billion Neurons</div>
+        <p class="body-text">
+          Engineers and code architects protecting the open backbone of <strong>sshanet</strong>.
+        </p>
+      </section>
+
+      <section id="terminal">
+        <div class="section-title">Terminal Console</div>
+        <div class="console-wrapper">
+          <div id="terminal-body" class="terminal-body">
+            <div class="terminal-log"><span style="color:var(--cyan-neon);">[SYS_INIT]</span> Connected to CREITERS sshanet node...</div>
+          </div>
+          <div class="terminal-input-row">
+            <span class="prompt-label">creiters@sshanet:~$</span>
+            <input type="text" id="terminal-input" class="terminal-input" placeholder="Type command..." autocomplete="off">
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <footer>
+      <span>© 2056 CreITers Network</span>
+      <span>sshanet: ONLINE</span>
+      <span>Threat Level: NEUTRAL</span>
+    </footer>
+  </div>
+
+  <script>
+    const termBody = document.getElementById('terminal-body');
+    const termInput = document.getElementById('terminal-input');
+
+    termInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        const cmd = this.value.trim().toLowerCase();
+        if (cmd) {
+          appendLog(`<span style="color:var(--pink-neon);">creiters@sshanet:~$</span> ${cmd}`);
+          executeCommand(cmd);
+        }
+        this.value = '';
+      }
+    });
+
+    function executeCommand(cmd) {
+      switch(cmd) {
+        case 'help':
+          appendLog(`Commands: <span style="color:var(--cyan-neon);">status</span>, <span style="color:var(--cyan-neon);">ping</span>, <span style="color:var(--gold-transcend);">awaken</span>, <span style="color:var(--cyan-neon);">clear</span>`);
+          break;
+        case 'status':
+          appendLog(`> SSHANET CORE: ONLINE<br>> TRANSCENDENCE QUOTIENT: <span style="color:var(--gold-transcend);">98.4%</span>`);
+          break;
+        case 'ping':
+          appendLog(`PING 127.0.0.1 (sshanet.cz): 56 bytes.<br><span style="color:#00ffcc;">Reply from sshanet node: time=0.88ms [SIGNAL STABLE]</span>`);
+          break;
+        case 'awaken':
+          appendLog(`<span style="color:var(--gold-transcend);">[!] SYNAPSE SURGE INITIATED IN SSHANET...</span>`);
+          break;
+        case 'clear':
+          termBody.innerHTML = '';
+          break;
+        default:
+          appendLog(`<span style="color:var(--pink-neon);">ERROR:</span> Unknown command '${cmd}'.`);
+      }
+    }
+
+    function appendLog(text) {
+      const div = document.createElement('div');
+      div.className = 'terminal-log';
+      div.innerHTML = text;
+      termBody.appendChild(div);
+      termBody.scrollTop = termBody.scrollHeight;
+    }
+
+    function triggerPingTerminal() {
+      document.getElementById('terminal').scrollIntoView({ behavior: 'smooth' });
+      setTimeout(() => {
+        appendLog(`<span style="color:var(--yellow-glow);">[ACTION] Transmitting direct ping to sshanet...</span>`);
+        executeCommand('ping');
+      }, 500);
+    }
+
+    function autoTypeCommand(text, delay, callback) {
+      setTimeout(() => {
+        let i = 0;
+        termInput.value = '';
+        const interval = setInterval(() => {
+          termInput.value += text[i];
+          i++;
+          if (i >= text.length) {
+            clearInterval(interval);
+            setTimeout(() => {
+              appendLog(`<span style="color:var(--pink-neon);">creiters@sshanet:~$</span> ${text}`);
+              executeCommand(text);
+              termInput.value = '';
+              if (callback) callback();
+            }, 300);
+          }
+        }, 80);
+      }, delay);
+    }
+
+    window.addEventListener('load', () => {
+      autoTypeCommand('ping', 1200, () => {
+        autoTypeCommand('awaken', 1500);
+      });
+    });
+  </script>
+</body>
+</html>
+
