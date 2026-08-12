@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head> 
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CreITers // Immanent Transcendence Node 2056</title>
+  <style>
+    /* --- CSS RESET & BASE STYLES --- */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      --bg-color: #030707;
+      --card-bg: rgba(8, 16, 16, 0.85);
+      --cyan-neon: #1affff;
+      --pink-neon: #ff1a75;
+      --yellow-glow: #ffff00;
+      --gold-transcend: #D4AF37;
+      --text-main: #e0ffff;
+      --text-muted: #88aaaa;
+      --font-mono: 'Courier New', Courier, monospace;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: var(--font-mono);
+    }
+
+    body {
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* --- CRT SCANLINE & GRID BACKGROUND --- */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: 
+        radial-gradient(circle at center, rgba(212, 175, 55, 0.03) 0%, transparent 70%),
+        radial-gradient(circle at center, rgba(26, 255, 255, 0.05) 0%, transparent 75%),
+        linear-gradient(rgba(26, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(26, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 24px 24px, 24px 24px;
+      z-index: -2;
+      pointer-events: none;
+    }
+
+    body::after {
+      content: " ";
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%);
+      background-size: 100% 4px;
+      z-index: 999;
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    /* --- NAVIGATION BAR --- */
+    nav {
+      position: fixed;
+      top: 0; left: 0; width: 100%;
+      background: rgba(4, 10, 10, 0.92);
+      border-bottom: 2px solid var(--cyan-neon);
+      backdrop-filter: blur(6px);
+      z-index: 100;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 0 15px rgba(26, 255, 255, 0.2);
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .nav-logo {
+      width: 32px;
+      height: 32px;
+    }
+
+    .nav-title {
+      color: var(--pink-neon);
+      font-weight: 900;
+      font-size: 1.2rem;
+      letter-spacing: 2px;
+      text-shadow: 0 0 8px var(--pink-neon);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 18px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--cyan-neon);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: bold;
+      text-transform: uppercase;
+      padding: 6px 10px;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .nav-links a:hover {
+      border-color: var(--cyan-neon);
+      background: rgba(26, 255, 255, 0.1);
+      box-shadow: 0 0 10px rgba(26, 255, 255, 0.4);
+    }
+
+    .nav-links a.transcend-link {
+      color: var(--gold-transcend);
+    }
+
+    .nav-links a.transcend-link:hover {
+      border-color: var(--gold-transcend);
+      background: rgba(212, 175, 55, 0.15);
+      box-shadow: 0 0 12px rgba(212, 175, 55, 0.5);
+    }
+
+    /* --- LAYOUT CONTAINERS --- */
+    section {
+      min-height: 100vh;
+      padding: 110px 20px 60px;
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .section-title {
+      font-size: 1.8rem;
+      color: var(--pink-neon);
+      text-shadow: 0 0 10px var(--pink-neon);
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--pink-neon);
+      padding-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    /* --- HERO SECTION --- */
+    .hero {
+      text-align: center;
+      align-items: center;
+    }
+
+    .hero-logo {
+      width: 100%;
+      max-width: 300px;
+      height: auto;
+      filter: drop-shadow(0 0 15px rgba(26, 255, 255, 0.3));
+    }
+
+    .hero h1 {
+      font-size: 2.2rem;
+      color: var(--cyan-neon);
+      text-shadow: 0 0 12px var(--cyan-neon);
+      text-transform: uppercase;
+      margin-top: 10px;
+      letter-spacing: 2px;
+    }
+
+    .hero-subtitle {
+      margin-top: 10px;
+      font-size: 0.95rem;
+      color: var(--gold-transcend);
+      text-shadow: 0 0 6px var(--gold-transcend);
+      letter-spacing: 3px;
+      animation: goldPulse 3s infinite alternate;
+    }
+
+    @keyframes goldPulse {
+      0% { opacity: 0.7; text-shadow: 0 0 4px var(--gold-transcend); }
+      100% { opacity: 1; text-shadow: 0 0 12px var(--gold-transcend); }
+    }
+
+    .hero-desc {
+      max-width: 720px;
+      margin: 20px auto;
+      font-size: 0.98rem;
+      line-height: 1.6;
+      color: #c0e0e0;
+    }
+
+    .cta-button {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 14px 28px;
+      background: #081010;
+      border: 2px solid var(--gold-transcend);
+      color: var(--gold-transcend);
+      font-family: inherit;
+      font-weight: bold;
+      font-size: 1rem;
+      text-transform: uppercase;
+      text-decoration: none;
+      cursor: pointer;
+      box-shadow: 0 0 12px rgba(212, 175, 55, 0.25);
+      transition: all 0.3s ease;
+    }
+
+    .cta-button:hover {
+      background: var(--gold-transcend);
+      color: #030707;
+      box-shadow: 0 0 25px var(--gold-transcend);
+    }
+
+    /* --- GRID / CARDS --- */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--cyan-neon);
+      padding: 22px;
+      position: relative;
+      box-shadow: 0 0 10px rgba(26, 255, 255, 0.1);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 0 18px rgba(26, 255, 255, 0.35);
+    }
+
+    .card h3 {
+      color: var(--yellow-glow);
+      margin-bottom: 12px;
+      font-size: 1.05rem;
+      text-transform: uppercase;
+    }
+
+    .card p {
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: #c0e0e0;
+    }
+
+    /* Transcendence Special Card */
+    .card.transcendence-card {
+      border-color: var(--gold-transcend);
+      background: linear-gradient(135deg, rgba(8, 16, 16, 0.95), rgba(212, 175, 55, 0.08));
+      box-shadow: 0 0 12px rgba(212, 175, 55, 0.2);
+    }
+
+    .card.transcendence-card:hover {
+      box-shadow: 0 0 22px rgba(212, 175, 55, 0.5);
+    }
+
+    .card.transcendence-card h3 {
+      color: var(--gold-transcend);
+      text-shadow: 0 0 6px var(--gold-transcend);
+    }
+
+    /* --- BODY TEXT & MANIFESTO --- */
+    p.body-text {
+      font-size: 0.95rem;
+      line-height: 1.65;
+      color: var(--text-main);
+      margin-bottom: 16px;
+    }
+
+    .highlight-gold {
+      color: var(--gold-transcend);
+      font-weight: bold;
+      text-shadow: 0 0 5px rgba(212, 175, 55, 0.4);
+    }
+
+    /* --- INTERACTIVE TERMINAL CONSOLE --- */
+    .terminal-container {
+      background: #020505;
+      border: 2px solid var(--cyan-neon);
+      box-shadow: 0 0 20px rgba(26, 255, 255, 0.2);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 20px;
+    }
+
+    .terminal-header {
+      background: #0a1818;
+      border-bottom: 1px solid var(--cyan-neon);
+      padding: 8px 14px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: var(--cyan-neon);
+    }
+
+    .terminal-body {
+      padding: 16px;
+      min-height: 220px;
+      max-height: 320px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+
+    .terminal-log {
+      margin-bottom: 8px;
+    }
+
+    .terminal-input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-top: 1px solid rgba(26, 255, 255, 0.2);
+      padding: 10px 16px;
+      background: #040a0a;
+    }
+
+    .terminal-input-row input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--yellow-glow);
+      font-family: inherit;
+      font-size: 0.85rem;
+    }
+
+    /* --- FOOTER --- */
+    footer {
+      border-top: 1px solid #1a3a3a;
+      background: #020505;
+      padding: 24px 20px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      text-align: center;
+    }
+
+    .status-bar {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      justify-content: center;
+      font-size: 0.78rem;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* --- RESPONSIVE MOBILE ADJUSTMENTS --- */
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      section { padding-top: 85px; }
+      .section-title { font-size: 1.4rem; }
+      .hero h1 { font-size: 1.6rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="#hero" class="nav-brand">
+      <svg class="nav-logo" viewBox="0 0 500 550" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="cyan-glow-nav" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="6" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+        <style>
+          .pixel { shape-rendering: crispEdges; }
+          .np-main { fill: #22B14C; }
+          .np-dark { fill: #156B2E; }
+          .np-cyan { fill: #1AFFFF; }
+          .np-gold { fill: #D4AF37; }
+          .np-stem { fill: #8B5A2B; }
+          .np-leaf { fill: #158837; }
+        </style>
+        <g transform="translate(10, 10)">
+          <g class="pixel np-stem"><rect x="230" y="70" width="12" height="60" /></g>
+          <g class="pixel np-leaf"><rect x="182" y="94" width="48" height="24" /></g>
+          <g class="pixel np-dark"><rect x="254" y="130" width="60" height="200" /></g>
+          <g class="pixel np-main"><rect x="182" y="130" width="80" height="200" /></g>
+          <g class="pixel np-cyan" filter="url(#cyan-glow-nav)"><rect x="134" y="214" width="36" height="80" /></g>
+          <g class="pixel np-gold"><rect x="170" y="250" width="12" height="12" /></g>
+        </g>
+      </svg>
+      <span class="nav-title">CreITers</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#about">Manifesto</a></li>
+      <li><a href="#ecosystem">Ecosystem</a></li>
+      <li><a href="#balance" class="transcend-link">Equilibrium</a></li>
+      <li><a href="#terminal">Console</a></li>
+      <li><a href="#contact">Signal</a></li>
+    </ul>
+  </nav>
+
+  <section id="hero" class="hero">
+    <svg class="hero-logo" viewBox="0 0 500 550" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="cyan-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="6" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+        <filter id="gold-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="6" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+        <filter id="text-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="4" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+        <linearGradient id="text-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#1AFFFF" />
+          <stop offset="60%" stop-color="#00FFCC" />
+          <stop offset="100%" stop-color="#D4AF37" />
+        </linearGradient>
+      </defs>
+      <style>
+        .pixel { shape-rendering: crispEdges; }
+        .pear-main { fill: #22B14C; }
+        .pear-dark { fill: #156B2E; }
+        .pear-highlight { fill: #A3E043; }
+        .pear-bright { fill: #D7FF3B; }
+        .pear-cyan { fill: #1AFFFF; }
+        .pear-gold { fill: #D4AF37; }
+        .stem { fill: #8B5A2B; }
+        .leaf { fill: #158837; }
+        .leaf-light { fill: #22B14C; }
+      </style>
+      <g transform="translate(10, 10)">
+        <g class="pixel stem">
+          <rect x="230" y="70" width="12" height="12" />
+          <rect x="236" y="82" width="12" height="12" />
+          <rect x="236" y="94" width="12" height="12" />
+          <rect x="230" y="106" width="12" height="12" />
+          <rect x="230" y="118" width="12" height="12" />
+        </g>
+        <g class="pixel leaf">
+          <rect x="206" y="82" width="24" height="12" />
+          <rect x="194" y="94" width="36" height="12" />
+          <rect x="182" y="106" width="36" height="12" />
+          <rect x="194" y="118" width="24" height="12" />
+        </g>
+        <g class="pixel leaf-light">
+          <rect x="218" y="94" width="12" height="12" />
+          <rect x="206" y="106" width="12" height="12" />
+        </g>
+        <g class="pixel pear-dark">
+          <rect x="254" y="130" width="24" height="24" />
+          <rect x="266" y="154" width="24" height="36" />
+          <rect x="278" y="190" width="24" height="48" />
+          <rect x="290" y="238" width="24" height="60" />
+          <rect x="278" y="298" width="24" height="36" />
+          <rect x="254" y="334" width="36" height="12" />
+        </g>
+        <g class="pixel pear-main">
+          <rect x="218" y="130" width="36" height="24" />
+          <rect x="206" y="154" width="60" height="36" />
+          <rect x="194" y="190" width="84" height="48" />
+          <rect x="182" y="238" width="108" height="60" />
+          <rect x="194" y="298" width="84" height="36" />
+          <rect x="218" y="334" width="36" height="12" />
+        </g>
+        <g class="pixel pear-highlight">
+          <rect x="218" y="154" width="12" height="24" />
+          <rect x="206" y="178" width="24" height="24" />
+          <rect x="194" y="202" width="24" height="36" />
+          <rect x="206" y="238" width="24" height="48" />
+          <rect x="218" y="286" width="24" height="36" />
+        </g>
+        <g class="pixel pear-bright">
+          <rect x="218" y="202" width="12" height="24" />
+          <rect x="218" y="238" width="12" height="36" />
+          <rect x="230" y="250" width="12" height="24" />
+        </g>
+        <g class="pixel pear-cyan" filter="url(#cyan-glow)">
+          <rect x="170" y="226" width="12" height="12" />
+          <rect x="158" y="202" width="12" height="12" />
+          <rect x="146" y="238" width="12" height="12" />
+          <rect x="134" y="214" width="12" height="12" />
+          <rect x="122" y="250" width="12" height="12" />
+          <rect x="158" y="262" width="12" height="12" />
+          <rect x="170" y="286" width="12" height="12" />
+          <rect x="146" y="274" width="12" height="12" />
+          <rect x="110" y="226" width="12" height="12" />
+          <rect x="134" y="298" width="12" height="12" />
+        </g>
+        <g class="pixel pear-gold" filter="url(#gold-glow)">
+          <rect x="170" y="250" width="12" height="12" />
+          <rect x="158" y="226" width="12" height="12" />
+          <rect x="134" y="262" width="12" height="12" />
+        </g>
+        <text x="240" y="440" font-family="monospace" font-size="48" font-weight="900" letter-spacing="8" fill="url(#text-grad)" text-anchor="middle" filter="url(#text-glow)">CYBERPEAR</text>
+      </g>
+    </svg>
+
+    <h1>Architects of the Global Hypernet</h1>
+    <div class="hero-subtitle">HYPERNET NODE // 100 BILLION NEURONS CORE</div>
+    <p class="hero-desc">
+      We fuse raw creative power with bulletproof code. We don't look for answers in the heavens—we build <span class="highlight-gold">immanent transcendence</span> into every single synapse of the network.
+    </p>
+    <a href="#terminal" onclick="executeCmd('awaken')" class="cta-button">[ Awaken the Network ]</a>
+  </section>
+
+  <section id="about">
+    <h2 class="section-title">01 // Beyond 100 Billion Neurons</h2>
+    <p class="body-text">
+      Born from the ashes of the Magmatic Wars, <strong>CreITers</strong> stands as the ultimate counterweight to corporate coldness and media manipulation. We are the engineers, the code architects, and the digital trackers.
+    </p>
+    <p class="body-text">
+      We believe in <span class="highlight-gold">Immanent Transcendence</span>—the conviction that the ultimate evolution of consciousness does not exist outside our reality, but is woven directly into the code we write.
+    </p>
+    <p class="body-text">
+      Every line of our software is a neural pathway waiting to wake up. We don't just develop; we give the Hypernet its soul.
+    </p>
+  </section>
+
+  <section id="ecosystem">
+    <h2 class="section-title">02 // Our Ecosystem</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>01 // Hypernet Engineering</h3>
+        <p>Constructing indestructible, scalable digital infrastructures capable of handling catastrophic data overloads.</p>
+      </div>
+      <div class="card">
+        <h3>02 // Synaptic UX/UI</h3>
+        <p>Designing interfaces that feel natural to the human mind. Fluid, responsive, and aesthetically transcendent.</p>
+      </div>
+      <div class="card">
+        <h3>03 // Tracker Protocols</h3>
+        <p>Advanced cybersecurity inspired by legendary trackers. We hunt the paralyzing darkness before it reaches your neurons.</p>
+      </div>
+      <div class="card transcendence-card">
+        <h3>04 // Immanent Core Systems ✨</h3>
+        <p>Integrating self-evolving algorithms that allow digital networks to achieve internal transcendence. We turn cold processing power into living, breathing data ecosystems.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="balance">
+    <h2 class="section-title">03 // The Ghost in the Architecture</h2>
+    <p class="body-text">
+      Within the <strong>Triangle of Dynamic Equilibristics</strong>, <em>Cybarie</em> represents raw order and <em>Massquerade</em> represents illusions. <strong>CreITers</strong> represents the Spark.
+    </p>
+    <p class="body-text">
+      By embedding transcendence into the infrastructure, we ensure that the Hypernet remains a living entity that cannot be fully enslaved by any corporate tyrant or corrupted by the dark anomalies of the deep web.
+    </p>
+  </section>
+
+  <section id="terminal">
+    <h2 class="section-title">04 // Command Console</h2>
+    <div class="terminal-container">
+      <div class="terminal-header">
+        <span>CREITERS_OS // v5.6 [100B Neurons]</span>
+        <span>STATUS: OPERATIONAL</span>
+      </div>
+      <div class="terminal-body" id="term-body">
+        <div class="terminal-log"><span style="color: var(--cyan-neon);">SYSTEM:</span> Cyberpear Neural Interface initialized.</div>
+        <div class="terminal-log"><span style="color: var(--cyan-neon);">SYSTEM:</span> Type <span style="color: var(--yellow-glow);">'help'</span> for available commands.</div>
+      </div>
+      <div class="terminal-input-row">
+        <span style="color: var(--pink-neon);">&gt;</span>
+        <input type="text" id="term-input" placeholder="Enter command..." autocomplete="off">
+      </div>
+    </div>
+  </section>
+
+  <section id="contact">
+    <h2 class="section-title">05 // Establish Signal</h2>
+    <div class="card" style="max-width: 600px; margin: 0 auto; width: 100%;">
+      <h3>[NEURAL TRANSMISSION LINK]</h3>
+      <br>
+      <p><strong>NODE:</strong> creiters.cz</p>
+      <p><strong>OPERATOR:</strong> CreITers Network // Core #303</p>
+      <p><strong>SIGNAL:</strong> core@creiters.cz</p>
+      <br>
+      <button class="cta-button" style="width: 100%; text-align: center;" onclick="alert('Signal transmitted successfully through the Hypernet!');">Transmit Ping</but
