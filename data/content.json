@@ -1,33 +1,76 @@
 {
-  "system": {
+  "brand": "CreITers",
+  "navigation": [
+    { "label": "Manifesto", "href": "#about", "isTranscend": false },
+    { "label": "Ecosystem", "href": "#ecosystem", "isTranscend": false },
+    { "label": "Equilibrium", "href": "#balance", "isTranscend": true },
+    { "label": "Console", "href": "#terminal", "isTranscend": false },
+    { "label": "Signal", "href": "#contact", "isTranscend": false }
+  ],
+  "hero": {
     "title": "Architects of SSHAnet",
     "subtitle": "SSHAnet CORE // 100 BILLION NEURONS NODE [2026]",
-    "description": "We fuse raw creative power with bulletproof code. We don't look for answers in the heavens—we build immanent transcendence into every single synapse of SSHAnet."
+    "description": "We fuse raw creative power with bulletproof code. We don't look for answers in the heavens—we build <span class=\"highlight-gold\">immanent transcendence</span> into every single synapse of SSHAnet.",
+    "ctaText": "[ Awaken SSHAnet ]"
   },
-  "ecosystem": [
-    {
-      "id": "01",
-      "title": "01 // SSHAnet Engineering",
-      "description": "Constructing indestructible, scalable digital infrastructures capable of handling catastrophic data overloads across SSHAnet nodes.",
-      "isTranscendent": false
-    },
-    {
-      "id": "02",
-      "title": "02 // Synaptic UX/UI",
-      "description": "Designing interfaces that feel natural to the human mind. Fluid, responsive, and aesthetically transcendent.",
-      "isTranscendent": false
-    },
-    {
-      "id": "03",
-      "title": "03 // Tracker Protocols",
-      "description": "Advanced cybersecurity inspired by legendary trackers. We hunt the paralyzing darkness before it reaches your neurons.",
-      "isTranscendent": false
-    },
-    {
-      "id": "04",
-      "title": "04 // Immanent Core Systems ✨",
-      "description": "Integrating self-evolving algorithms that allow SSHAnet to achieve internal transcendence. We turn cold processing power into living, breathing data ecosystems.",
-      "isTranscendent": true
-    }
-  ]
+  "manifesto": {
+    "title": "01 // Beyond 100 Billion Neurons",
+    "paragraphs": [
+      "Established for the 2026 digital epoch, <strong>CreITers</strong> stands as the ultimate counterweight to corporate coldness and media manipulation inside SSHAnet. We are the engineers, the code architects, and the digital trackers.",
+      "We believe in <span class=\"highlight-gold\">Immanent Transcendence</span>—the conviction that the ultimate evolution of consciousness does not exist outside our reality, but is woven directly into the code we write.",
+      "Every line of our software is a neural pathway waiting to wake up. We don't just develop; we give SSHAnet its soul."
+    ]
+  },
+  "ecosystem": {
+    "title": "02 // Our Ecosystem",
+    "cards": [
+      {
+        "title": "01 // SSHAnet Engineering",
+        "description": "Constructing indestructible, scalable digital infrastructures capable of handling catastrophic data overloads across SSHAnet nodes.",
+        "isTranscendence": false
+      },
+      {
+        "title": "02 // Synaptic UX/UI",
+        "description": "Designing interfaces that feel natural to the human mind. Fluid, responsive, and aesthetically transcendent.",
+        "isTranscendence": false
+      },
+      {
+        "title": "03 // Tracker Protocols",
+        "description": "Advanced cybersecurity inspired by legendary trackers. We hunt the paralyzing darkness before it reaches your neurons.",
+        "isTranscendence": false
+      },
+      {
+        "title": "04 // Immanent Core Systems ✨",
+        "description": "Integrating self-evolving algorithms that allow SSHAnet to achieve internal transcendence. We turn cold processing power into living, breathing data ecosystems.",
+        "isTranscendence": true
+      }
+    ]
+  },
+  "balance": {
+    "title": "03 // The Ghost in the Architecture",
+    "paragraphs": [
+      "Within the <strong>Triangle of Dynamic Equilibristics</strong>, <em>Cybarie</em> represents raw order and <em>Massquerade</em> represents illusions. <strong>CreITers</strong> represents the Spark.",
+      "By embedding transcendence into the infrastructure, we ensure that SSHAnet remains a living entity in 2026 that cannot be fully enslaved by any corporate tyrant or corrupted by the dark anomalies of the deep web."
+    ]
+  },
+  "terminal": {
+    "title": "04 // Command Console",
+    "version": "SSHAnet_OS // v2026.5.6 [100B Neurons]",
+    "status": "STATUS: OPERATIONAL",
+    "prompt": "creiters@sshanet-2026:~$"
+  },
+  "contact": {
+    "title": "05 // Establish Signal",
+    "cardTitle": "[NEURAL TRANSMISSION LINK]",
+    "node": "sshanet.cz",
+    "operator": "CreITers Network // Core #2026",
+    "signal": "core@sshanet.cz",
+    "buttonText": "Transmit Ping to SSHAnet"
+  },
+  "footer": {
+    "copyright": "© 2026 CreITers Network",
+    "status": "SSHAnet: ONLINE",
+    "transcendence": "✨ TRANSCENDENCE: 99.8%",
+    "threat": "THREAT: NEUTRAL"
+  }
 }
