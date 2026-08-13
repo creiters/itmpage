@@ -1,0 +1,33 @@
+{
+  "system": {
+    "title": "Architects of SSHAnet",
+    "subtitle": "SSHAnet CORE // 100 BILLION NEURONS NODE [2026]",
+    "description": "We fuse raw creative power with bulletproof code. We don't look for answers in the heavens—we build immanent transcendence into every single synapse of SSHAnet."
+  },
+  "ecosystem": [
+    {
+      "id": "01",
+      "title": "01 // SSHAnet Engineering",
+      "description": "Constructing indestructible, scalable digital infrastructures capable of handling catastrophic data overloads across SSHAnet nodes.",
+      "isTranscendent": false
+    },
+    {
+      "id": "02",
+      "title": "02 // Synaptic UX/UI",
+      "description": "Designing interfaces that feel natural to the human mind. Fluid, responsive, and aesthetically transcendent.",
+      "isTranscendent": false
+    },
+    {
+      "id": "03",
+      "title": "03 // Tracker Protocols",
+      "description": "Advanced cybersecurity inspired by legendary trackers. We hunt the paralyzing darkness before it reaches your neurons.",
+      "isTranscendent": false
+    },
+    {
+      "id": "04",
+      "title": "04 // Immanent Core Systems ✨",
+      "description": "Integrating self-evolving algorithms that allow SSHAnet to achieve internal transcendence. We turn cold processing power into living, breathing data ecosystems.",
+      "isTranscendent": true
+    }
+  ]
+}
