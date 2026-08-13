@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 550" width="100%" height="100%">
+  <defs>
+    <!-- Cyan Glow Filter -->
+    <filter id="cyan-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Text Glow Filter -->
+    <filter id="text-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Neon Text Gradient -->
+    <linearGradient id="text-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1AFFFF" />
+      <stop offset="60%" stop-color="#00FFCC" />
+      <stop offset="100%" stop-color="#D4AF37" />
+    </linearGradient>
+  </defs>
+
+  <style>
+    .pixel { shape-rendering: crispEdges; }
+    .pear-main { fill: #22B14C; }
+    .pear-dark { fill: #156B2E; }
+    .pear-highlight { fill: #A3E043; }
+    .pear-bright { fill: #D7FF3B; }
+    .pear-cyan { fill: #1AFFFF; }
+    .pear-gold { fill: #D4AF37; }
+    .stem { fill: #8B5A2B; }
+    .leaf { fill: #158837; }
+    .leaf-light { fill: #22B14C; }
+
+    /* Keyframes for outer pixels flying into position to complete the pear */
+    @keyframes flyInToBuild {
+      0% {
+        opacity: 0;
+        transform: translate(var(--fly-x, -150px), var(--fly-y, -150px)) scale(2);
+      }
+      70% {
+        opacity: 0.9;
+        transform: translate(calc(var(--fly-x, -150px) * -0.1), calc(var(--fly-y, -150px) * -0.1)) scale(1.1);
+      }
+      100% {
+        opacity: 1;
+        transform: translate(0, 0) scale(1);
+      }
+    }
+
+    /* Target ONLY outer flying pixels */
+    .fly-pixel {
+      animation: flyInToBuild 2.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation-delay: var(--delay, 0s);
+      transform-origin: center;
+    }
+  </style>
+
+  <g transform="translate(10, 10)">
+    <!-- Stem (Static) -->
+    <g class="pixel stem">
+      <rect x="230" y="70" width="12" height="12" />
+      <rect x="236" y="82" width="12" height="12" />
+      <rect x="236" y="94" width="12" height="12" />
+      <rect x="230" y="106" width="12" height="12" />
+      <rect x="230" y="118" width="12" height="12" />
+    </g>
+
+    <!-- Leaf Base (Static) -->
+    <g class="pixel leaf">
+      <rect x="206" y="82" width="24" height="12" />
+      <rect x="194" y="94" width="36" height="12" />
+      <rect x="182" y="106" width="36" height="12" />
+      <rect x="194" y="118" width="24" height="12" />
+    </g>
+
+    <!-- Leaf Highlights (Static) -->
+    <g class="pixel leaf-light">
+      <rect x="218" y="94" width="12" height="12" />
+      <rect x="206" y="106" width="12" height="12" />
+    </g>
+
+    <!-- Main Body - Dark Shading (Static) -->
+    <g class="pixel pear-dark">
+      <rect x="254" y="130" width="24" height="24" />
+      <rect x="266" y="154" width="24" height="36" />
+      <rect x="278" y="190" width="24" height="48" />
+      <rect x="290" y="238" width="24" height="60" />
+      <rect x="278" y="298" width="24" height="36" />
+      <rect x="254" y="334" width="36" height="12" />
+    </g>
+
+    <!-- Main Body - Base Green (Static) -->
+    <g class="pixel pear-main">
+      <rect x="218" y="130" width="36" height="24" />
+      <rect x="206" y="154" width="60" height="36" />
+      <rect x="194" y="190" width="84" height="48" />
+      <rect x="182" y="238" width="108" height="60" />
+      <rect x="194" y="298" width="84" height="36" />
+      <rect x="218" y="334" width="36" height="12" />
+      <rect x="182" y="178" width="12" height="12" />
+      <rect x="170" y="214" width="12" height="12" />
+      <rect x="158" y="250" width="12" height="12" />
+      <rect x="182" y="310" width="12" height="12" />
+    </g>
+
+    <!-- Body - Mid Tone Highlights (Static) -->
+    <g class="pixel pear-highlight">
+      <rect x="218" y="154" width="12" height="24" />
+      <rect x="206" y="178" width="24" height="24" />
+      <rect x="194" y="202" width="24" height="36" />
+      <rect x="206" y="238" width="24" height="48" />
+      <rect x="218" y="286" width="24" height="36" />
+    </g>
+
+    <!-- Body - Bright Accents (Static) -->
+    <g class="pixel pear-bright">
+      <rect x="218" y="202" width="12" height="24" />
+      <rect x="218" y="238" width="12" height="36" />
+      <rect x="230" y="250" width="12" height="24" />
+      <rect x="170" y="190" width="12" height="12" />
+      <rect x="158" y="226" width="12" height="12" />
+      <rect x="146" y="214" width="12" height="12" />
+      <rect x="170" y="250" width="12" height="12" />
+      <rect x="158" y="286" width="12" height="12" />
+      <rect x="134" y="262" width="12" height="12" />
+    </g>
+
+    <!-- Gold Accent Pixels (Static) -->
+    <g class="pixel pear-gold">
+      <rect x="170" y="250" width="12" height="12" />
+      <rect x="158" y="226" width="12" height="12" />
+      <rect x="134" y="262" width="12" height="12" />
+    </g>
+
+    <!-- ANIMATED OUTER PIXELS ONLY: Flying from outside to build the pear -->
+    <g class="pixel pear-cyan" filter="url(#cyan-glow)">
+      <rect class="fly-pixel" style="--fly-x: -180px; --fly-y: -120px; --delay: 0.1s;" x="110" y="226" width="12" height="12" />
+      <rect class="fly-pixel" style="--fly-x: -220px; --fly-y: -40px;  --delay: 0.2s;" x="122" y="250" width="12" height="12" />
+      <rect class="fly-pixel" style="--fly-x: -160px; --fly-y: 100px;  --delay: 0.3s;" x="134" y="214" width="12" height="12" />
+      <rect class="fly-pixel" style="--fly-x: -200px; --fly-y: 150px;  --delay: 0.4s;" x="134" y="298" width="12" height="12" />
+      <rect class="fly-pixel" style="--fly-x: -140px; --fly-y: -200px; --delay: 0.25s;" x="146" y="238" width="12" height="12" />
+      <rect class="fly-pixel" style="--fly-x: -120px; --fly-y: 180px;  --delay: 0.35s;" x="146" y="274" width="12" height="12" />
+      <rect class="fly-pixel" style="--fly-x: -250px; --fly-y: 30px;   --delay: 0.15s;" x="158" y="202" width="12" height="12" />
+      <rect class="fly-pixel" style="--fly-x: -110px; --fly-y: -160px; --delay: 0.45s;" x="158" y="262" width="12" height="12" />
+      <rect class="fly-pixel" style="--fly-x: -90px;  --fly-y: -220px; --delay: 0.5s;"  x="170" y="226" width="12" height="12" />
+      <rect class="fly-pixel" style="--fly-x: -130px; --fly-y: 210px;  --delay: 0.55s;" x="170" y="286" width="12" height="12" />
+    </g>
+
+    <!-- CYBERPEAR Text (Static) -->
+    <text x="240" y="440"
+          font-family="monospace"
+          font-size="48"
+          font-weight="900"
+          letter-spacing="8"
+          fill="url(#text-grad)"
+          text-anchor="middle"
+          filter="url(#text-glow)">CYBERPEAR</text>
+  </g>
+</svg>
+
