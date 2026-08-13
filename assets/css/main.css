@@ -14,7 +14,7 @@
   --gold-transcend: #D4AF37;
   --text-main: #e0ffff;
   --text-muted: #88aaaa;
-  --font-mono: 'Courier New', Monaco, monospace;
+  --font-mono: 'Courier New', Courier, monospace;
 }
 
 html {
@@ -28,44 +28,46 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   position: relative;
-  background: #040808 url('../images/cpong_header.png') no-repeat center center fixed;
-  background-size: cover;
-  font-family: var(--font-mono);
-  color: var(--text-main);
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
 
+/* --- CRT SCANLINE & GRID BACKGROUND --- */
 body::before {
   content: "";
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(4, 8, 8, 0.85);
-  z-index: 0;
+  position: fixed;
+  top: 0; 
+  left: 0; 
+  width: 100vw; 
+  height: 100vh;
+  background: 
+    radial-gradient(circle at center, rgba(212, 175, 55, 0.03) 0%, transparent 70%),
+    radial-gradient(circle at center, rgba(26, 255, 255, 0.05) 0%, transparent 75%),
+    linear-gradient(rgba(26, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 24px 24px, 24px 24px;
+  z-index: -2;
+  pointer-events: none;
 }
 
-/* --- MOBILE VIEWPORT FRAME --- */
-#mobile-viewport {
-  width: 100%;
-  max-width: 420px;
-  height: 100%;
-  height: 100dvh;
-  max-height: 100dvh;
-  background-color: rgba(8, 16, 16, 0.95);
-  border: 2px solid var(--cyan-neon);
-  box-shadow: 0 0 30px rgba(26, 255, 255, 0.3);
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+body::after {
+  content: " ";
+  position: fixed;
+  top: 0; 
+  left: 0; 
+  width: 100vw; 
+  height: 100vh;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%);
+  background-size: 100% 4px;
+  z-index: 999;
+  pointer-events: none;
+  opacity: 0.7;
 }
 
 /* --- NAVIGATION BAR --- */
 nav {
   position: fixed;
-  top: 0; left: 0; width: 100%;
+  top: 0; 
+  left: 0; 
+  width: 100%;
   background: rgba(4, 10, 10, 0.92);
   border-bottom: 2px solid var(--cyan-neon);
   backdrop-filter: blur(6px);
@@ -87,6 +89,7 @@ nav {
 .nav-logo {
   width: 32px;
   height: 32px;
+  animation: logoPulse 2.5s ease-in-out infinite alternate;
 }
 
 .nav-title {
@@ -152,7 +155,7 @@ section {
   letter-spacing: 2px;
 }
 
-/* --- HERO SECTION --- */
+/* --- HERO SECTION & LOGO ANIMATIONS --- */
 .hero {
   text-align: center;
   align-items: center;
@@ -163,6 +166,45 @@ section {
   max-width: 320px;
   height: auto;
   filter: drop-shadow(0 0 18px rgba(26, 255, 255, 0.4));
+  animation: floatLogo 6s ease-in-out infinite alternate;
+}
+
+@keyframes floatLogo {
+  0% {
+    transform: translateY(0px) scale(1);
+    filter: drop-shadow(0 0 15px rgba(26, 255, 255, 0.3));
+  }
+  50% {
+    transform: translateY(-10px) scale(1.02);
+    filter: drop-shadow(0 0 25px rgba(212, 175, 55, 0.6));
+  }
+  100% {
+    transform: translateY(4px) scale(0.99);
+    filter: drop-shadow(0 0 20px rgba(26, 255, 255, 0.5));
+  }
+}
+
+.pear-cyan {
+  animation: cyanGlowPulse 2s ease-in-out infinite alternate;
+}
+
+.pear-gold {
+  animation: goldGlowPulse 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes cyanGlowPulse {
+  0% { opacity: 0.7; transform: scale(1); }
+  100% { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes goldGlowPulse {
+  0% { opacity: 0.5; filter: drop-shadow(0 0 2px #D4AF37); }
+  100% { opacity: 1; filter: drop-shadow(0 0 12px #D4AF37); }
+}
+
+@keyframes logoPulse {
+  0% { transform: scale(1); filter: drop-shadow(0 0 5px var(--cyan-neon)); }
+  100% { transform: scale(1.1); filter: drop-shadow(0 0 12px var(--gold-transcend)); }
 }
 
 .hero h1 {
@@ -180,6 +222,12 @@ section {
   color: var(--gold-transcend);
   text-shadow: 0 0 6px var(--gold-transcend);
   letter-spacing: 3px;
+  animation: goldPulse 3s infinite alternate;
+}
+
+@keyframes goldPulse {
+  0% { opacity: 0.7; text-shadow: 0 0 4px var(--gold-transcend); }
+  100% { opacity: 1; text-shadow: 0 0 12px var(--gold-transcend); }
 }
 
 .hero-desc {
@@ -213,7 +261,7 @@ section {
   box-shadow: 0 0 25px var(--gold-transcend);
 }
 
-/* --- GRID / CARDS --- */
+/* --- GRID & CARDS --- */
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -275,6 +323,35 @@ p.body-text {
   color: var(--gold-transcend);
   font-weight: bold;
   text-shadow: 0 0 5px rgba(212, 175, 55, 0.4);
+}
+
+/* --- SVG BANNERS & ANIMATIONS --- */
+.section-svg-banner {
+  width: 100%;
+  max-width: 450px;
+  height: auto;
+  margin: 20px auto 0;
+  display: block;
+}
+
+.cog-spin {
+  transform-origin: center;
+  animation: spin 12s linear infinite;
+}
+
+.cog-reverse {
+  transform-origin: center;
+  animation: spin-reverse 8s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: translate(110px, 90px) rotate(0deg); }
+  to { transform: translate(110px, 90px) rotate(360deg); }
+}
+
+@keyframes spin-reverse {
+  from { transform: translate(185px, 125px) rotate(0deg); }
+  to { transform: translate(185px, 125px) rotate(-360deg); }
 }
 
 /* --- INTERACTIVE TERMINAL CONSOLE --- */
@@ -352,10 +429,10 @@ footer {
   font-size: 0.78rem;
 }
 
+/* --- RESPONSIVE MOBILE ADJUSTMENTS --- */
 @media (max-width: 768px) {
   .nav-links { display: none; }
   section { padding-top: 85px; }
   .section-title { font-size: 1.4rem; }
   .hero h1 { font-size: 1.6rem; }
-  }
-
+}
