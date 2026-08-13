@@ -1,4 +1,6 @@
-/* --- CSS RESET & BASE STYLES --- */
+/* ==========================================================================
+   1. CSS RESET & VARIABLES
+   ========================================================================== */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -13,8 +15,8 @@
   --yellow-glow: #ffff00;
   --gold-transcend: #D4AF37;
   --text-main: #e0ffff;
-  --text-muted: #99cccc; /* Slightly brighter for better contrast */
-  --font-mono: 'Courier New', Courier, monospace;
+  --text-muted: #99cccc;
+  --font-mono: 'Courier New', Monaco, monospace;
 }
 
 html {
@@ -22,7 +24,7 @@ html {
   background-color: var(--bg-color);
   color: var(--text-main);
   font-family: var(--font-mono);
-  font-size: 16px; /* Base rem scaling */
+  font-size: 16px;
 }
 
 body {
@@ -34,11 +36,13 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 1.05rem; /* Upgraded base body font size */
-  line-height: 1.6;
+  font-size: 1.05rem;
+  line-height: 1.65;
 }
 
-/* --- CRT SCANLINE, GRID & OVERLAY BACKGROUND --- */
+/* ==========================================================================
+   2. BACKGROUND OVERLAYS (CRT SCANLINES & GRID)
+   ========================================================================== */
 body::before {
   content: "";
   position: fixed;
@@ -70,10 +74,12 @@ body::after {
   background-size: 100% 4px;
   z-index: 999;
   pointer-events: none;
-  opacity: 0.5; /* Slightly reduced scanline intensity for easier reading */
+  opacity: 0.5;
 }
 
-/* --- NAVIGATION BAR --- */
+/* ==========================================================================
+   3. NAVIGATION BAR
+   ========================================================================== */
 nav {
   position: fixed;
   top: 0;
@@ -106,7 +112,7 @@ nav {
 .nav-title {
   color: var(--pink-neon);
   font-weight: 900;
-  font-size: 1.35rem; /* Increased size */
+  font-size: 1.35rem;
   letter-spacing: 2px;
   text-shadow: 0 0 8px var(--pink-neon);
 }
@@ -120,7 +126,7 @@ nav {
 .nav-links a {
   color: var(--cyan-neon);
   text-decoration: none;
-  font-size: 0.98rem; /* Increased size */
+  font-size: 0.98rem;
   font-weight: bold;
   text-transform: uppercase;
   padding: 8px 12px;
@@ -144,7 +150,9 @@ nav {
   box-shadow: 0 0 12px rgba(212, 175, 55, 0.5);
 }
 
-/* --- LAYOUT CONTAINERS & SECTIONS --- */
+/* ==========================================================================
+   4. LAYOUT SECTIONS & HERO
+   ========================================================================== */
 section {
   min-height: 100vh;
   padding: 120px 20px 60px;
@@ -155,10 +163,11 @@ section {
   justify-content: center;
   position: relative;
   z-index: 1;
+  width: 100%;
 }
 
 .section-title {
-  font-size: 2.1rem; /* Increased size */
+  font-size: 2.1rem;
   color: var(--pink-neon);
   text-shadow: 0 0 10px var(--pink-neon);
   margin-bottom: 28px;
@@ -168,7 +177,6 @@ section {
   letter-spacing: 2.5px;
 }
 
-/* --- HERO SECTION --- */
 .hero {
   display: flex;
   flex-direction: column;
@@ -192,7 +200,7 @@ section {
 }
 
 .hero h1 {
-  font-size: 2.6rem; /* Increased size */
+  font-size: 2.6rem;
   color: var(--cyan-neon);
   text-shadow: 0 0 12px var(--cyan-neon);
   text-transform: uppercase;
@@ -202,7 +210,7 @@ section {
 
 .hero-subtitle {
   margin-top: 12px;
-  font-size: 1.15rem; /* Increased size */
+  font-size: 1.15rem;
   color: var(--gold-transcend);
   text-shadow: 0 0 6px var(--gold-transcend);
   letter-spacing: 3px;
@@ -212,7 +220,7 @@ section {
 .hero-desc {
   max-width: 760px;
   margin: 22px auto;
-  font-size: 1.12rem; /* Increased size */
+  font-size: 1.12rem;
   line-height: 1.7;
   color: #d8f5f5;
 }
@@ -226,7 +234,7 @@ section {
   color: var(--gold-transcend);
   font-family: inherit;
   font-weight: bold;
-  font-size: 1.1rem; /* Increased size */
+  font-size: 1.1rem;
   text-transform: uppercase;
   text-decoration: none;
   cursor: pointer;
@@ -240,18 +248,9 @@ section {
   box-shadow: 0 0 25px var(--gold-transcend);
 }
 
-/* --- LOGO & GLOW KEYFRAME ANIMATIONS --- */
-@keyframes logoPulse {
-  0% { transform: scale(1); filter: drop-shadow(0 0 5px var(--cyan-neon)); }
-  100% { transform: scale(1.1); filter: drop-shadow(0 0 12px var(--gold-transcend)); }
-}
-
-@keyframes goldPulse {
-  0% { opacity: 0.7; text-shadow: 0 0 4px var(--gold-transcend); }
-  100% { opacity: 1; text-shadow: 0 0 12px var(--gold-transcend); }
-}
-
-/* --- GRID & CARD COMPONENTS --- */
+/* ==========================================================================
+   5. CARDS & GRID COMPONENTS
+   ========================================================================== */
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -276,12 +275,12 @@ section {
 .card h3 {
   color: var(--yellow-glow);
   margin-bottom: 14px;
-  font-size: 1.25rem; /* Increased size */
+  font-size: 1.25rem;
   text-transform: uppercase;
 }
 
 .card p {
-  font-size: 1.05rem; /* Increased size */
+  font-size: 1.05rem;
   line-height: 1.6;
   color: #d8f5f5;
 }
@@ -301,9 +300,11 @@ section {
   text-shadow: 0 0 6px var(--gold-transcend);
 }
 
-/* --- TYPOGRAPHY & READABILITY ENHANCEMENTS --- */
+/* ==========================================================================
+   6. TYPOGRAPHY, BUTTONS & CODE BLOCKS
+   ========================================================================== */
 p.body-text {
-  font-size: 1.1rem; /* Increased size */
+  font-size: 1.1rem;
   line-height: 1.7;
   color: var(--text-main);
   margin-bottom: 18px;
@@ -318,12 +319,12 @@ p.body-text {
 .title { 
   color: var(--pink-neon); 
   font-weight: bold; 
-  font-size: 1.25rem; /* Increased size */
+  font-size: 1.25rem; 
   text-shadow: 0 0 8px var(--pink-neon); 
 }
 
 .score-board { 
-  font-size: 0.98rem; /* Increased size */
+  font-size: 0.98rem; 
   color: var(--cyan-neon); 
   font-weight: bold; 
   text-shadow: 0 0 5px var(--cyan-neon); 
@@ -336,7 +337,7 @@ p.body-text {
 }
 
 .header-action-status { 
-  font-size: 0.9rem; /* Increased size */
+  font-size: 0.9rem; 
   color: var(--yellow-glow); 
   background: #040808; 
   border: 1px solid var(--cyan-neon); 
@@ -348,15 +349,14 @@ p.body-text {
   justify-content: center; 
 }
 
-/* --- BUTTONS & ALERTS --- */
 .btn { 
   background: #081010; 
   border: 1px solid var(--cyan-neon); 
   color: var(--cyan-neon); 
-  padding: 14px 16px; /* Larger hit area */
+  padding: 14px 16px; 
   margin: 6px 0; 
   font-family: inherit; 
-  font-size: 0.95rem; /* Increased size */
+  font-size: 0.95rem; 
   font-weight: bold;
   cursor: pointer; 
   text-transform: uppercase; 
@@ -378,65 +378,30 @@ p.body-text {
   text-align: center; 
   padding: 8px; 
   font-weight: bold; 
-  font-size: 0.95rem; /* Increased size */
+  font-size: 0.95rem; 
   animation: flash 0.5s infinite alternate; 
   cursor: pointer; 
   margin-bottom: 8px; 
   flex-shrink: 0; 
 } 
 
-@keyframes flash { 
-  from { opacity: 1; } 
-  to { opacity: 0.3; } 
-}
-
-/* CODE / READING BOX ENHANCEMENT */
 .code-box { 
   background: #040808; 
   border: 1px solid #336666; 
   padding: 14px; 
-  font-size: 0.98rem; /* Significantly increased for reading readability */
+  font-size: 0.98rem; 
   color: var(--yellow-glow); 
   white-space: pre-wrap; 
   margin-bottom: 12px; 
-  line-height: 1.6; /* Higher line spacing */
+  line-height: 1.6; 
   max-height: 220px; 
   overflow-y: auto; 
   flex-shrink: 0; 
 }
 
-.feedback { 
-  min-height: 28px; 
-  margin-top: 6px; 
-  margin-bottom: 6px; 
-  font-size: 0.95rem; /* Increased size */
-  text-align: center; 
-  font-weight: bold; 
-  flex-shrink: 0; 
-} 
-
-.correct { color: #00FF66; } 
-.wrong { color: #FF1A75; } 
-
-.task-meta { 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center; 
-  font-size: 0.88rem; /* Increased size */
-  color: var(--text-muted); 
-  margin-bottom: 8px; 
-  flex-shrink: 0; 
-} 
-
-.timer-badge { 
-  color: #FF1A75; 
-  font-weight: bold; 
-  border: 1px solid #FF1A75; 
-  padding: 4px 8px; 
-  border-radius: 3px; 
-}
-
-/* --- INTERACTIVE SCREENS & VIEWPORTS --- */
+/* ==========================================================================
+   7. INTERACTIVE VIEWPORTS & TERMINAL
+   ========================================================================== */
 #mobile-viewport { 
   width: 100%; 
   max-width: 440px; 
@@ -476,7 +441,6 @@ p.body-text {
   margin-bottom: 10px; 
 }
 
-/* --- INTERACTIVE TERMINAL CONSOLE --- */
 .terminal-container {
   background: #020505;
   border: 2px solid var(--cyan-neon);
@@ -484,6 +448,7 @@ p.body-text {
   border-radius: 4px;
   overflow: hidden;
   margin-top: 24px;
+  width: 100%;
 }
 
 .terminal-header {
@@ -492,7 +457,7 @@ p.body-text {
   padding: 10px 16px;
   display: flex;
   justify-content: space-between;
-  font-size: 0.9rem; /* Increased size */
+  font-size: 0.9rem;
   color: var(--cyan-neon);
 }
 
@@ -501,7 +466,7 @@ p.body-text {
   min-height: 240px;
   max-height: 360px;
   overflow-y: auto;
-  font-size: 0.98rem; /* Increased size for comfortable reading */
+  font-size: 0.98rem;
   line-height: 1.6;
 }
 
@@ -526,15 +491,35 @@ p.body-text {
   outline: none;
   color: var(--yellow-glow);
   font-family: inherit;
-  font-size: 0.98rem; /* Increased input font size */
+  font-size: 0.98rem;
 }
 
-/* --- FOOTER --- */
+/* ==========================================================================
+   8. ANIMATION KEYFRAMES
+   ========================================================================== */
+@keyframes logoPulse {
+  0% { transform: scale(1); filter: drop-shadow(0 0 5px var(--cyan-neon)); }
+  100% { transform: scale(1.1); filter: drop-shadow(0 0 12px var(--gold-transcend)); }
+}
+
+@keyframes goldPulse {
+  0% { opacity: 0.7; text-shadow: 0 0 4px var(--gold-transcend); }
+  100% { opacity: 1; text-shadow: 0 0 12px var(--gold-transcend); }
+}
+
+@keyframes flash { 
+  from { opacity: 1; } 
+  to { opacity: 0.3; } 
+}
+
+/* ==========================================================================
+   9. FOOTER
+   ========================================================================== */
 footer {
   border-top: 1px solid #1a3a3a;
   background: #020505;
   padding: 28px 20px;
-  font-size: 0.9rem; /* Increased size */
+  font-size: 0.9rem;
   color: var(--text-muted);
   display: flex;
   flex-direction: column;
@@ -550,14 +535,20 @@ footer {
   gap: 20px;
   flex-wrap: wrap;
   justify-content: center;
-  font-size: 0.88rem; /* Increased size */
+  font-size: 0.88rem;
 }
 
-/* --- MEDIA QUERIES --- */
+/* ==========================================================================
+   10. MEDIA QUERIES (DESKTOP GRID & MOBILE REPAIR)
+   ========================================================================== */
+
+/* DESKTOP VIEW (2-COLUMN CYBERPUNK LAYOUT) */
 @media (min-width: 992px) {
-  .hero {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+  .hero,
+  .two-column,
+  .grid-2col {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
     align-items: center;
     text-align: left;
     gap: 40px;
@@ -578,9 +569,49 @@ footer {
   }
 }
 
-@media (max-width: 768px) {
-  .nav-links { display: none; }
-  section { padding-top: 95px; }
+/* MOBILE REPAIR & OVERFLOW FIXES (UP TO 991PX) */
+@media (max-width: 991px) {
+  .nav-links { 
+    display: none; 
+  }
+
+  /* Force single vertical column layout on mobile to prevent narrow pillars */
+  .hero, 
+  section,
+  .two-column,
+  .grid-2col {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    gap: 32px !important;
+  }
+
+  /* Prevent text squeeze and enforce line wrapping */
+  p, 
+  .hero-desc, 
+  .body-text, 
+  .section-title {
+    width: 100% !important;
+    max-width: 100% !important;
+    text-align: left;
+    hyphens: auto;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Keep full-width component bounds */
+  .terminal-container,
+  .card,
+  .code-box {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
   .section-title { font-size: 1.6rem; }
   .hero h1 { font-size: 1.8rem; }
-}
+  }
