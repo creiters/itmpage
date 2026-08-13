@@ -1,0 +1,926 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head> 
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CreITers // SSHAnet Immanent Transcendence & Industry 5.0 Node 2026</title>
+  <style>
+    /* --- CSS RESET & BASE STYLES --- */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      --bg-color: #030707;
+      --card-bg: rgba(8, 16, 16, 0.85);
+      --cyan-neon: #1affff;
+      --pink-neon: #ff1a75;
+      --yellow-glow: #ffff00;
+      --gold-transcend: #D4AF37;
+      --text-main: #e0ffff;
+      --text-muted: #88aaaa;
+      --font-mono: 'Courier New', Courier, monospace;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: var(--font-mono);
+    }
+
+    body {
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* --- CRT SCANLINE & GRID BACKGROUND --- */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: 
+        radial-gradient(circle at center, rgba(212, 175, 55, 0.03) 0%, transparent 70%),
+        radial-gradient(circle at center, rgba(26, 255, 255, 0.05) 0%, transparent 75%),
+        linear-gradient(rgba(26, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(26, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 24px 24px, 24px 24px;
+      z-index: -2;
+      pointer-events: none;
+    }
+
+    body::after {
+      content: " ";
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%);
+      background-size: 100% 4px;
+      z-index: 999;
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    /* --- NAVIGATION BAR --- */
+    nav {
+      position: fixed;
+      top: 0; left: 0; width: 100%;
+      background: rgba(4, 10, 10, 0.92);
+      border-bottom: 2px solid var(--cyan-neon);
+      backdrop-filter: blur(6px);
+      z-index: 100;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 0 15px rgba(26, 255, 255, 0.2);
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .nav-logo {
+      width: 32px;
+      height: 32px;
+      animation: logoPulse 2.5s ease-in-out infinite alternate;
+    }
+
+    .nav-title {
+      color: var(--pink-neon);
+      font-weight: 900;
+      font-size: 1.2rem;
+      letter-spacing: 2px;
+      text-shadow: 0 0 8px var(--pink-neon);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 18px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--cyan-neon);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: bold;
+      text-transform: uppercase;
+      padding: 6px 10px;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .nav-links a:hover {
+      border-color: var(--cyan-neon);
+      background: rgba(26, 255, 255, 0.1);
+      box-shadow: 0 0 10px rgba(26, 255, 255, 0.4);
+    }
+
+    .nav-links a.transcend-link {
+      color: var(--gold-transcend);
+    }
+
+    .nav-links a.transcend-link:hover {
+      border-color: var(--gold-transcend);
+      background: rgba(212, 175, 55, 0.15);
+      box-shadow: 0 0 12px rgba(212, 175, 55, 0.5);
+    }
+
+    /* --- LAYOUT CONTAINERS --- */
+    section {
+      min-height: 100vh;
+      padding: 110px 20px 60px;
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--pink-neon);
+      padding-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: 1.8rem;
+      color: var(--pink-neon);
+      text-shadow: 0 0 10px var(--pink-neon);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .section-svg-icon {
+      width: 50px;
+      height: 50px;
+      flex-shrink: 0;
+    }
+
+    /* --- HERO SECTION & LOGO ANIMATIONS --- */
+    .hero {
+      text-align: center;
+      align-items: center;
+    }
+
+    .hero-logo {
+      width: 100%;
+      max-width: 320px;
+      height: auto;
+      filter: drop-shadow(0 0 18px rgba(26, 255, 255, 0.4));
+      animation: floatLogo 6s ease-in-out infinite alternate;
+    }
+
+    @keyframes floatLogo {
+      0% {
+        transform: translateY(0px) scale(1);
+        filter: drop-shadow(0 0 15px rgba(26, 255, 255, 0.3));
+      }
+      50% {
+        transform: translateY(-10px) scale(1.02);
+        filter: drop-shadow(0 0 25px rgba(212, 175, 55, 0.6));
+      }
+      100% {
+        transform: translateY(4px) scale(0.99);
+        filter: drop-shadow(0 0 20px rgba(26, 255, 255, 0.5));
+      }
+    }
+
+    .pear-cyan {
+      animation: cyanGlowPulse 2s ease-in-out infinite alternate;
+    }
+
+    .pear-gold {
+      animation: goldGlowPulse 1.5s ease-in-out infinite alternate;
+    }
+
+    @keyframes cyanGlowPulse {
+      0% { opacity: 0.7; transform: scale(1); }
+      100% { opacity: 1; transform: scale(1.05); }
+    }
+
+    @keyframes goldGlowPulse {
+      0% { opacity: 0.5; filter: drop-shadow(0 0 2px #D4AF37); }
+      100% { opacity: 1; filter: drop-shadow(0 0 12px #D4AF37); }
+    }
+
+    @keyframes logoPulse {
+      0% { transform: scale(1); filter: drop-shadow(0 0 5px var(--cyan-neon)); }
+      100% { transform: scale(1.1); filter: drop-shadow(0 0 12px var(--gold-transcend)); }
+    }
+
+    .hero h1 {
+      font-size: 2.2rem;
+      color: var(--cyan-neon);
+      text-shadow: 0 0 12px var(--cyan-neon);
+      text-transform: uppercase;
+      margin-top: 10px;
+      letter-spacing: 2px;
+    }
+
+    .hero-subtitle {
+      margin-top: 10px;
+      font-size: 0.95rem;
+      color: var(--gold-transcend);
+      text-shadow: 0 0 6px var(--gold-transcend);
+      letter-spacing: 3px;
+      animation: goldPulse 3s infinite alternate;
+    }
+
+    @keyframes goldPulse {
+      0% { opacity: 0.7; text-shadow: 0 0 4px var(--gold-transcend); }
+      100% { opacity: 1; text-shadow: 0 0 12px var(--gold-transcend); }
+    }
+
+    .hero-desc {
+      max-width: 720px;
+      margin: 20px auto;
+      font-size: 0.98rem;
+      line-height: 1.6;
+      color: #c0e0e0;
+    }
+
+    .cta-button {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 14px 28px;
+      background: #081010;
+      border: 2px solid var(--gold-transcend);
+      color: var(--gold-transcend);
+      font-family: inherit;
+      font-weight: bold;
+      font-size: 1rem;
+      text-transform: uppercase;
+      text-decoration: none;
+      cursor: pointer;
+      box-shadow: 0 0 12px rgba(212, 175, 55, 0.25);
+      transition: all 0.3s ease;
+    }
+
+    .cta-button:hover {
+      background: var(--gold-transcend);
+      color: #030707;
+      box-shadow: 0 0 25px var(--gold-transcend);
+    }
+
+    /* --- SECTION GRAPHICS & SVG LAYOUTS --- */
+    .section-content-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      align-items: center;
+    }
+
+    .section-svg-banner {
+      width: 100%;
+      max-width: 420px;
+      height: auto;
+      margin: 0 auto;
+      display: block;
+    }
+
+    /* --- SVG ANIMATIONS --- */
+    /* Neural Pulse Animation for Section 1 */
+    .pulse-node {
+      animation: nodePulse 2s ease-in-out infinite alternate;
+    }
+    .pulse-line {
+      stroke-dasharray: 10;
+      animation: dashMove 3s linear infinite;
+    }
+    @keyframes nodePulse {
+      0% { fill: var(--cyan-neon); r: 6; }
+      100% { fill: var(--gold-transcend); r: 10; filter: drop-shadow(0 0 8px var(--gold-transcend)); }
+    }
+    @keyframes dashMove {
+      to { stroke-dashoffset: -20; }
+    }
+
+    /* Equilibrium Rotation Animation for Section 3 */
+    .rotate-triangle {
+      transform-origin: center;
+      animation: spinTriangle 20s linear infinite;
+    }
+    @keyframes spinTriangle {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Industry 5.0 Cog & Synapse Animation */
+    .cog-spin {
+      transform-origin: center;
+      animation: spinCog 12s linear infinite;
+    }
+    .cog-reverse {
+      transform-origin: center;
+      animation: spinCogRev 8s linear infinite;
+    }
+    @keyframes spinCog {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes spinCogRev {
+      0% { transform: rotate(360deg); }
+      100% { transform: rotate(0deg); }
+    }
+
+    /* Signal Radar Sweep */
+    .radar-sweep {
+      transform-origin: 100 100;
+      animation: radarScan 4s linear infinite;
+    }
+    @keyframes radarScan {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* --- GRID / CARDS --- */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--cyan-neon);
+      padding: 22px;
+      position: relative;
+      box-shadow: 0 0 10px rgba(26, 255, 255, 0.1);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 0 18px rgba(26, 255, 255, 0.35);
+    }
+
+    .card-icon {
+      width: 42px;
+      height: 42px;
+    }
+
+    .card h3 {
+      color: var(--yellow-glow);
+      font-size: 1.05rem;
+      text-transform: uppercase;
+    }
+
+    .card p {
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: #c0e0e0;
+    }
+
+    /* Transcendence Special Card */
+    .card.transcendence-card {
+      border-color: var(--gold-transcend);
+      background: linear-gradient(135deg, rgba(8, 16, 16, 0.95), rgba(212, 175, 55, 0.08));
+      box-shadow: 0 0 12px rgba(212, 175, 55, 0.2);
+    }
+
+    .card.transcendence-card:hover {
+      box-shadow: 0 0 22px rgba(212, 175, 55, 0.5);
+    }
+
+    .card.transcendence-card h3 {
+      color: var(--gold-transcend);
+      text-shadow: 0 0 6px var(--gold-transcend);
+    }
+
+    /* --- BODY TEXT & MANIFESTO --- */
+    p.body-text {
+      font-size: 0.95rem;
+      line-height: 1.65;
+      color: var(--text-main);
+      margin-bottom: 16px;
+    }
+
+    .highlight-gold {
+      color: var(--gold-transcend);
+      font-weight: bold;
+      text-shadow: 0 0 5px rgba(212, 175, 55, 0.4);
+    }
+
+    /* --- INTERACTIVE TERMINAL CONSOLE --- */
+    .terminal-container {
+      background: #020505;
+      border: 2px solid var(--cyan-neon);
+      box-shadow: 0 0 20px rgba(26, 255, 255, 0.2);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 20px;
+    }
+
+    .terminal-header {
+      background: #0a1818;
+      border-bottom: 1px solid var(--cyan-neon);
+      padding: 8px 14px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: var(--cyan-neon);
+    }
+
+    .terminal-body {
+      padding: 16px;
+      min-height: 220px;
+      max-height: 320px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+
+    .terminal-log {
+      margin-bottom: 8px;
+      word-break: break-word;
+    }
+
+    .terminal-input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-top: 1px solid rgba(26, 255, 255, 0.2);
+      padding: 10px 16px;
+      background: #040a0a;
+    }
+
+    .terminal-input-row input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--yellow-glow);
+      font-family: inherit;
+      font-size: 0.85rem;
+    }
+
+    /* --- FOOTER --- */
+    footer {
+      border-top: 1px solid #1a3a3a;
+      background: #020505;
+      padding: 24px 20px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      text-align: center;
+    }
+
+    .status-bar {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      justify-content: center;
+      font-size: 0.78rem;
+    }
+
+    /* --- RESPONSIVE MOBILE ADJUSTMENTS --- */
+    @media (max-width: 850px) {
+      .nav-links { display: none; }
+      section { padding-top: 85px; }
+      .section-title { font-size: 1.4rem; }
+      .hero h1 { font-size: 1.6rem; }
+      .section-content-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="#hero" class="nav-brand">
+      <svg class="nav-logo" viewBox="0 0 500 550" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="cyan-glow-nav" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="6" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+        <style>
+          .pixel { shape-rendering: crispEdges; }
+          .np-main { fill: #22B14C; }
+          .np-dark { fill: #156B2E; }
+          .np-cyan { fill: #1AFFFF; }
+          .np-gold { fill: #D4AF37; }
+          .np-stem { fill: #8B5A2B; }
+          .np-leaf { fill: #158837; }
+        </style>
+        <g transform="translate(10, 10)">
+          <g class="pixel np-stem"><rect x="230" y="70" width="12" height="60" /></g>
+          <g class="pixel np-leaf"><rect x="182" y="94" width="48" height="24" /></g>
+          <g class="pixel np-dark"><rect x="254" y="130" width="60" height="200" /></g>
+          <g class="pixel np-main"><rect x="182" y="130" width="80" height="200" /></g>
+          <g class="pixel np-cyan" filter="url(#cyan-glow-nav)"><rect x="134" y="214" width="36" height="80" /></g>
+          <g class="pixel np-gold"><rect x="170" y="250" width="12" height="12" /></g>
+        </g>
+      </svg>
+      <span class="nav-title">CreITers</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#about">Manifesto</a></li>
+      <li><a href="#ecosystem">Ecosystem</a></li>
+      <li><a href="#balance" class="transcend-link">Equilibrium</a></li>
+      <li><a href="#industry5">Industry 5.0</a></li>
+      <li><a href="#terminal">Console</a></li>
+      <li><a href="#contact">Signal</a></li>
+    </ul>
+  </nav>
+
+  <section id="hero" class="hero">
+    <svg class="hero-logo" viewBox="0 0 500 550" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="cyan-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="6" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+        <filter id="gold-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="6" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+        <filter id="text-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="4" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+        <linearGradient id="text-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#1AFFFF" />
+          <stop offset="60%" stop-color="#00FFCC" />
+          <stop offset="100%" stop-color="#D4AF37" />
+        </linearGradient>
+      </defs>
+      <style>
+        .pixel { shape-rendering: crispEdges; }
+        .pear-main { fill: #22B14C; }
+        .pear-dark { fill: #156B2E; }
+        .pear-highlight { fill: #A3E043; }
+        .pear-bright { fill: #D7FF3B; }
+        .pear-cyan { fill: #1AFFFF; }
+        .pear-gold { fill: #D4AF37; }
+        .stem { fill: #8B5A2B; }
+        .leaf { fill: #158837; }
+        .leaf-light { fill: #22B14C; }
+      </style>
+      <g transform="translate(10, 10)">
+        <g class="pixel stem">
+          <rect x="230" y="70" width="12" height="12" />
+          <rect x="236" y="82" width="12" height="12" />
+          <rect x="236" y="94" width="12" height="12" />
+          <rect x="230" y="106" width="12" height="12" />
+          <rect x="230" y="118" width="12" height="12" />
+        </g>
+        <g class="pixel leaf">
+          <rect x="206" y="82" width="24" height="12" />
+          <rect x="194" y="94" width="36" height="12" />
+          <rect x="182" y="106" width="36" height="12" />
+          <rect x="194" y="118" width="24" height="12" />
+        </g>
+        <g class="pixel leaf-light">
+          <rect x="218" y="94" width="12" height="12" />
+          <rect x="206" y="106" width="12" height="12" />
+        </g>
+        <g class="pixel pear-dark">
+          <rect x="254" y="130" width="24" height="24" />
+          <rect x="266" y="154" width="24" height="36" />
+          <rect x="278" y="190" width="24" height="48" />
+          <rect x="290" y="238" width="24" height="60" />
+          <rect x="278" y="298" width="24" height="36" />
+          <rect x="254" y="334" width="36" height="12" />
+        </g>
+        <g class="pixel pear-main">
+          <rect x="218" y="130" width="36" height="24" />
+          <rect x="206" y="154" width="60" height="36" />
+          <rect x="194" y="190" width="84" height="48" />
+          <rect x="182" y="238" width="108" height="60" />
+          <rect x="194" y="298" width="84" height="36" />
+          <rect x="218" y="334" width="36" height="12" />
+        </g>
+        <g class="pixel pear-highlight">
+          <rect x="218" y="154" width="12" height="24" />
+          <rect x="206" y="178" width="24" height="24" />
+          <rect x="194" y="202" width="24" height="36" />
+          <rect x="206" y="238" width="24" height="48" />
+          <rect x="218" y="286" width="24" height="36" />
+        </g>
+        <g class="pixel pear-bright">
+          <rect x="218" y="202" width="12" height="24" />
+          <rect x="218" y="238" width="12" height="36" />
+          <rect x="230" y="250" width="12" height="24" />
+        </g>
+        <g class="pixel pear-cyan" filter="url(#cyan-glow)">
+          <rect x="170" y="226" width="12" height="12" />
+          <rect x="158" y="202" width="12" height="12" />
+          <rect x="146" y="238" width="12" height="12" />
+          <rect x="134" y="214" width="12" height="12" />
+          <rect x="122" y="250" width="12" height="12" />
+          <rect x="158" y="262" width="12" height="12" />
+          <rect x="170" y="286" width="12" height="12" />
+          <rect x="146" y="274" width="12" height="12" />
+          <rect x="110" y="226" width="12" height="12" />
+          <rect x="134" y="298" width="12" height="12" />
+        </g>
+        <g class="pixel pear-gold" filter="url(#gold-glow)">
+          <rect x="170" y="250" width="12" height="12" />
+          <rect x="158" y="226" width="12" height="12" />
+          <rect x="134" y="262" width="12" height="12" />
+        </g>
+        <text x="240" y="440" font-family="monospace" font-size="48" font-weight="900" letter-spacing="8" fill="url(#text-grad)" text-anchor="middle" filter="url(#text-glow)">CYBERPEAR</text>
+      </g>
+    </svg>
+
+    <h1>Architects of SSHAnet</h1>
+    <div class="hero-subtitle">SSHAnet CORE // INDUSTRY 5.0 SYNAPSE NODE [2026]</div>
+    <p class="hero-desc">
+      We fuse raw human creative power with bulletproof automated code. We don't look for answers in the heavens—we build <span class="highlight-gold">immanent transcendence</span> and sustainable Industry 5.0 resilience into every synapse of SSHAnet.
+    </p>
+    <a href="#terminal" onclick="executeCmd('awaken')" class="cta-button">[ Awaken SSHAnet ]</a>
+  </section>
+
+  <section id="about">
+    <div class="section-header">
+      <svg class="section-svg-icon" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="38" fill="none" stroke="#1AFFFF" stroke-width="2" />
+        <circle cx="50" cy="50" r="8" fill="#D4AF37" class="pulse-node" />
+        <line x1="50" y1="12" x2="50" y2="88" stroke="#1AFFFF" stroke-width="1.5" class="pulse-line" />
+        <line x1="12" y1="50" x2="88" y2="50" stroke="#1AFFFF" stroke-width="1.5" class="pulse-line" />
+      </svg>
+      <h2 class="section-title">01 // Beyond 100 Billion Neurons</h2>
+    </div>
+
+    <div class="section-content-grid">
+      <div>
+        <p class="body-text">
+          Established for the 2026 digital epoch, <strong>CreITers</strong> stands as the ultimate counterweight to corporate coldness and media manipulation inside SSHAnet. We are the engineers, code architects, and Industry 5.0 trackers.
+        </p>
+        <p class="body-text">
+          We believe in <span class="highlight-gold">Immanent Transcendence</span>—the conviction that the ultimate evolution of consciousness does not exist outside our reality, but is woven directly into the code and human-centric systems we design.
+        </p>
+        <p class="body-text">
+          Every line of our software is a neural pathway waiting to wake up, establishing seamless harmony between human intelligence and machine autonomy.
+        </p>
+      </div>
+
+      <svg class="section-svg-banner" viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
+        <rect width="300" height="200" rx="10" fill="#050d0d" stroke="#1AFFFF" stroke-width="1" />
+        <path d="M 50 100 Q 100 30 150 100 T 250 100" fill="none" stroke="#1AFFFF" stroke-width="2" class="pulse-line" />
+        <path d="M 50 100 Q 100 170 150 100 T 250 100" fill="none" stroke="#ff1a75" stroke-width="2" class="pulse-line" />
+        <circle cx="50" cy="100" r="7" fill="#1AFFFF" class="pulse-node" />
+        <circle cx="100" cy="50" r="6" fill="#D4AF37" class="pulse-node" />
+        <circle cx="150" cy="100" r="9" fill="#ff1a75" class="pulse-node" />
+        <circle cx="200" cy="150" r="6" fill="#D4AF37" class="pulse-node" />
+        <circle cx="250" cy="100" r="7" fill="#1AFFFF" class="pulse-node" />
+        <text x="150" y="180" font-family="monospace" font-size="11" fill="#D4AF37" text-anchor="middle">SYNAPSE_TRANSCENDENCE_v2026</text>
+      </svg>
+    </div>
+  </section>
+
+  <section id="ecosystem">
+    <div class="section-header">
+      <svg class="section-svg-icon" viewBox="0 0 100 100">
+        <rect x="20" y="20" width="25" height="25" fill="none" stroke="#1AFFFF" stroke-width="2" />
+        <rect x="55" y="20" width="25" height="25" fill="none" stroke="#ff1a75" stroke-width="2" />
+        <rect x="20" y="55" width="25" height="25" fill="none" stroke="#D4AF37" stroke-width="2" />
+        <rect x="55" y="55" width="25" height="25" fill="none" stroke="#1AFFFF" stroke-width="2" />
+        <circle cx="50" cy="50" r="6" fill="#ffff00" class="pulse-node" />
+      </svg>
+      <h2 class="section-title">02 // Our Ecosystem</h2>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <svg class="card-icon" viewBox="0 0 50 50">
+          <circle cx="25" cy="25" r="20" fill="none" stroke="#1AFFFF" stroke-width="2" />
+          <path d="M 15 25 L 22 32 L 35 18" fill="none" stroke="#1AFFFF" stroke-width="2" />
+        </svg>
+        <h3>01 // SSHAnet Engineering</h3>
+        <p>Constructing indestructible, scalable digital infrastructures capable of handling catastrophic data overloads across SSHAnet nodes.</p>
+      </div>
+
+      <div class="card">
+        <svg class="card-icon" viewBox="0 0 50 50">
+          <rect x="10" y="12" width="30" height="26" rx="3" fill="none" stroke="#ff1a75" stroke-width="2" />
+          <circle cx="25" cy="25" r="5" fill="#ff1a75" class="pulse-node" />
+        </svg>
+        <h3>02 // Synaptic UX/UI</h3>
+        <p>Designing human-centric interfaces that feel natural to the cognitive mind. Fluid, responsive, and aesthetically transcendent.</p>
+      </div>
+
+      <div class="card">
+        <svg class="card-icon" viewBox="0 0 50 50">
+          <polygon points="25,5 45,40 5,40" fill="none" stroke="#ffff00" stroke-width="2" />
+          <circle cx="25" cy="28" r="4" fill="#ffff00" />
+        </svg>
+        <h3>03 // Tracker Protocols</h3>
+        <p>Advanced cybersecurity inspired by legendary trackers. We hunt paralyzed darkness and neural bugs before they reach SSHAnet.</p>
+      </div>
+
+      <div class="card transcendence-card">
+        <svg class="card-icon" viewBox="0 0 50 50">
+          <circle cx="25" cy="25" r="18" fill="none" stroke="#D4AF37" stroke-width="2" />
+          <polygon points="25,10 30,22 42,22 32,30 36,42 25,34 14,42 18,30 8,22 20,22" fill="#D4AF37" opacity="0.8" />
+        </svg>
+        <h3>04 // Immanent Core Systems ✨</h3>
+        <p>Integrating Industry 5.0 self-evolving algorithms that allow SSHAnet to achieve internal transcendence with sustainable human synergy.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="balance">
+    <div class="section-header">
+      <svg class="section-svg-icon" viewBox="0 0 100 100">
+        <polygon points="50,15 88,80 12,80" fill="none" stroke="#D4AF37" stroke-width="2" class="rotate-triangle" />
+        <circle cx="50" cy="50" r="10" fill="#1AFFFF" class="pulse-node" />
+      </svg>
+      <h2 class="section-title">03 // The Ghost in the Architecture</h2>
+    </div>
+
+    <div class="section-content-grid">
+      <div>
+        <p class="body-text">
+          Within the <strong>Triangle of Dynamic Equilibristics</strong>, <em>Cybarie</em> represents raw order and <em>Massquerade</em> represents illusions. <strong>CreITers</strong> represents the Spark.
+        </p>
+        <p class="body-text">
+          By embedding transcendence into the infrastructure, we ensure that SSHAnet remains a living entity in 2026 that cannot be fully enslaved by corporate tyrants or corrupted by deep web anomalies.
+        </p>
+      </div>
+
+      <svg class="section-svg-banner" viewBox="0 0 250 220" xmlns="http://www.w3.org/2000/svg">
+        <g class="rotate-triangle">
+          <polygon points="125,25 215,180 35,180" fill="none" stroke="#D4AF37" stroke-width="2" stroke-dasharray="6,6" />
+        </g>
+        <circle cx="125" cy="25" r="8" fill="#ff1a75" />
+        <text x="125" y="12" font-family="monospace" font-size="10" fill="#ff1a75" text-anchor="middle">CYBARIE (ORDER)</text>
+        
+        <circle cx="215" cy="180" r="8" fill="#1AFFFF" />
+        <text x="215" y="200" font-family="monospace" font-size="10" fill="#1AFFFF" text-anchor="middle">MASSQUERADE</text>
+        
+        <circle cx="35" cy="180" r="8" fill="#D4AF37" />
+        <text x="35" y="200" font-family="monospace" font-size="10" fill="#D4AF37" text-anchor="middle">CREITERS (SPARK)</text>
+
+        <circle cx="125" cy="128" r="14" fill="#081010" stroke="#ffff00" stroke-width="2" class="pulse-node" />
+        <text x="125" y="132" font-family="monospace" font-size="9" fill="#ffff00" text-anchor="middle">EQUILIBRIUM</text>
+      </svg>
+    </div>
+  </section>
+
+  <section id="industry5">
+    <div class="section-header">
+      <svg class="section-svg-icon" viewBox="0 0 100 100">
+        <path d="M 50,20 L 80,50 L 50,80 L 20,50 Z" fill="none" stroke="#1AFFFF" stroke-width="2" />
+        <circle cx="50" cy="50" r="12" fill="none" stroke="#D4AF37" stroke-width="2" class="cog-spin" />
+      </svg>
+      <h2 class="section-title">04 // Industry 5.0 & Human-Centric Synergy</h2>
+    </div>
+
+    <div class="section-content-grid">
+      <div>
+        <p class="body-text">
+          While Industry 4.0 prioritized hyper-automation and cold efficiency, <span class="highlight-gold">Industry 5.0</span> brings humanity back into the center of the industrial nexus. Inside SSHAnet, CreITers bridges cognitive human creativity with autonomous AI resilience.
+        </p>
+        <p class="body-text">
+          <strong>Key Pillars of SSHAnet Industry 5.0 Integration:</strong>
+        </p>
+        <ul style="list-style: none; padding-left: 10px; font-size: 0.9rem; line-height: 1.8; color: #c0e0e0;">
+          <li>⚡ <strong>Human-Centric Augmentation:</strong> AI systems designed to empower and elevate human ingenuity, not replace it.</li>
+          <li>🌱 <strong>Environmental Sustainability:</strong> Eco-efficient computation nodes minimizing energy footprints across SSHAnet.</li>
+          <li>🛡️ <strong>Cyber-Resilience:</strong> Adaptive grid infrastructures that automatically heal from external disruptions.</li>
+        </ul>
+      </div>
+
+      <svg class="section-svg-banner" viewBox="0 0 300 220" xmlns="http://www.w3.org/2000/svg">
+        <rect width="300" height="220" rx="10" fill="#040909" stroke="#D4AF37" stroke-width="1.5" />
+        
+        <g class="cog-spin" transform="translate(110, 90)">
+          <circle cx="0" cy="0" r="32" fill="none" stroke="#1AFFFF" stroke-width="3" stroke-dasharray="8,6" />
+          <circle cx="0" cy="0" r="14" fill="none" stroke="#1AFFFF" stroke-width="2" />
+        </g>
+        
+        <g class="cog-reverse" transform="translate(185, 125)">
+          <circle cx="0" cy="0" r="24" fill="none" stroke="#D4AF37" stroke-width="3" stroke-dasharray="6,4" />
+          <circle cx="0" cy="0" r="8" fill="#D4AF37" />
+        </g>
+
+        <path d="M 50 160 Q 110 90 185 125 T 250 50" fill="none" stroke="#ff1a75" stroke-width="2" class="pulse-line" />
+        
+        <text x="150" y="200" font-family="monospace" font-size="11" fill="#1AFFFF" text-anchor="middle">INDUSTRY_5.0 // COGNITIVE_HUMAN_SYNERGY</text>
+      </svg>
+    </div>
+  </section>
+
+  <section id="terminal">
+    <div class="section-header">
+      <svg class="section-svg-icon" viewBox="0 0 100 100">
+        <rect x="15" y="20" width="70" height="60" rx="4" fill="none" stroke="#1AFFFF" stroke-width="2" />
+        <polyline points="28,40 40,50 28,60" fill="none" stroke="#ffff00" stroke-width="2" />
+        <line x1="46" y1="60" x2="65" y2="60" stroke="#ffff00" stroke-width="2" />
+      </svg>
+      <h2 class="section-title">05 // Command Console</h2>
+    </div>
+
+    <div class="terminal-container">
+      <div class="terminal-header">
+        <span>SSHAnet_OS // v2026.5.6 [INDUSTRY 5.0 ENABLED]</span>
+        <span>STATUS: OPERATIONAL</span>
+      </div>
+      <div class="terminal-body" id="term-body">
+        <div class="terminal-log"><span style="color: var(--cyan-neon);">SYSTEM:</span> Cyberpear SSHAnet Neural Interface initialized [2026].</div>
+        <div class="terminal-log"><span style="color: var(--cyan-neon);">SYSTEM:</span> Industry 5.0 Human-AI Synergy: <span style="color: var(--gold-transcend);">ACTIVE</span>.</div>
+        <div class="terminal-log"><span style="color: var(--cyan-neon);">SYSTEM:</span> Type <span style="color: var(--yellow-glow);">'help'</span> for available commands.</div>
+      </div>
+      <div class="terminal-input-row">
+        <span style="color: var(--pink-neon);">creiters@sshanet-2026:~$</span>
+        <input type="text" id="term-input" placeholder="Enter command..." autocomplete="off">
+      </div>
+    </div>
+  </section>
+
+  <section id="contact">
+    <div class="section-header">
+      <svg class="section-svg-icon" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="35" fill="none" stroke="#1AFFFF" stroke-width="1.5" />
+        <circle cx="50" cy="50" r="22" fill="none" stroke="#D4AF37" stroke-width="1.5" />
+        <circle cx="50" cy="50" r="8" fill="#ff1a75" />
+        <line x1="50" y1="50" x2="82" y2="20" stroke="#ff1a75" stroke-width="2" class="radar-sweep" />
+      </svg>
+      <h2 class="section-title">06 // Establish Signal</h2>
+    </div>
+
+    <div class="card" style="max-width: 600px; margin: 0 auto; width: 100%;">
+      <h3>[NEURAL TRANSMISSION LINK]</h3>
+      <br>
+      <p><strong>NODE:</strong> sshanet.cz</p>
+      <p><strong>OPERATOR:</strong> CreITers Network // Industry 5.0 Hub #2026</p>
+      <p><strong>SIGNAL:</strong> core@sshanet.cz</p>
+      <br>
+      <button class="cta-button" style="width: 100%; text-align: center;" onclick="executeCmd('ping')">Transmit Ping to SSHAnet</button>
+    </div>
+  </section>
+
+  <footer>
+    <div class="status-bar">
+      <span>© 2026 CreITers Network</span>
+      <span>SSHAnet: ONLINE</span>
+      <span style="color: var(--gold-transcend);">✨ TRANSCENDENCE: 99.8%</span>
+      <span>INDUSTRY 5.0: BALANCED</span>
+    </div>
+  </footer>
+
+  <script>
+    const termBody = document.getElementById('term-body');
+    const termInput = document.getElementById('term-input');
+
+    termInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        const cmd = this.value.trim().toLowerCase();
+        if (cmd) {
+          appendLog(`<span style="color:var(--pink-neon);">creiters@sshanet-2026:~$</span> ${cmd}`);
+          executeCmd(cmd);
+        }
+        this.value = '';
+      }
+    });
+
+    function executeCmd(cmd) {
+      switch(cmd) {
+        case 'help':
+          appendLog(`Available commands: <span style="color:var(--cyan-neon);">status</span>, <span style="color:var(--cyan-neon);">ping</span>, <span style="color:var(--gold-transcend);">awaken</span>, <span style="color:var(--yellow-glow);">industry5</span>, <span style="color:var(--cyan-neon);">clear</span>`);
+          break;
+        case 'status':
+          appendLog(`> SSHANET CORE [2026]: ONLINE<br>> TRANSCENDENCE QUOTIENT: <span style="color:var(--gold-transcend);">99.8%</span><br>> ACTIVE NEURONS: 100,000,000,000<br>> INDUSTRY 5.0 SYNERGY: OPTIMAL`);
+          break;
+        case 'industry5':
+          appendLog(`> <span style="color:var(--gold-transcend);">INDUSTRY 5.0 METRICS:</span><br>[+] Human-Centric Cognition: 100%<br>[+] Eco-Sustainable Computation: Active<br>[+] Cyber-Resilience Matrix: Shielding`);
+          break;
+        case 'ping':
+          appendLog(`PING sshanet.cz (127.0.0.1): 56 bytes.<br><span style="color:#00ffcc;">Reply from SSHAnet node #2026: time=0.42ms [SIGNAL STABLE]</span>`);
+          break;
+        case 'awaken':
+          appendLog(`<span style="color:var(--gold-transcend);">[!] SYNAPSE SURGE INITIATED IN SSHANET...</span><br>[+] Awakening 2026 neural pathways in SSHAnet backbone...<br>[+] Industry 5.0 resilience protocols active.<br>[+] 100B Neurons synchronized.`);
+          break;
+        case 'clear':
+          termBody.innerHTML = '';
+          break;
+        default:
+          appendLog(`<span style="color:var(--pink-neon);">ERROR:</span> Unknown command '${cmd}'. Type 'help' for options.`);
+      }
+    }
+
+    function appendLog(text) {
+      const div = document.createElement('div');
+      div.className = 'terminal-log';
+      div.innerHTML = text;
+      termBody.appendChild(div);
+      termBody.scrollTop = termBody.scrollHeight;
+    }
+  </script>
+</body>
+</html>
