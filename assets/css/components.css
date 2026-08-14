@@ -1,0 +1,63 @@
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--cyan-neon);
+  padding: 22px;
+  box-shadow: 0 0 10px rgba(26, 255, 255, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card.transcendence {
+  border-color: var(--gold-transcend);
+  background: linear-gradient(135deg, rgba(8, 16, 16, 0.95), rgba(212, 175, 55, 0.08));
+}
+
+.card h3 {
+  color: var(--yellow-glow);
+  margin-bottom: 12px;
+}
+
+.cta-button {
+  display: inline-block;
+  margin-top: 20px;
+  padding: 14px 28px;
+  background: #081010;
+  border: 2px solid var(--gold-transcend);
+  color: var(--gold-transcend);
+  font-weight: bold;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.terminal-container {
+  background: #020505;
+  border: 2px solid var(--cyan-neon);
+  border-radius: 4px;
+}
+
+.terminal-header {
+  background: #0a1818;
+  padding: 8px 14px;
+  color: var(--cyan-neon);
+}
+
+.terminal-body {
+  padding: 16px;
+  min-height: 200px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.terminal-input-row {
+  display: flex;
+  padding: 10px 16px;
+  border-top: 1px solid rgba(26, 255, 255, 0.2);
+}
+
+.terminal-input-row input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--yellow-glow);
+  outline: none;
+  font-family: inherit;
+  }
