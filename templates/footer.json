@@ -1,0 +1,15 @@
+{
+  "tag": "footer",
+  "children": [
+    {
+      "tag": "div",
+      "attributes": { "class": "status-bar" },
+      "children": [
+        { "tag": "span", "bindings": { "text": "copyright" } },
+        { "tag": "span", "bindings": { "text": "status" } },
+        { "tag": "span", "attributes": { "style": "color: var(--gold-transcend);" }, "bindings": { "text": "transcendence" } },
+        { "tag": "span", "bindings": { "text": "threat" } }
+      ]
+    }
+  ]
+}
