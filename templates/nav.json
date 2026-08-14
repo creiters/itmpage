@@ -1,0 +1,33 @@
+{
+  "tag": "nav",
+  "children": [
+    {
+      "tag": "a",
+      "attributes": { "href": "#hero", "class": "nav-brand" },
+      "children": [
+        {
+          "tag": "span",
+          "attributes": { "class": "nav-title" },
+          "bindings": { "text": "navTitle" }
+        }
+      ]
+    },
+    {
+      "tag": "ul",
+      "attributes": { "class": "nav-links" },
+      "repeat": {
+        "dataKey": "navLinks",
+        "itemTemplate": {
+          "tag": "li",
+          "children": [
+            {
+              "tag": "a",
+              "bindings": { "text": "label", "class": "linkClass" },
+              "attributes": { "href": "href" }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
