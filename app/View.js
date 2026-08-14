@@ -1,51 +1,28 @@
-export class AppView {
-  constructor(viewModel) {
-    this.viewModel = viewModel;
-    
-    this.heroTitle = document.getElementById('hero-title');
-    this.heroSubtitle = document.getElementById('hero-subtitle');
-    this.heroDesc = document.getElementById('hero-desc');
-    this.gridContainer = document.getElementById('ecosystem-grid');
-    this.termBody = document.getElementById('term-body');
-    this.termInput = document.getElementById('term-input');
+import { JSONTemplateEngine } from './Framework.js';
 
-    this.bindEvents();
+export class AppView {
+  constructor(viewModel, templates, rootContainer) {
+    this.viewModel = viewModel;
+    this.templates = templates;
+    this.rootContainer = rootContainer;
+
     this.viewModel.subscribe((state) => this.render(state));
   }
 
-  bindEvents() {
-    this.termInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        this.viewModel.executeCommand(this.termInput.value);
-        this.termInput.value = '';
-      }
-    });
-
-    window.executeCmd = (cmd) => this.viewModel.executeCommand(cmd);
-  }
-
   render(state) {
-    if (state.data) {
-      if (this.heroTitle) this.heroTitle.textContent = state.data.system.title;
-      if (this.heroSubtitle) this.heroSubtitle.textContent = state.data.system.subtitle;
-      if (this.heroDesc) this.heroDesc.innerHTML = state.data.system.description;
+    this.rootContainer.innerHTML = '';
 
-      if (this.gridContainer) {
-        this.gridContainer.innerHTML = state.data.ecosystem.map(card => `
-          <div class="card ${card.isTranscendent ? 'transcendence-card' : ''}">
-            <h3>${card.title}</h3>
-            <p>${card.description}</p>
-          </div>
-        `).join('');
-      }
-    }
+    // Transform JSON Templates + JSON State Data directly into DOM Node Trees
+    const heroDOM = JSONTemplateEngine.render(this.templates.hero, state, this.viewModel);
+    const ecosystemDOM = JSONTemplateEngine.render(this.templates.ecosystem, state, this.viewModel);
+    const terminalDOM = JSONTemplateEngine.render(this.templates.terminal, state, this.viewModel);
 
-    if (this.termBody) {
-      this.termBody.innerHTML = state.terminalLogs.map(log => 
-        `<div class="terminal-log">${log.text}</div>`
-      ).join('');
-      this.termBody.scrollTop = this.termBody.scrollHeight;
-    }
+    this.rootContainer.appendChild(heroDOM);
+    this.rootContainer.appendChild(ecosystemDOM);
+    this.rootContainer.appendChild(terminalDOM);
+
+    // Auto-scroll terminal log to bottom
+    const termBody = document.getElementById('term-body');
+    if (termBody) termBody.scrollTop = termBody.scrollHeight;
   }
-}
-
+                                             }
