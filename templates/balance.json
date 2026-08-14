@@ -1,0 +1,22 @@
+{
+  "tag": "section",
+  "attributes": { "id": "balance" },
+  "children": [
+    {
+      "tag": "h2",
+      "attributes": { "class": "section-title" },
+      "bindings": { "text": "balanceTitle" }
+    },
+    {
+      "tag": "div",
+      "repeat": {
+        "dataKey": "balanceParagraphs",
+        "itemTemplate": {
+          "tag": "p",
+          "attributes": { "class": "body-text" },
+          "bindings": { "html": "text" }
+        }
+      }
+    }
+  ]
+}
