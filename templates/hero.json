@@ -1,0 +1,25 @@
+{
+  "tag": "section",
+  "attributes": { "id": "hero", "class": "hero" },
+  "children": [
+    {
+      "tag": "h1",
+      "bindings": { "text": "system.title" }
+    },
+    {
+      "tag": "div",
+      "attributes": { "class": "hero-subtitle" },
+      "bindings": { "text": "system.subtitle" }
+    },
+    {
+      "tag": "p",
+      "attributes": { "class": "hero-desc" },
+      "bindings": { "text": "system.description" }
+    },
+    {
+      "tag": "button",
+      "attributes": { "class": "cta-button" },
+      "bindings": { "text": "system.ctaText", "click": "awaken" }
+    }
+  ]
+}
