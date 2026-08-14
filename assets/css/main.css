@@ -1,5 +1,5 @@
 /* ==========================================================================
-   1. CSS RESET & VARIABLES
+   1. CSS RESET & VARIABLE DEFINITIONS
    ========================================================================== */
 * {
   box-sizing: border-box;
@@ -16,7 +16,7 @@
   --gold-transcend: #D4AF37;
   --text-main: #e0ffff;
   --text-muted: #99cccc;
-  --font-mono: 'Courier New', Monaco, monospace;
+  --font-mono: 'Courier New', Courier, monospace;
 }
 
 html {
@@ -35,13 +35,13 @@ body {
   background-size: cover;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   font-size: 1.05rem;
   line-height: 1.65;
 }
 
 /* ==========================================================================
-   2. BACKGROUND OVERLAYS (CRT SCANLINES & GRID)
+   2. CRT SCANLINE, GRID & OVERLAY BACKGROUNDS
    ========================================================================== */
 body::before {
   content: "";
@@ -151,11 +151,27 @@ nav {
 }
 
 /* ==========================================================================
-   4. LAYOUT SECTIONS & HERO
+   4. LAYOUT CONTAINERS & VIEWPORT WRAPPER
    ========================================================================== */
+#mobile-viewport { 
+  width: 100%; 
+  max-width: 1200px; /* Scaled up to allow full desktop layout expansion */
+  min-height: 100vh;
+  background-color: rgba(8, 16, 16, 0.95); 
+  border-left: 2px solid var(--cyan-neon); 
+  border-right: 2px solid var(--cyan-neon); 
+  box-shadow: 0 0 30px rgba(26, 255, 255, 0.3); 
+  position: relative; 
+  z-index: 1; 
+  display: flex; 
+  flex-direction: column; 
+  overflow-x: hidden;
+  margin: 0 auto;
+}
+
 section {
   min-height: 100vh;
-  padding: 120px 20px 60px;
+  padding: 120px 24px 60px;
   max-width: 1100px;
   margin: 0 auto;
   display: flex;
@@ -177,6 +193,32 @@ section {
   letter-spacing: 2.5px;
 }
 
+.screen { 
+  flex: 1; 
+  display: none; 
+  flex-direction: column; 
+  padding: 16px; 
+  position: relative; 
+  z-index: 1; 
+  overflow-y: auto; 
+  height: 100%; 
+} 
+
+.screen.active { 
+  display: flex; 
+}
+
+.screen-content { 
+  flex: 1; 
+  display: flex; 
+  flex-direction: column; 
+  overflow-y: auto; 
+  margin-bottom: 10px; 
+}
+
+/* ==========================================================================
+   5. HERO SECTION & CONTENT
+   ========================================================================== */
 .hero {
   display: flex;
   flex-direction: column;
@@ -249,7 +291,7 @@ section {
 }
 
 /* ==========================================================================
-   5. CARDS & GRID COMPONENTS
+   6. GRID & CARD COMPONENTS
    ========================================================================== */
 .grid {
   display: grid;
@@ -301,9 +343,9 @@ section {
 }
 
 /* ==========================================================================
-   6. TYPOGRAPHY, BUTTONS & CODE BLOCKS
+   7. TYPOGRAPHY & UI ACCENTS
    ========================================================================== */
-p.body-text {
+p, p.body-text {
   font-size: 1.1rem;
   line-height: 1.7;
   color: var(--text-main);
@@ -349,6 +391,9 @@ p.body-text {
   justify-content: center; 
 }
 
+/* ==========================================================================
+   8. BUTTONS & INTERACTIVE CODE BOXES
+   ========================================================================== */
 .btn { 
   background: #081010; 
   border: 1px solid var(--cyan-neon); 
@@ -400,47 +445,8 @@ p.body-text {
 }
 
 /* ==========================================================================
-   7. INTERACTIVE VIEWPORTS & TERMINAL
+   9. TERMINAL CONSOLE
    ========================================================================== */
-#mobile-viewport { 
-  width: 100%; 
-  max-width: 440px; 
-  height: 100%; 
-  height: 100dvh; 
-  max-height: 100dvh; 
-  background-color: rgba(8, 16, 16, 0.95); 
-  border: 2px solid var(--cyan-neon); 
-  box-shadow: 0 0 30px rgba(26, 255, 255, 0.3); 
-  position: relative; 
-  z-index: 1; 
-  display: flex; 
-  flex-direction: column; 
-  overflow: hidden; 
-}
-
-.screen { 
-  flex: 1; 
-  display: none; 
-  flex-direction: column; 
-  padding: 16px; 
-  position: relative; 
-  z-index: 1; 
-  overflow-y: auto; 
-  height: 100%; 
-} 
-
-.screen.active { 
-  display: flex; 
-}
-
-.screen-content { 
-  flex: 1; 
-  display: flex; 
-  flex-direction: column; 
-  overflow-y: auto; 
-  margin-bottom: 10px; 
-}
-
 .terminal-container {
   background: #020505;
   border: 2px solid var(--cyan-neon);
@@ -495,7 +501,7 @@ p.body-text {
 }
 
 /* ==========================================================================
-   8. ANIMATION KEYFRAMES
+   10. KEYFRAME ANIMATIONS
    ========================================================================== */
 @keyframes logoPulse {
   0% { transform: scale(1); filter: drop-shadow(0 0 5px var(--cyan-neon)); }
@@ -513,7 +519,7 @@ p.body-text {
 }
 
 /* ==========================================================================
-   9. FOOTER
+   11. FOOTER
    ========================================================================== */
 footer {
   border-top: 1px solid #1a3a3a;
@@ -539,10 +545,10 @@ footer {
 }
 
 /* ==========================================================================
-   10. MEDIA QUERIES (DESKTOP GRID & MOBILE REPAIR)
+   12. MEDIA QUERIES (DESKTOP GRID & MOBILE REPAIR)
    ========================================================================== */
 
-/* DESKTOP VIEW (2-COLUMN CYBERPUNK LAYOUT) */
+/* DESKTOP VIEW (2-COLUMN LAYOUT >= 992PX) */
 @media (min-width: 992px) {
   .hero,
   .two-column,
@@ -552,7 +558,6 @@ footer {
     align-items: center;
     text-align: left;
     gap: 40px;
-    padding: 120px 0 60px;
   }
 
   .hero-logo {
@@ -569,13 +574,19 @@ footer {
   }
 }
 
-/* MOBILE REPAIR & OVERFLOW FIXES (UP TO 991PX) */
+/* MOBILE VIEW & OVERFLOW REPAIR (UP TO 991PX) */
 @media (max-width: 991px) {
+  #mobile-viewport {
+    max-width: 100%;
+    border-left: none;
+    border-right: none;
+  }
+
   .nav-links { 
     display: none; 
   }
 
-  /* Force single vertical column layout on mobile to prevent narrow pillars */
+  /* Reset all side-by-side columns to vertical stack */
   .hero, 
   section,
   .two-column,
@@ -587,13 +598,13 @@ footer {
     max-width: 100% !important;
     padding-left: 16px !important;
     padding-right: 16px !important;
-    gap: 32px !important;
+    gap: 28px !important;
   }
 
-  /* Prevent text squeeze and enforce line wrapping */
+  /* Prevent narrow column squeezing & fix word wrap */
   p, 
-  .hero-desc, 
   .body-text, 
+  .hero-desc, 
   .section-title {
     width: 100% !important;
     max-width: 100% !important;
@@ -603,7 +614,7 @@ footer {
     overflow-wrap: break-word;
   }
 
-  /* Keep full-width component bounds */
+  /* Force full width within screen boundary */
   .terminal-container,
   .card,
   .code-box {
