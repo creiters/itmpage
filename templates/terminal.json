@@ -1,0 +1,50 @@
+{
+  "tag": "section",
+  "attributes": { "id": "terminal" },
+  "children": [
+    {
+      "tag": "h2",
+      "attributes": { "class": "section-title" },
+      "children": ["04 // Command Console"]
+    },
+    {
+      "tag": "div",
+      "attributes": { "class": "terminal-container" },
+      "children": [
+        {
+          "tag": "div",
+          "attributes": { "class": "terminal-header" },
+          "children": ["SSHAnet_OS // v2026.5.6 [100B Neurons]"]
+        },
+        {
+          "tag": "div",
+          "attributes": { "class": "terminal-body", "id": "term-body" },
+          "repeat": {
+            "dataKey": "terminalLogs",
+            "itemTemplate": {
+              "tag": "div",
+              "attributes": { "class": "terminal-log" },
+              "bindings": { "html": "text" }
+            }
+          }
+        },
+        {
+          "tag": "div",
+          "attributes": { "class": "terminal-input-row" },
+          "children": [
+            {
+              "tag": "span",
+              "attributes": { "style": "color: var(--pink-neon);" },
+              "children": ["creiters@sshanet-2026:~$ "]
+            },
+            {
+              "tag": "input",
+              "attributes": { "type": "text", "id": "term-input", "placeholder": "Enter command..." },
+              "bindings": { "value": "currentCommand", "keyup": "handleCommandInput" }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+            }
