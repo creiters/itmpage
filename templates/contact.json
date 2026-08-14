@@ -1,0 +1,38 @@
+{
+  "tag": "section",
+  "attributes": { "id": "contact" },
+  "children": [
+    {
+      "tag": "h2",
+      "attributes": { "class": "section-title" },
+      "bindings": { "text": "contactTitle" }
+    },
+    {
+      "tag": "div",
+      "attributes": { "class": "card", "style": "max-width: 600px; margin: 0 auto; width: 100%;" },
+      "children": [
+        {
+          "tag": "h3",
+          "children": ["[NEURAL TRANSMISSION LINK]"]
+        },
+        {
+          "tag": "p",
+          "bindings": { "html": "nodeText" }
+        },
+        {
+          "tag": "p",
+          "bindings": { "html": "operatorText" }
+        },
+        {
+          "tag": "p",
+          "bindings": { "html": "signalText" }
+        },
+        {
+          "tag": "button",
+          "attributes": { "class": "cta-button", "style": "width: 100%; text-align: center;" },
+          "bindings": { "text": "buttonText", "click": "pingSignal" }
+        }
+      ]
+    }
+  ]
+}
