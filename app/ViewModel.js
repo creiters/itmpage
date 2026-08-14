@@ -3,11 +3,23 @@ export class AppViewModel {
     this.model = model;
     this.listeners = [];
     this.state = {
+      navTitle: '',
+      navLinks: [],
       system: {},
+      manifestoTitle: '',
+      manifestoParagraphs: [],
       ecosystem: [],
+      balanceTitle: '',
+      balanceParagraphs: [],
+      contactTitle: '',
+      nodeText: '',
+      operatorText: '',
+      signalText: '',
+      buttonText: '',
+      footer: {},
       terminalLogs: [
-        { text: "<span style='color: var(--cyan-neon);'>SYSTEM:</span> Cyberpear Neural Interface Online [2026]." },
-        { text: "<span style='color: var(--cyan-neon);'>SYSTEM:</span> Type <span style='color: var(--yellow-glow);'>'help'</span> for options." }
+        { text: "<span style='color: var(--cyan-neon);'>SYSTEM:</span> Cyberpear SSHAnet Neural Interface initialized [2026]." },
+        { text: "<span style='color: var(--cyan-neon);'>SYSTEM:</span> Type <span style='color: var(--yellow-glow);'>'help'</span> for available commands." }
       ],
       currentCommand: ''
     };
@@ -23,13 +35,16 @@ export class AppViewModel {
 
   async init() {
     const data = await this.model.loadInitialData();
-    this.state.system = data.system;
-    this.state.ecosystem = data.ecosystem;
+    Object.assign(this.state, data);
     this.notify();
   }
 
+  pingSignal() {
+    this.executeCommand('ping');
+  }
+
   awaken() {
-    this.addLog("<span style='color:var(--gold-transcend);'>[!] SYNAPSE SURGE INITIATED IN SSHANET...</span>");
+    this.executeCommand('awaken');
   }
 
   handleCommandInput(event) {
@@ -48,20 +63,23 @@ export class AppViewModel {
 
     switch (cmd) {
       case 'help':
-        this.addLog("Commands: <span style='color:var(--cyan-neon);'>status</span>, <span style='color:var(--gold-transcend);'>awaken</span>, <span style='color:var(--cyan-neon);'>clear</span>");
+        this.addLog("Available commands: <span style='color:var(--cyan-neon);'>status</span>, <span style='color:var(--cyan-neon);'>ping</span>, <span style='color:var(--gold-transcend);'>awaken</span>, <span style='color:var(--cyan-neon);'>clear</span>");
         break;
       case 'status':
-        this.addLog("> SSHANET CORE: ONLINE | TRANSCENDENCE: <span style='color:var(--gold-transcend);'>99.8%</span>");
+        this.addLog("> SSHANET CORE [2026]: ONLINE<br>> TRANSCENDENCE QUOTIENT: <span style='color:var(--gold-transcend);'>99.8%</span><br>> ACTIVE NEURONS: 100,000,000,000");
+        break;
+      case 'ping':
+        this.addLog("PING sshanet.cz (127.0.0.1): 56 bytes.<br><span style='color:#00ffcc;'>Reply from SSHAnet node #2026: time=0.42ms [SIGNAL STABLE]</span>");
         break;
       case 'awaken':
-        this.awaken();
+        this.addLog("<span style='color:var(--gold-transcend);'>[!] SYNAPSE SURGE INITIATED IN SSHANET...</span><br>[+] Awakening 2026 neural pathways in SSHAnet backbone...<br>[+] 100B Neurons synchronized.");
         break;
       case 'clear':
         this.state.terminalLogs = [];
         this.notify();
         break;
       default:
-        this.addLog(`<span style="color:var(--pink-neon);">ERROR:</span> Unknown command '${cmd}'`);
+        this.addLog(`<span style="color:var(--pink-neon);">ERROR:</span> Unknown command '${cmd}'. Type 'help' for options.`);
     }
   }
 
