@@ -1,0 +1,22 @@
+{
+  "tag": "section",
+  "attributes": { "id": "about" },
+  "children": [
+    {
+      "tag": "h2",
+      "attributes": { "class": "section-title" },
+      "bindings": { "text": "manifestoTitle" }
+    },
+    {
+      "tag": "div",
+      "repeat": {
+        "dataKey": "manifestoParagraphs",
+        "itemTemplate": {
+          "tag": "p",
+          "attributes": { "class": "body-text" },
+          "bindings": { "html": "text" }
+        }
+      }
+    }
+  ]
+}
