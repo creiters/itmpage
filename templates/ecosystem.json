@@ -1,0 +1,32 @@
+{
+  "tag": "section",
+  "attributes": { "id": "ecosystem" },
+  "children": [
+    {
+      "tag": "h2",
+      "attributes": { "class": "section-title" },
+      "children": ["02 // Our Ecosystem"]
+    },
+    {
+      "tag": "div",
+      "attributes": { "class": "grid" },
+      "repeat": {
+        "dataKey": "ecosystem",
+        "itemTemplate": {
+          "tag": "div",
+          "bindings": { "class": "cardClass" },
+          "children": [
+            {
+              "tag": "h3",
+              "bindings": { "text": "title" }
+            },
+            {
+              "tag": "p",
+              "bindings": { "text": "description" }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
