@@ -6,12 +6,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const rootContainer = document.getElementById('app-root');
   const model = new AppModel();
   
-  // Load JSON templates and JSON data concurrently
+  // Concurrently fetch all JSON templates and JSON content
   const templates = await model.loadTemplates();
   const viewModel = new AppViewModel(model);
   
+  // Mount the View and subscribe to state changes
   new AppView(viewModel, templates, rootContainer);
   
-  // Initialize state
+  // Initialize state from content.json
   await viewModel.init();
 });
