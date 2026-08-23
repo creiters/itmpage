@@ -66,7 +66,7 @@
       background: rgba(4, 10, 10, 0.92);
       border-bottom: 2px solid var(--cyan-neon);
       backdrop-filter: blur(6px);
-      z-index: 100;
+      z-index: 1000;
       padding: 10px 24px;
       display: flex;
       justify-content: space-between;
@@ -74,7 +74,7 @@
       box-shadow: 0 0 15px rgba(26, 255, 255, 0.2);
     }
 
-    .nav-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    .nav-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; position: relative; z-index: 1002;}
     .nav-logo { width: 45px; height: 45px; animation: logoPulse 2.5s ease-in-out infinite alternate; }
     .nav-title { color: var(--pink-neon); font-weight: 900; font-size: 1.3rem; letter-spacing: 2px; text-shadow: 0 0 8px var(--pink-neon); }
 
@@ -89,6 +89,62 @@
     .nav-links a.transcend-link { color: var(--gold-transcend); }
     .nav-links a.transcend-link:hover {
       border-color: var(--gold-transcend); background: rgba(212, 175, 55, 0.15); box-shadow: 0 0 12px rgba(212, 175, 55, 0.5);
+    }
+
+    /* Mobile Hamburger Menu */
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      gap: 5px;
+      cursor: pointer;
+      z-index: 1002;
+    }
+    .hamburger span {
+      width: 28px;
+      height: 3px;
+      background-color: var(--cyan-neon);
+      transition: all 0.3s ease;
+      box-shadow: 0 0 5px var(--cyan-neon);
+    }
+
+    /* --- MOBILE RESPONSIVE NAV --- */
+    @media (max-width: 900px) {
+      .hamburger {
+        display: flex;
+      }
+      .nav-links {
+        position: fixed;
+        top: 0;
+        right: -100%;
+        width: 250px;
+        height: 100vh;
+        background: rgba(3, 7, 7, 0.98);
+        border-left: 2px solid var(--pink-neon);
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 90px 30px 30px;
+        gap: 25px;
+        transition: right 0.4s ease;
+        box-shadow: -5px 0 20px rgba(0,0,0,0.8);
+        z-index: 1001;
+      }
+      .nav-links.active {
+        right: 0;
+      }
+      /* Hamburger Animation */
+      .hamburger.active span:nth-child(1) {
+        transform: translateY(8px) rotate(45deg);
+        background-color: var(--pink-neon);
+        box-shadow: 0 0 5px var(--pink-neon);
+      }
+      .hamburger.active span:nth-child(2) {
+        opacity: 0;
+      }
+      .hamburger.active span:nth-child(3) {
+        transform: translateY(-8px) rotate(-45deg);
+        background-color: var(--pink-neon);
+        box-shadow: 0 0 5px var(--pink-neon);
+      }
     }
 
     /* --- LAYOUT CONTAINERS --- */
@@ -199,7 +255,16 @@
       </svg>
       <span class="nav-title">CreITers</span>
     </a>
-    <ul class="nav-links">
+    
+    <!-- Hamburger Icon -->
+    <div class="hamburger" id="hamburger">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+
+    <!-- Navigation Links -->
+    <ul class="nav-links" id="nav-links">
       <li><a href="#hero">Init</a></li>
       <li><a href="#engine">Engine</a></li>
       <li><a href="#divisions">Divisions</a></li>
@@ -410,6 +475,23 @@
 
   <!-- INTERACTIVE SCRIPTS -->
   <script>
+    /* --- MOBILE MENU TOGGLE --- */
+    const hamburger = document.getElementById('hamburger');
+    const navLinks = document.getElementById('nav-links');
+    const links = document.querySelectorAll('.nav-links a');
+
+    hamburger.addEventListener('click', () => {
+      hamburger.classList.toggle('active');
+      navLinks.classList.toggle('active');
+    });
+
+    links.forEach(link => {
+      link.addEventListener('click', () => {
+        hamburger.classList.remove('active');
+        navLinks.classList.remove('active');
+      });
+    });
+
     /* --- NEURAL CANVAS BACKGROUND --- */
     const canvas = document.getElementById('neural-canvas');
     const ctx = canvas.getContext('2d');
