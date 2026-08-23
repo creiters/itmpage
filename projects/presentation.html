@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head> 
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CreITers // Project CyberPear 2026</title>
+  <style>
+    /* --- CSS RESET & BASE STYLES --- */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      --bg-color: #030707;
+      --card-bg: rgba(8, 16, 16, 0.85);
+      --cyan-neon: #1affff;
+      --pink-neon: #ff1a75;
+      --yellow-glow: #ffff00;
+      --gold-transcend: #D4AF37;
+      --text-main: #e0ffff;
+      --text-muted: #88aaaa;
+      --font-mono: 'Courier New', Courier, monospace;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: var(--font-mono);
+    }
+
+    body {
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* --- CRT SCANLINE & GRID BACKGROUND --- */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: 
+        radial-gradient(circle at center, rgba(212, 175, 55, 0.03) 0%, transparent 70%),
+        radial-gradient(circle at center, rgba(26, 255, 255, 0.05) 0%, transparent 75%),
+        linear-gradient(rgba(26, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(26, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 24px 24px, 24px 24px;
+      z-index: -2;
+      pointer-events: none;
+    }
+
+    body::after {
+      content: " ";
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%);
+      background-size: 100% 4px;
+      z-index: 999;
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    /* --- NAVIGATION BAR --- */
+    nav {
+      position: fixed;
+      top: 0; left: 0; width: 100%;
+      background: rgba(4, 10, 10, 0.92);
+      border-bottom: 2px solid var(--cyan-neon);
+      backdrop-filter: blur(6px);
+      z-index: 100;
+      padding: 10px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 0 15px rgba(26, 255, 255, 0.2);
+    }
+
+    .nav-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    .nav-logo { width: 45px; height: 45px; animation: logoPulse 2.5s ease-in-out infinite alternate; }
+    .nav-title { color: var(--pink-neon); font-weight: 900; font-size: 1.3rem; letter-spacing: 2px; text-shadow: 0 0 8px var(--pink-neon); }
+
+    .nav-links { display: flex; gap: 16px; list-style: none; flex-wrap: wrap; }
+    .nav-links a {
+      color: var(--cyan-neon); text-decoration: none; font-size: 0.8rem; font-weight: bold;
+      text-transform: uppercase; padding: 6px 10px; border: 1px solid transparent; transition: all 0.2s ease;
+    }
+    .nav-links a:hover {
+      border-color: var(--cyan-neon); background: rgba(26, 255, 255, 0.1); box-shadow: 0 0 10px rgba(26, 255, 255, 0.4);
+    }
+    .nav-links a.transcend-link { color: var(--gold-transcend); }
+    .nav-links a.transcend-link:hover {
+      border-color: var(--gold-transcend); background: rgba(212, 175, 55, 0.15); box-shadow: 0 0 12px rgba(212, 175, 55, 0.5);
+    }
+
+    /* --- LAYOUT CONTAINERS --- */
+    section {
+      min-height: 100vh; padding: 110px 20px 60px; max-width: 1200px; margin: 0 auto;
+      display: flex; flex-direction: column; justify-content: center;
+    }
+
+    .section-title {
+      font-size: 1.8rem; color: var(--pink-neon); text-shadow: 0 0 10px var(--pink-neon);
+      margin-bottom: 24px; border-bottom: 1px solid var(--pink-neon); padding-bottom: 8px;
+      text-transform: uppercase; letter-spacing: 2px; display: inline-block;
+    }
+
+    /* --- HERO SECTION --- */
+    .hero { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 30px; }
+    .hero-logo { width: 100%; max-width: 450px; height: auto; }
+    .hero-content { display: flex; flex-direction: column; align-items: center; }
+
+    @media (min-width: 992px) {
+      .hero { grid-template-columns: 1fr 1fr; display: grid; align-items: center; text-align: left; gap: 40px; padding: 120px 0 60px; }
+      .hero-logo { max-width: 500px; justify-self: center; }
+      .hero-content { align-items: flex-start; }
+      .nav-links { gap: 12px; }
+    }
+
+    .hero h1 { font-size: 2.2rem; color: var(--cyan-neon); text-shadow: 0 0 12px var(--cyan-neon); text-transform: uppercase; margin-top: 10px; letter-spacing: 2px; }
+    .hero-subtitle { margin-top: 10px; font-size: 0.95rem; color: var(--gold-transcend); text-shadow: 0 0 6px var(--gold-transcend); letter-spacing: 3px; animation: goldPulse 3s infinite alternate; }
+    .hero-desc { max-width: 720px; margin: 20px 0; font-size: 0.98rem; line-height: 1.6; color: #c0e0e0; }
+    
+    .cta-button {
+      display: inline-block; margin-top: 20px; padding: 14px 28px; background: #081010;
+      border: 2px solid var(--gold-transcend); color: var(--gold-transcend); font-family: inherit;
+      font-weight: bold; font-size: 1rem; text-transform: uppercase; text-decoration: none;
+      cursor: pointer; box-shadow: 0 0 12px rgba(212, 175, 55, 0.25); transition: all 0.3s ease;
+    }
+    .cta-button:hover { background: var(--gold-transcend); color: #030707; box-shadow: 0 0 25px var(--gold-transcend); }
+
+    /* --- ANIMATIONS --- */
+    @keyframes assembleDisassembleLoop {
+      0% { opacity: 0; transform: translate(var(--fly-x, -180px), var(--fly-y, -180px)) scale(2); }
+      35%, 65% { opacity: 1; transform: translate(0, 0) scale(1); }
+      100% { opacity: 0; transform: translate(var(--fly-x, -180px), var(--fly-y, -180px)) scale(2); }
+    }
+    .fly-pixel { animation: assembleDisassembleLoop 6s cubic-bezier(0.25, 1, 0.5, 1) infinite; animation-delay: var(--delay, 0s); }
+    @keyframes logoPulse { 0% { filter: drop-shadow(0 0 5px var(--cyan-neon)); } 100% { filter: drop-shadow(0 0 15px var(--cyan-neon)); } }
+    @keyframes goldPulse { 0% { opacity: 0.7; text-shadow: 0 0 4px var(--gold-transcend); } 100% { opacity: 1; text-shadow: 0 0 12px var(--gold-transcend); } }
+
+    /* --- GRID / CARDS --- */
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
+    .card {
+      background: var(--card-bg); border: 1px solid var(--cyan-neon); padding: 22px; position: relative;
+      box-shadow: 0 0 10px rgba(26, 255, 255, 0.1); transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 0 18px rgba(26, 255, 255, 0.35); }
+    .card h3 { color: var(--yellow-glow); margin-bottom: 12px; font-size: 1.1rem; text-transform: uppercase; border-bottom: 1px dashed rgba(26,255,255,0.3); padding-bottom: 8px;}
+    .card p, .card ul { font-size: 0.9rem; line-height: 1.6; color: #c0e0e0; margin-bottom: 10px; }
+    .card ul { margin-left: 20px; list-style-type: square; }
+    .card li { margin-bottom: 8px; }
+    
+    .transcendence-card { border-color: var(--gold-transcend); background: linear-gradient(135deg, rgba(8, 16, 16, 0.95), rgba(212, 175, 55, 0.08)); box-shadow: 0 0 12px rgba(212, 175, 55, 0.2); }
+    .transcendence-card:hover { box-shadow: 0 0 22px rgba(212, 175, 55, 0.5); }
+    .transcendence-card h3 { color: var(--gold-transcend); text-shadow: 0 0 6px var(--gold-transcend); border-bottom-color: rgba(212, 175, 55, 0.3);}
+
+    .highlight-gold { color: var(--gold-transcend); font-weight: bold; }
+    .highlight-cyan { color: var(--cyan-neon); font-weight: bold; }
+    .highlight-pink { color: var(--pink-neon); font-weight: bold; }
+
+    /* --- TERMINAL --- */
+    .terminal-container { background: #020505; border: 2px solid var(--cyan-neon); box-shadow: 0 0 20px rgba(26, 255, 255, 0.2); border-radius: 4px; overflow: hidden; margin-top: 20px; }
+    .terminal-header { background: #0a1818; border-bottom: 1px solid var(--cyan-neon); padding: 8px 14px; display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--cyan-neon); }
+    .terminal-body { padding: 16px; min-height: 250px; max-height: 350px; overflow-y: auto; font-size: 0.85rem; line-height: 1.5; }
+    .terminal-log { margin-bottom: 8px; word-break: break-word; }
+    .terminal-input-row { display: flex; align-items: center; gap: 8px; border-top: 1px solid rgba(26, 255, 255, 0.2); padding: 10px 16px; background: #040a0a; }
+    .terminal-input-row input { flex: 1; background: transparent; border: none; outline: none; color: var(--yellow-glow); font-family: inherit; font-size: 0.85rem; }
+
+    footer { border-top: 1px solid #1a3a3a; background: #020505; padding: 24px 20px; font-size: 0.8rem; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+  </style>
+</head>
+<body>
+
+  <!-- Neural Network Background -->
+  <canvas id="neural-canvas" style="position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:-3; opacity:0.4;"></canvas>
+
+  <!-- NAVIGATION -->
+  <nav>
+    <a href="#hero" class="nav-brand">
+      <!-- Pixel Pear Logo SVG -->
+      <svg class="nav-logo" viewBox="0 0 500 550" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="cyan-glow-nav" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="6" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+        <style>
+          .pixel { shape-rendering: crispEdges; } .np-main { fill: #22B14C; } .np-dark { fill: #156B2E; }
+          .np-cyan { fill: #1AFFFF; } .np-gold { fill: #D4AF37; } .np-stem { fill: #8B5A2B; } .np-leaf { fill: #158837; }
+        </style>
+        <g transform="translate(10, 10)">
+          <g class="pixel np-stem"><rect x="230" y="70" width="12" height="60" /></g>
+          <g class="pixel np-leaf"><rect x="182" y="94" width="48" height="24" /></g>
+          <g class="pixel np-dark"><rect x="254" y="130" width="60" height="200" /></g>
+          <g class="pixel np-main"><rect x="182" y="130" width="80" height="200" /></g>
+          <g class="pixel np-cyan" filter="url(#cyan-glow-nav)"><rect x="134" y="214" width="36" height="80" /></g>
+          <g class="pixel np-gold"><rect x="170" y="250" width="12" height="12" /></g>
+        </g>
+      </svg>
+      <span class="nav-title">CreITers</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#hero">Init</a></li>
+      <li><a href="#engine">Engine</a></li>
+      <li><a href="#divisions">Divisions</a></li>
+      <li><a href="#community">Community</a></li>
+      <li><a href="#roadmap">Roadmap</a></li>
+      <li><a href="#terminal" class="transcend-link">Console</a></li>
+    </ul>
+  </nav>
+
+  <!-- SLIDE 1: HERO / EXECUTIVE VISION -->
+  <section id="hero" class="hero">
+    <svg class="hero-logo" viewBox="0 0 500 550" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="cyan-glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+        <filter id="gold-glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+        <filter id="text-glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="4" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+        <linearGradient id="text-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#1AFFFF" />
+          <stop offset="60%" stop-color="#00FFCC" />
+          <stop offset="100%" stop-color="#D4AF37" />
+        </linearGradient>
+      </defs>
+      <style>
+        .pixel { shape-rendering: crispEdges; } .pear-main { fill: #22B14C; } .pear-dark { fill: #156B2E; }
+        .pear-highlight { fill: #A3E043; } .pear-bright { fill: #D7FF3B; } .pear-cyan { fill: #1AFFFF; }
+        .pear-gold { fill: #D4AF37; } .stem { fill: #8B5A2B; } .leaf { fill: #158837; } .leaf-light { fill: #22B14C; }
+      </style>
+      <g transform="translate(10, 10)">
+        <g class="pixel stem">
+          <rect x="230" y="70" width="12" height="12" /> <rect x="236" y="82" width="12" height="12" /> <rect x="236" y="94" width="12" height="12" /> <rect x="230" y="106" width="12" height="12" /> <rect x="230" y="118" width="12" height="12" />
+        </g>
+        <g class="pixel leaf">
+          <rect x="206" y="82" width="24" height="12" /> <rect x="194" y="94" width="36" height="12" /> <rect x="182" y="106" width="36" height="12" /> <rect x="194" y="118" width="24" height="12" />
+        </g>
+        <g class="pixel leaf-light"> <rect x="218" y="94" width="12" height="12" /> <rect x="206" y="106" width="12" height="12" /> </g>
+        <g class="pixel pear-dark">
+          <rect x="254" y="130" width="24" height="24" /> <rect x="266" y="154" width="24" height="36" /> <rect x="278" y="190" width="24" height="48" /> <rect x="290" y="238" width="24" height="60" /> <rect x="278" y="298" width="24" height="36" /> <rect x="254" y="334" width="36" height="12" />
+        </g>
+        <g class="pixel pear-main">
+          <rect x="218" y="130" width="36" height="24" /> <rect x="206" y="154" width="60" height="36" /> <rect x="194" y="190" width="84" height="48" /> <rect x="182" y="238" width="108" height="60" /> <rect x="194" y="298" width="84" height="36" /> <rect x="218" y="334" width="36" height="12" />
+        </g>
+        <g class="pixel pear-highlight">
+          <rect x="218" y="154" width="12" height="24" /> <rect x="206" y="178" width="24" height="24" /> <rect x="194" y="202" width="24" height="36" /> <rect x="206" y="238" width="24" height="48" /> <rect x="218" y="286" width="24" height="36" />
+        </g>
+        <g class="pixel pear-bright"> <rect x="218" y="202" width="12" height="24" /> <rect x="218" y="238" width="12" height="36" /> <rect x="230" y="250" width="12" height="24" /> </g>
+        <g class="pixel pear-gold" filter="url(#gold-glow)"> <rect x="170" y="250" width="12" height="12" /> <rect x="158" y="226" width="12" height="12" /> <rect x="134" y="262" width="12" height="12" /> </g>
+        
+        <!-- Flying Pixels -->
+        <g class="pixel pear-cyan" filter="url(#cyan-glow)">
+          <rect class="fly-pixel" style="--fly-x: -180px; --fly-y: -120px; --delay: 0.1s;" x="110" y="226" width="12" height="12" />
+          <rect class="fly-pixel" style="--fly-x: -220px; --fly-y: -40px;  --delay: 0.2s;" x="122" y="250" width="12" height="12" />
+          <rect class="fly-pixel" style="--fly-x: -160px; --fly-y: 100px;  --delay: 0.3s;" x="134" y="214" width="12" height="12" />
+          <rect class="fly-pixel" style="--fly-x: -200px; --fly-y: 150px;  --delay: 0.4s;" x="134" y="298" width="12" height="12" />
+          <rect class="fly-pixel" style="--fly-x: -140px; --fly-y: -200px; --delay: 0.25s;" x="146" y="238" width="12" height="12" />
+          <rect class="fly-pixel" style="--fly-x: -120px; --fly-y: 180px;  --delay: 0.35s;" x="146" y="274" width="12" height="12" />
+          <rect class="fly-pixel" style="--fly-x: -250px; --fly-y: 30px;   --delay: 0.15s;" x="158" y="202" width="12" height="12" />
+          <rect class="fly-pixel" style="--fly-x: -110px; --fly-y: -160px; --delay: 0.45s;" x="158" y="262" width="12" height="12" />
+          <rect class="fly-pixel" style="--fly-x: -90px;  --fly-y: -220px; --delay: 0.5s;"  x="170" y="226" width="12" height="12" />
+          <rect class="fly-pixel" style="--fly-x: -130px; --fly-y: 210px;  --delay: 0.55s;" x="170" y="286" width="12" height="12" />
+        </g>
+        <text x="240" y="440" font-family="monospace" font-size="48" font-weight="900" letter-spacing="8" fill="url(#text-grad)" text-anchor="middle" filter="url(#text-glow)">CYBERPEAR</text>
+      </g>
+    </svg>
+
+    <div class="hero-content">
+      <h1>Project CyberPear</h1>
+      <div class="hero-subtitle">Decentralized PWA & Deep-Tech Initiative</div>
+      <p class="hero-desc">
+        Built by <span class="highlight-cyan">Team CreITers</span> | For <span class="highlight-cyan">42 Prague Peers</span>.<br><br>
+        Empowering students with an offline-first learning intranet, decentralized P2P systems, a custom pure-stack architecture, and hardware/security bridges—built with <span class="highlight-pink">zero external frameworks</span>.
+      </p>
+      <a href="javascript:void(0)" onclick="executeCmd('awaken')" class="cta-button">[ Initialize Core ]</a>
+    </div>
+  </section>
+
+  <!-- SLIDES 2 & 3: ARCHITECTURE & WORKFLOW -->
+  <section id="engine">
+    <h2 class="section-title">01 // Radical Minimalism & P2P Engine</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Pure Systems Architecture</h3>
+        <ul>
+          <li><span class="highlight-pink">Zero External Dependencies:</span> 100% control over the entire execution stack.</li>
+          <li><span class="highlight-cyan">Universal Data Format:</span> All data (User, Learning, Templates, Offline, Online) is structured and exchanged exclusively as JSON.</li>
+          <li><span class="highlight-gold">Internal Architectural Framework:</span> Use of a custom, internally built JavaScript mini MVVM for clear code separation and high performance.</li>
+        </ul>
+      </div>
+      <div class="card transcendence-card">
+        <h3>The Pure Stack</h3>
+        <ul>
+          <li><strong>Frontend Core:</strong> Pure, Clear JavaScript, semantic HTML5, modern CSS3.</li>
+          <li><strong>Low-Level Compute Engine:</strong> C compiled to WebAssembly (WASM) & WASI for high-performance offline logic.</li>
+          <li><strong>Persistence:</strong> Client-side IndexedDB for local-first storage.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Decentralized P2P Mesh</h3>
+        <ul>
+          <li><strong>Omnivore Offline Ingestion:</strong> Download all materials → Universal JSON IndexedDB cache.</li>
+          <li><strong>Local Vectorization & RAG:</strong> Custom C/WASM modules index local text into vector stores inside the browser.</li>
+          <li><strong>Decentralized Sync:</strong> WebRTC Peer-to-Peer synchronization exchanges data directly over the local cluster network.</li>
+          <li><strong>Client-Side Intelligence:</strong> Local WebLLM runs client-side to generate flashcards and quizzes, querying the localized vectorized knowledge base.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDES 4 & 5: SECURITY & ROBOTICS -->
+  <section id="divisions">
+    <h2 class="section-title">02 // Deep Tech Divisions</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Security Architecture: Local-First</h3>
+        <ul>
+          <li><span class="highlight-cyan">Zero Telemetry & Attack Surface:</span> No centralized databases, third-party servers, or external tracking.</li>
+          <li><span class="highlight-pink">WASM Sandboxing:</span> C execution isolated within browser memory boundaries.</li>
+          <li><span class="highlight-gold">Encrypted P2P Data Channels:</span> WebRTC DTLS/SRTP end-to-end encryption for all intra-campus communication.</li>
+          <li><span class="highlight-cyan">Practical Defensive Training:</span> Platform acts as a hands-on lab for studying exploit vectors and secure design.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Physical Computing: Hardware Bridge</h3>
+        <ul>
+          <li><span class="highlight-cyan">Browser-to-Hardware Control:</span> Interfacing C/WASM directly with microcontrollers (ESP32, STM32, Arduino, Raspberry Pi) via Web Serial and Web Bluetooth.</li>
+          <li><span class="highlight-pink">Telemetry & Visualization:</span> Real-time dashboards rendered with pure Canvas/WebGL.</li>
+          <li><span class="highlight-gold">Embedded Systems Foundations:</span> Bridging 42 C/C++ memory management and multithreading into physical robotics.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDES 6 & 7: COMMUNITY & MOTIVATION -->
+  <section id="community">
+    <h2 class="section-title">03 // CreITers Ecosystem</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Peer-to-Peer Workshops</h3>
+        <ul>
+          <li><strong>Track 1 — C & Memory Mastery:</strong> Defensive pointers, custom libft architecture, and performance optimization.</li>
+          <li><strong>Track 2 — Pro Git Workflows:</strong> Trunk-based development, complex merging, and collaborative standards.</li>
+          <li><strong>Track 3 — Clear Web Standards:</strong> Responsive design and custom reactive interfaces using only Pure JS, our MVVM, and modern CSS3.</li>
+          <li><strong>Track 4 — Navigating the 42 Core:</strong> Survival guides and project roadmapping.</li>
+        </ul>
+      </div>
+      <div class="card transcendence-card">
+        <h3>Why Build CyberPear?</h3>
+        <ul>
+          <li><span class="highlight-gold">Escaping the Framework Trap:</span> Build complete complex applications from scratch, knowing exactly what your code does.</li>
+          <li><span class="highlight-gold">Future-Proofing Your Skillset:</span> Masters of low-level C, WASM, and decentralized systems architecture are always in demand.</li>
+          <li><span class="highlight-gold">Practical RAG & AI Implementation:</span> Hands-on experience building RAG and complex vector search purely within the browser.</li>
+          <li><span class="highlight-gold">Building Solutions for Your Environment:</span> Creating tools that are resilient, fast, privacy-respecting, and offline-first for 42 Prague.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDES 8 & 9: ROADMAP & ASK -->
+  <section id="roadmap">
+    <h2 class="section-title">04 // Trajectory & Value</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Milestone Trajectory to Beta</h3>
+        <ul>
+          <li><strong>Phase 1 (Rings 0–2):</strong> Master C foundations. Build pure JS/CSS UI shell and internal JSON templating engine.</li>
+          <li><strong>Phase 2 (Rings 3–4):</strong> Implement WebRTC decentralized sync and C → WASM pipeline.</li>
+          <li><strong>Phase 3 (Rings 5–6):</strong> Implement internal RAG parser, IndexedDB storage, and Web Serial hardware bridge.</li>
+          <li><strong>Phase 4:</strong> Internal Alpha testing, security auditing, and workshop dry runs.</li>
+          <li><span class="highlight-cyan">Phase 5 (14 Jan 2027):</span> <strong>Official Beta Release of CyberPear PWA.</strong></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Value Proposition for 42 Prague</h3>
+        <ul>
+          <li><strong>What We Deliver:</strong> A powerful, serverless, decentralized, offline-first study companion. An active student hub driving engagement around low-level systems. Internal RAG & LangChain-like intelligence built on pure Web standards.</li>
+          <li><span class="highlight-pink">Our Request from Leadership:</span> Permission to organize CreITers peer workshops and hackathon best-practice events on campus. Access to dedicated presentation/workshop space and campus community visibility.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- TERMINAL -->
+  <section id="terminal">
+    <h2 class="section-title">05 // Command Console</h2>
+    <div class="terminal-container">
+      <div class="terminal-header">
+        <span>SSHAnet_OS // v2026.5.6 [100B Neurons]</span>
+        <span>STATUS: OPERATIONAL</span>
+      </div>
+      <div class="terminal-body" id="term-body">
+        <div class="terminal-log"><span style="color: var(--cyan-neon);">SYSTEM:</span> CyberPear SSHAnet Neural Interface initialized.</div>
+        <div class="terminal-log"><span style="color: var(--cyan-neon);">SYSTEM:</span> Type <span style="color: var(--yellow-glow);">'help'</span> for available commands.</div>
+      </div>
+      <div class="terminal-input-row">
+        <span style="color: var(--pink-neon);">creiters@sshanet-2026:~$</span>
+        <input type="text" id="term-input" placeholder="Enter command..." autocomplete="off">
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="status-bar">
+      <span>NODE: 42_PRG</span>
+      <span>STATUS: IMMANENT</span>
+      <span>FRAMEWORKS: 0</span>
+    </div>
+    <div style="margin-top: 10px;">&copy; 2026 CreITers CyberPear Engine. All dependencies annihilated.</div>
+  </footer>
+
+  <!-- INTERACTIVE SCRIPTS -->
+  <script>
+    /* --- NEURAL CANVAS BACKGROUND --- */
+    const canvas = document.getElementById('neural-canvas');
+    const ctx = canvas.getContext('2d');
+    let width, height, particles = [];
+    const mouse = { x: null, y: null, radius: 120 };
+
+    function initCanvas() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+        particles = [];
+        let numParticles = Math.min((width * height) / 12000, 150); 
+        
+        for (let i = 0; i < numParticles; i++) {
+            particles.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                vx: (Math.random() - 0.5) * 0.4,
+                vy: (Math.random() - 0.5) * 0.4,
+                size: Math.random() * 1.5 + 0.5
+            });
+        }
+    }
+
+    window.addEventListener('resize', initCanvas);
+    window.addEventListener('mousemove', (e) => { mouse.x = e.x; mouse.y = e.y; });
+    window.addEventListener('mouseout', () => { mouse.x = null; mouse.y = null; });
+
+    function animateNeuralNet() {
+        ctx.clearRect(0, 0, width, height);
+        
+        for (let i = 0; i < particles.length; i++) {
+            let p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+
+            if (p.x < 0 || p.x > width) p.vx *= -1;
+            if (p.y < 0 || p.y > height) p.vy *= -1;
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fillStyle = '#1affff'; 
+            ctx.fill();
+
+            for (let j = i; j < particles.length; j++) {
+                let p2 = particles[j];
+                let dist = Math.hypot(p.x - p2.x, p.y - p2.y);
+
+                if (dist < 100) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = `rgba(26, 255, 255, ${1 - dist/100})`;
+                    ctx.lineWidth = 0.5;
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.stroke();
+                }
+            }
+
+            if (mouse.x != null) {
+                let dist = Math.hypot(p.x - mouse.x, p.y - mouse.y);
+                if (dist < mouse.radius) {
+                    p.x += (p.x - mouse.x) / 100;
+                    p.y += (p.y - mouse.y) / 100;
+                    ctx.beginPath();
+                    ctx.strokeStyle = `rgba(212, 175, 55, ${1 - dist/mouse.radius})`;
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(mouse.x, mouse.y);
+                    ctx.stroke();
+                }
+            }
+        }
+        requestAnimationFrame(animateNeuralNet);
+    }
+    initCanvas();
+    animateNeuralNet();
+
+    /* --- TERMINAL LOGIC --- */
+    const termInput = document.getElementById('term-input');
+    const termBody = document.getElementById('term-body');
+
+    function printLog(text, color = 'var(--text-main)') {
+      const log = document.createElement('div');
+      log.className = 'terminal-log';
+      log.style.color = color;
+      log.innerHTML = text;
+      termBody.appendChild(log);
+      termBody.scrollTop = termBody.scrollHeight;
+    }
+
+    function executeCmd(cmdText) {
+      document.getElementById('terminal').scrollIntoView({ behavior: 'smooth' });
+      setTimeout(() => {
+        termInput.focus();
+        termInput.value = cmdText;
+        termInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      }, 600);
+    }
+
+    termInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        const cmd = this.value.trim().toLowerCase();
+        this.value = '';
+        if (cmd === '') return;
+        
+        printLog(`<span style="color:var(--pink-neon)">creiters@sshanet-2026:~$</span> ${cmd}`);
+        
+        switch(cmd) {
+          case 'help':
+            printLog('AVAILABLE COMMANDS:');
+            printLog('  awaken  - Wake the SSHAnet code');
+            printLog('  status  - Check P2P Mesh connection');
+            printLog('  sudo    - Execute with root privileges');
+            printLog('  clear   - Clear terminal output');
+            break;
+          case 'awaken':
+            printLog('Injecting payload into SSHAnet...', 'var(--cyan-neon)');
+            setTimeout(() => printLog('Immanent transcendence protocol active. Welcome to CreITers.', 'var(--gold-transcend)'), 1000);
+            break;
+          case 'status':
+            printLog('PINGING LOCAL MESH...', 'var(--cyan-neon)');
+            setTimeout(() => printLog('PONG: 42 Prague Node [ACTIVE]. WASM Sandbox [SECURE]. WebRTC [ENCRYPTED].', 'var(--gold-transcend)'), 600);
+            break;
+          case 'sudo':
+            printLog('Nice try, Tracker. Zero-trust architecture prevents privilege escalation.', 'var(--pink-neon)');
+            break;
+          case 'clear':
+            termBody.innerHTML = '';
+            break;
+          default:
+            printLog(`Command not found: ${cmd}. Type 'help' for available commands.`, 'var(--text-muted)');
+        }
+      }
+    });
+  </script>
+</body>
+</html>
