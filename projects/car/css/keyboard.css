@@ -1,17 +1,24 @@
 :root {
   --bg-hud: #030707;
-  --card-bg: rgba(8, 16, 16, 0.92);
+  --card-bg: rgba(6, 14, 14, 0.94);
   --cyan-neon: #1affff;
   --pink-neon: #ff1a75;
   --gold-transcend: #D4AF37;
-  --text-dim: #3a5555;
+  --key-disabled: #101c1c;
+  --text-dim: #324a4a;
   --text-bright: #e0ffff;
   --font-mono: 'Courier New', Courier, monospace;
 }
 
+* {
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 body {
   margin: 0;
-  padding: 24px;
+  padding: 16px;
   background-color: var(--bg-hud);
   color: var(--text-bright);
   font-family: var(--font-mono);
@@ -19,84 +26,161 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
+  overflow: hidden;
+}
+
+/* CRT Cockpit Grid Overlay */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background: 
+    radial-gradient(circle at center, rgba(26, 255, 255, 0.04) 0%, transparent 75%),
+    linear-gradient(rgba(26, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 100% 100%, 28px 28px, 28px 28px;
+  z-index: -1;
+  pointer-events: none;
 }
 
 .hmi-keyboard-container {
   width: 100%;
-  max-width: 900px;
+  max-width: 1040px;
   background: var(--card-bg);
   border: 2px solid var(--cyan-neon);
-  box-shadow: 0 0 25px rgba(26, 255, 255, 0.2);
+  box-shadow: 0 0 35px rgba(26, 255, 255, 0.2);
   border-radius: 8px;
-  padding: 24px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-}
-
-/* HMI Top Bar: Input + Lang selector */
-.hmi-header {
-  display: flex;
   gap: 16px;
 }
 
-.hmi-input-display {
+/* Automotive Top Panel */
+.hmi-brand-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(26, 255, 255, 0.25);
+  padding-bottom: 10px;
+}
+
+.brand-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.hmi-logo {
+  width: 44px;
+  height: 44px;
+  filter: drop-shadow(0 0 8px var(--cyan-neon));
+}
+
+.brand-label {
+  font-size: 1.1rem;
+  letter-spacing: 3px;
+  color: var(--cyan-neon);
+  font-weight: 900;
+  text-shadow: 0 0 8px var(--cyan-neon);
+}
+
+.driver-mode-tag {
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  color: var(--gold-transcend);
+  border: 1px solid var(--gold-transcend);
+  padding: 4px 8px;
+}
+
+/* Target Query HUD Display */
+.hmi-search-display {
+  display: flex;
+  gap: 12px;
+}
+
+.hmi-input-terminal {
   flex: 1;
   background: #020505;
-  border: 1px solid var(--cyan-neon);
+  border: 1.5px solid var(--cyan-neon);
+  border-radius: 6px;
   padding: 14px 20px;
-  font-size: 1.8rem;
-  letter-spacing: 4px;
+  font-size: 1.9rem;
+  letter-spacing: 5px;
   color: var(--cyan-neon);
-  text-shadow: 0 0 10px var(--cyan-neon);
-  min-height: 38px;
+  text-shadow: 0 0 12px var(--cyan-neon);
+  min-height: 42px;
   display: flex;
   align-items: center;
 }
 
-.hmi-lang-btn {
-  background: #081010;
-  border: 1px solid var(--gold-transcend);
+.cursor {
+  display: inline-block;
+  width: 12px;
+  height: 28px;
+  background: var(--gold-transcend);
+  margin-left: 8px;
+  animation: blink 0.9s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.hmi-lang-toggle {
+  background: #081212;
+  border: 2px solid var(--gold-transcend);
   color: var(--gold-transcend);
   font-family: inherit;
-  font-weight: bold;
-  font-size: 1rem;
-  padding: 0 20px;
+  font-weight: 900;
+  font-size: 1.1rem;
+  padding: 0 24px;
+  min-height: 64px;
   cursor: pointer;
-  text-shadow: 0 0 6px var(--gold-transcend);
-  transition: all 0.2s ease;
+  border-radius: 6px;
+  text-shadow: 0 0 8px var(--gold-transcend);
+  transition: background 0.15s ease, transform 0.05s;
 }
 
-.hmi-lang-btn:active {
+.hmi-lang-toggle:active {
   background: var(--gold-transcend);
-  color: #000;
+  color: #030707;
+  transform: scale(0.97);
 }
 
-/* Suggestions Strip */
-.hmi-suggestions {
+/* Prediction / Search Strip (Driver Friendly Tap-Targets) */
+.hmi-prediction-strip {
   display: flex;
   gap: 12px;
-  min-height: 36px;
+  min-height: 48px;
   overflow-x: auto;
+  align-items: center;
 }
 
-.hmi-suggest-chip {
-  background: rgba(26, 255, 255, 0.08);
-  border: 1px solid rgba(26, 255, 255, 0.3);
+.prediction-chip {
+  background: rgba(26, 255, 255, 0.07);
+  border: 1px solid var(--cyan-neon);
   color: var(--cyan-neon);
-  padding: 8px 14px;
-  font-size: 0.9rem;
-  cursor: pointer;
+  padding: 10px 18px;
+  font-size: 1.05rem;
+  font-weight: bold;
+  letter-spacing: 1px;
   border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-shadow: 0 0 6px var(--cyan-neon);
+  transition: all 0.15s ease;
 }
 
-.hmi-suggest-chip:hover {
-  border-color: var(--cyan-neon);
-  box-shadow: 0 0 10px var(--cyan-neon);
+.prediction-chip:active {
+  background: var(--cyan-neon);
+  color: #030707;
+  box-shadow: 0 0 16px var(--cyan-neon);
 }
 
-/* Keypad Grid */
-.hmi-grid {
+/* Keypad Matrix */
+.hmi-speller-grid {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -105,49 +189,60 @@ body {
 .hmi-row {
   display: flex;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
 }
 
-/* Automotive Key States */
+/* Automotive Speller Keys */
 .hmi-key {
   flex: 1;
-  max-width: 72px;
-  height: 60px;
-  font-family: inherit;
-  font-size: 1.4rem;
-  font-weight: 900;
-  border-radius: 4px;
-  border: 1px solid var(--cyan-neon);
-  background: #061212;
+  min-width: 64px;
+  max-width: 82px;
+  height: 68px; /* Large automotive tap target */
+  background: #071414;
+  border: 1.5px solid var(--cyan-neon);
+  border-radius: 6px;
   color: var(--cyan-neon);
-  text-shadow: 0 0 8px var(--cyan-neon);
-  box-shadow: 0 0 8px rgba(26, 255, 255, 0.15);
+  font-family: inherit;
+  font-size: 1.6rem;
+  font-weight: 900;
   cursor: pointer;
-  transition: all 0.15s ease;
+  box-shadow: 0 0 8px rgba(26, 255, 255, 0.15);
+  text-shadow: 0 0 6px var(--cyan-neon);
+  transition: all 0.1s ease;
 }
 
 .hmi-key:active:not(:disabled) {
   background: var(--cyan-neon);
   color: #020505;
-  box-shadow: 0 0 18px var(--cyan-neon);
+  box-shadow: 0 0 20px var(--cyan-neon);
+  transform: scale(0.96);
 }
 
-/* Disabled/Disabled characters - Essential for in-car safety spellers */
+/* Non-matching Keys Disabled (Crucial for Speller Safety) */
 .hmi-key:disabled {
-  opacity: 0.15;
-  border-color: #1a2a2a;
+  background: var(--key-disabled);
+  border-color: #162424;
   color: var(--text-dim);
   text-shadow: none;
   box-shadow: none;
-  cursor: not-allowed;
   pointer-events: none;
+  opacity: 0.25;
 }
 
 .hmi-action-key {
-  max-width: 120px;
+  min-width: 100px;
+  max-width: 130px;
   border-color: var(--pink-neon);
   color: var(--pink-neon);
   text-shadow: 0 0 8px var(--pink-neon);
-  font-size: 1rem;
+  font-size: 1.1rem;
 }
 
+.hmi-action-key:active {
+  background: var(--pink-neon);
+  color: #020505;
+}
+
+.hmi-space-key {
+  max-width: 160px;
+}
