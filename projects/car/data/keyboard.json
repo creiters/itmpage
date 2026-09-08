@@ -1,0 +1,26 @@
+{
+  "languages": {
+    "cs": {
+      "name": "Čeština",
+      "dictionary": [
+        "PRAHA", "BRNO", "OSTRAVA", "PLZEN", "LIBEREC", "OLOMOUC",
+        "NAVIGACE", "RADIO", "KLIMATIZACE", "TELEFON", "NASTAVENI",
+        "SSHANET", "CYBERPEAR", "NEVIMTO", "CREITERS"
+      ]
+    },
+    "en": {
+      "name": "English",
+      "dictionary": [
+        "LONDON", "BERLIN", "PARIS", "PRAGUE", "NEWYORK", "TOKYO",
+        "NAVIGATION", "RADIO", "CLIMATE", "PHONE", "SETTINGS",
+        "SSHANET", "CYBERPEAR", "NEVIMTO", "CREITERS"
+      ]
+    }
+  },
+  "rows": [
+    ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+    ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
+    ["Z", "X", "C", "V", "B", "N", "M"]
+  ]
+}
+
