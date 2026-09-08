@@ -3,20 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>CyberPear // Car HMI Core [2026]</title>
+  <title>CyberPear // Unified HMI Dashboard [2026]</title>
   <style>
-    /* --- SSHAnet BASE STYLES --- */
-    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    /* --- SSHAnet BASE STYLES[span_2](start_span)[span_2](end_span) --- */
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
     
     :root {
       --bg-color: #030707;
-      --card-bg: rgba(8, 16, 16, 0.85);
+      --card-bg: rgba(6, 12, 12, 0.88);
       --cyan-neon: #1affff;
       --pink-neon: #ff1a75;
       --yellow-glow: #ffff00;
       --gold-transcend: #D4AF37;
       --text-main: #e0ffff;
-      --text-muted: #88aaaa;
+      --text-muted: #4a6666;
       --font-mono: 'Courier New', Courier, monospace;
       --key-disabled: rgba(5, 13, 13, 0.5);
     }
@@ -26,18 +26,18 @@
       color: var(--text-main);
       font-family: var(--font-mono);
       min-height: 100vh;
-      overflow: hidden;
-      display: flex;
+      padding: 20px;
+      overflow-x: hidden;
     }
 
-    /* --- CRT SCANLINE & GRID BACKGROUND[span_1](start_span)[span_1](end_span) --- */
+    /* --- CRT SCANLINE & GRID BACKGROUND[span_3](start_span)[span_3](end_span) --- */
     body::before {
       content: "";
       position: fixed;
       top: 0; left: 0; width: 100vw; height: 100vh;
       background: 
         radial-gradient(circle at center, rgba(212, 175, 55, 0.03) 0%, transparent 70%),
-        radial-gradient(circle at center, rgba(26, 255, 255, 0.05) 0%, transparent 75%),
+        radial-gradient(circle at center, rgba(26, 255, 255, 0.04) 0%, transparent 75%),
         linear-gradient(rgba(26, 255, 255, 0.02) 1px, transparent 1px),
         linear-gradient(90deg, rgba(26, 255, 255, 0.02) 1px, transparent 1px);
       background-size: 100% 100%, 100% 100%, 24px 24px, 24px 24px;
@@ -53,473 +53,298 @@
       background-size: 100% 4px;
       z-index: 999;
       pointer-events: none;
-      opacity: 0.7;
+      opacity: 0.6;
     }
 
-    /* --- HMI LAYOUT (RESPONSIVE) --- */
-    .hmi-layout {
-      display: grid;
-      grid-template-columns: 240px 1fr;
-      width: 100vw;
-      height: 100vh;
-      z-index: 10;
-    }
-
-    @media (max-width: 768px) {
-      .hmi-layout {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr;
-      }
-      .sidebar { border-right: none; border-bottom: 2px solid var(--cyan-neon); flex-direction: row; overflow-x: auto; }
-      .brand-title { display: none; }
-      .nav-btn { flex: 1; padding: 12px; font-size: 0.8rem; }
-    }
-
-    /* --- SIDEBAR NAVIGATION --- */
-    .sidebar {
-      background: rgba(4, 10, 10, 0.92);
-      border-right: 2px solid var(--cyan-neon);
-      backdrop-filter: blur(6px);
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-      box-shadow: 0 0 15px rgba(26, 255, 255, 0.2);
-    }
-
-    .brand {
+    /* --- DASHBOARD HEADER --- */
+    .hmi-header {
       display: flex;
       align-items: center;
-      gap: 12px;
-      margin-bottom: 20px;
+      gap: 20px;
+      margin-bottom: 24px;
+      border-bottom: 2px solid var(--cyan-neon);
+      padding-bottom: 12px;
+      box-shadow: 0 10px 20px -10px rgba(26, 255, 255, 0.2);
     }
 
-    .brand svg {
-      width: 42px;
-      height: 42px;
+    .hmi-logo {
+      width: 50px;
+      height: 50px;
       filter: drop-shadow(0 0 8px var(--cyan-neon));
     }
 
-    .brand-title {
-      color: var(--pink-neon);
-      font-weight: 900;
-      font-size: 1.2rem;
-      letter-spacing: 2px;
-      text-shadow: 0 0 8px var(--pink-neon);
-    }
-
-    .nav-btn {
-      background: transparent;
-      border: 1px solid transparent;
-      color: var(--cyan-neon);
-      font-family: inherit;
-      font-size: 1rem;
-      font-weight: bold;
-      text-transform: uppercase;
-      padding: 14px 16px;
-      cursor: pointer;
-      text-align: left;
-      transition: all 0.2s ease;
-      letter-spacing: 1px;
-    }
-
-    .nav-btn:hover, .nav-btn.active {
-      border-color: var(--cyan-neon);
-      background: rgba(26, 255, 255, 0.1);
-      box-shadow: 0 0 10px rgba(26, 255, 255, 0.4);
-    }
-
-    .nav-btn.transcend { color: var(--gold-transcend); }
-    .nav-btn.transcend.active {
-      border-color: var(--gold-transcend);
-      background: rgba(212, 175, 55, 0.15);
-      box-shadow: 0 0 12px rgba(212, 175, 55, 0.5);
-    }
-
-    /* --- CONTENT AREA --- */
-    .main-content {
-      padding: 24px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .screen {
-      display: none;
-      animation: fadeIn 0.3s ease;
-      flex-direction: column;
-      gap: 20px;
-      height: 100%;
-    }
-
-    .screen.active {
-      display: flex;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .section-title {
+    .hmi-title {
       font-size: 1.8rem;
       color: var(--pink-neon);
-      text-shadow: 0 0 10px var(--pink-neon);
-      border-bottom: 1px solid var(--pink-neon);
-      padding-bottom: 8px;
+      font-weight: 900;
       text-transform: uppercase;
-      letter-spacing: 2px;
+      letter-spacing: 4px;
+      text-shadow: 0 0 10px var(--pink-neon);
     }
 
-    /* --- CARDS & MODULES --- */
-    .card-grid {
+    /* --- ADAPTIVE GRID LAYOUT --- */
+    /* Auto-fits columns based on screen size (Mobile -> Car -> Big Screen) */
+    .dashboard-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
       gap: 20px;
+      width: 100%;
+      max-width: 1600px;
+      margin: 0 auto;
     }
 
-    .hmi-card {
+    /* Keyboard needs more space on wider screens */
+    @media (min-width: 1100px) {
+      .panel-keyboard {
+        grid-column: span 2;
+      }
+    }
+
+    /* --- HMI PANELS --- */
+    .hmi-panel {
       background: var(--card-bg);
       border: 1px solid var(--cyan-neon);
+      border-radius: 8px;
       padding: 24px;
-      box-shadow: 0 0 10px rgba(26, 255, 255, 0.1);
+      box-shadow: 0 0 15px rgba(26, 255, 255, 0.1);
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
+      backdrop-filter: blur(4px);
     }
 
-    .hmi-card h3 {
+    .panel-title {
       color: var(--yellow-glow);
-      font-size: 1.1rem;
+      font-size: 1.2rem;
       text-transform: uppercase;
+      letter-spacing: 2px;
+      border-bottom: 1px solid rgba(255, 255, 0, 0.3);
+      padding-bottom: 8px;
     }
 
-    .status-value {
-      font-size: 2.5rem;
-      font-weight: 900;
-      color: var(--gold-transcend);
-      text-shadow: 0 0 12px var(--gold-transcend);
-    }
-
-    /* --- ADAPTIVE KEYBOARD SPELLER --- */
-    .hmi-search-display {
+    /* --- STATUS PANEL --- */
+    .status-item {
       display: flex;
-      gap: 12px;
-      margin-bottom: 16px;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 1.1rem;
+      padding: 8px 0;
+      border-bottom: 1px dashed var(--text-muted);
+    }
+    .status-val { font-weight: bold; font-size: 1.4rem; text-shadow: 0 0 8px currentColor; }
+    .val-cyan { color: var(--cyan-neon); }
+    .val-gold { color: var(--gold-transcend); }
+    .val-pink { color: var(--pink-neon); }
+
+    /* --- CONTROLS PANEL --- */
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    .temp-display {
+      font-size: 3rem;
+      text-align: center;
+      color: var(--cyan-neon);
+      text-shadow: 0 0 15px var(--cyan-neon);
+      font-weight: 900;
     }
 
-    .hmi-input-terminal {
+    .btn-row { display: flex; gap: 12px; }
+    
+    .hmi-btn {
       flex: 1;
-      background: #020505;
-      border: 1.5px solid var(--cyan-neon);
-      border-radius: 4px;
-      padding: 16px 24px;
-      font-size: 2rem;
-      letter-spacing: 5px;
+      background: transparent;
+      border: 2px solid var(--cyan-neon);
       color: var(--cyan-neon);
-      text-shadow: 0 0 12px var(--cyan-neon);
+      font-family: inherit;
+      font-size: 1.2rem;
+      font-weight: bold;
+      padding: 12px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.1s;
+    }
+    
+    .hmi-btn:active { background: var(--cyan-neon); color: #000; }
+    
+    .btn-alert { border-color: var(--pink-neon); color: var(--pink-neon); }
+    .btn-alert:active { background: var(--pink-neon); color: #000; }
+
+    /* --- MEDIA PANEL --- */
+    .media-info {
+      text-align: center;
+      margin: 10px 0;
+    }
+    .media-source { color: var(--pink-neon); font-size: 0.9rem; margin-bottom: 4px; }
+    .media-track { font-size: 1.6rem; color: var(--gold-transcend); font-weight: bold; text-shadow: 0 0 8px var(--gold-transcend); }
+    .progress-bar { width: 100%; height: 4px; background: #112; margin: 16px 0; position: relative; }
+    .progress-fill { width: 35%; height: 100%; background: var(--cyan-neon); box-shadow: 0 0 8px var(--cyan-neon); }
+
+    /* --- KEYBOARD PANEL --- */
+    .kb-display {
+      background: #010303;
+      border: 1.5px solid var(--gold-transcend);
+      padding: 16px;
+      font-size: 2rem;
+      color: var(--gold-transcend);
+      text-shadow: 0 0 10px var(--gold-transcend);
+      min-height: 68px;
       display: flex;
       align-items: center;
-      min-height: 72px;
+      letter-spacing: 3px;
     }
-
     .cursor {
       display: inline-block;
       width: 14px;
       height: 32px;
-      background: var(--gold-transcend);
+      background: var(--cyan-neon);
       margin-left: 10px;
-      animation: blink 0.9s infinite;
+      animation: blink 0.8s infinite;
     }
-
     @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
-    .hmi-keyboard {
+    .kb-suggestions {
       display: flex;
-      flex-direction: column;
-      gap: 12px;
-      flex: 1;
-      justify-content: flex-end;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 4px;
     }
-
-    .hmi-row {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
+    .suggestion-chip {
+      border: 1px solid var(--cyan-neon);
+      color: var(--cyan-neon);
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 0.9rem;
     }
+    .suggestion-chip:active { background: var(--cyan-neon); color: #000; }
 
-    .hmi-key {
+    .kb-grid { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+    .kb-row { display: flex; justify-content: center; gap: 8px; }
+    
+    .kb-key {
       flex: 1;
-      min-width: 0; /* Allows shrinking on small screens */
-      height: 7vh; /* Scales with screen height */
-      min-height: 54px;
-      max-height: 80px;
-      background: #071414;
-      border: 1.5px solid var(--cyan-neon);
-      border-radius: 6px;
+      height: 60px;
+      min-width: 28px;
+      background: #051010;
+      border: 1px solid var(--cyan-neon);
       color: var(--cyan-neon);
       font-family: inherit;
-      font-size: 1.8rem;
-      font-weight: 900;
+      font-size: 1.5rem;
+      font-weight: bold;
       cursor: pointer;
-      box-shadow: 0 0 8px rgba(26, 255, 255, 0.15);
-      transition: all 0.1s ease;
       display: flex;
       align-items: center;
       justify-content: center;
     }
-
-    .hmi-key:active:not(:disabled) {
-      background: var(--cyan-neon);
-      color: #020505;
-      transform: scale(0.95);
-    }
-
-    .hmi-key:disabled {
-      background: var(--key-disabled);
-      border-color: #162424;
-      color: var(--text-muted);
-      box-shadow: none;
-      opacity: 0.3;
-      pointer-events: none;
-    }
-
-    .hmi-action-key {
-      flex: 1.5;
-      border-color: var(--pink-neon);
-      color: var(--pink-neon);
-      font-size: 1.2rem;
-    }
-
-    /* --- MEDIA PLAYER MODULE --- */
-    .media-player {
-      border: 2px solid var(--gold-transcend);
-      padding: 30px;
-      text-align: center;
-      background: rgba(8, 16, 16, 0.95);
-    }
+    .kb-key:active:not(:disabled) { background: var(--cyan-neon); color: #000; transform: scale(0.95); }
+    .kb-key:disabled { opacity: 0.2; pointer-events: none; border-color: var(--text-muted); }
     
-    .media-controls {
-      display: flex;
-      justify-content: center;
-      gap: 24px;
-      margin-top: 20px;
-    }
-
-    .ctrl-btn {
-      background: transparent;
-      border: 2px solid var(--cyan-neon);
-      color: var(--cyan-neon);
-      padding: 16px 24px;
-      font-size: 1.2rem;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    
-    .ctrl-btn:active {
-      background: var(--cyan-neon);
-      color: #000;
-    }
+    .kb-action { flex: 1.5; border-color: var(--pink-neon); color: var(--pink-neon); font-size: 1rem; }
   </style>
 </head>
 <body>
 
-  <div class="hmi-layout">
-    
-    <!-- Navigation Sidebar -->
-    <nav class="sidebar">
-      <div class="brand">
-        <!-- CyberPear SVG Logo[span_2](start_span)[span_2](end_span) -->
-        <svg viewBox="0 0 500 550" xmlns="http://www.w3.org/2000/svg">
-          <style>
-            .np-main { fill: #22B14C; } .np-dark { fill: #156B2E; }
-            .np-cyan { fill: #1AFFFF; } .np-gold { fill: #D4AF37; }
-            .np-stem { fill: #8B5A2B; } .np-leaf { fill: #158837; }
-          </style>
-          <g transform="translate(10, 10)">
-            <g class="np-stem"><rect x="230" y="70" width="12" height="60" /></g>
-            <g class="np-leaf"><rect x="182" y="94" width="48" height="24" /></g>
-            <g class="np-dark"><rect x="254" y="130" width="60" height="200" /></g>
-            <g class="np-main"><rect x="182" y="130" width="80" height="200" /></g>
-            <g class="np-cyan"><rect x="134" y="214" width="36" height="80" /></g>
-            <g class="np-gold"><rect x="170" y="250" width="12" height="12" /></g>
-          </g>
-        </svg>
-        <span class="brand-title">CreITers // HMI</span>
+  <!-- HEADER -->
+  <header class="hmi-header">
+    <!-- Static representation of the CyberPear SVG Logo[span_4](start_span)[span_4](end_span) -->
+    <svg class="hmi-logo" viewBox="0 0 500 550" xmlns="http://www.w3.org/2000/svg">
+      <g transform="translate(10, 10)">
+        <g fill="#8B5A2B"><rect x="230" y="70" width="12" height="60" /></g>
+        <g fill="#158837"><rect x="182" y="94" width="48" height="24" /></g>
+        <g fill="#156B2E"><rect x="254" y="130" width="60" height="200" /></g>
+        <g fill="#22B14C"><rect x="182" y="130" width="80" height="200" /></g>
+        <g fill="#1AFFFF"><rect x="134" y="214" width="36" height="80" /></g>
+        <g fill="#D4AF37"><rect x="170" y="250" width="12" height="12" /></g>
+      </g>
+    </svg>
+    <div class="hmi-title">CreITers // HMI Dashboard</div>
+  </header>
+
+  <!-- DASHBOARD GRID -->
+  <main class="dashboard-grid">
+
+    <!-- 1. STATUS PANEL -->
+    <section class="hmi-panel">
+      <h2 class="panel-title">01 // Telemetry</h2>
+      <div class="status-item">
+        <span>SSHAnet Node</span>
+        <span class="status-val val-cyan">ONLINE</span>
       </div>
+      <div class="status-item">
+        <span>Energy Core</span>
+        <span class="status-val val-gold">88%</span>
+      </div>
+      <div class="status-item">
+        <span>Range Calc</span>
+        <span class="status-val val-cyan">420 KM</span>
+      </div>
+      <div class="status-item">
+        <span>Tracker Threat</span>
+        <span class="status-val val-pink">NEUTRAL</span>
+      </div>
+      <div class="status-item" style="border:none; margin-top:10px;">
+        <span style="font-size: 0.8rem; color: var(--text-muted);">100 BILLION NEURONS SYNCED</span>
+      </div>
+    </section>
+
+    <!-- 2. CONTROLS PANEL -->
+    <section class="hmi-panel">
+      <h2 class="panel-title">02 // Cabin Controls</h2>
+      <div class="control-group">
+        <span style="color: var(--text-muted);">CLIMATE SYNAPSE</span>
+        <div class="temp-display" id="temp-val">21.5°C</div>
+        <div class="btn-row">
+          <button class="hmi-btn" onclick="adjTemp(-0.5)">- COOL</button>
+          <button class="hmi-btn" onclick="adjTemp(0.5)">+ HEAT</button>
+        </div>
+      </div>
+      <div class="control-group" style="margin-top: 15px;">
+        <span style="color: var(--text-muted);">SECURITY LOCKS</span>
+        <button class="hmi-btn btn-alert" id="lock-btn" onclick="toggleLock()">UNLOCK DOORS</button>
+      </div>
+    </section>
+
+    <!-- 3. MEDIA PANEL -->
+    <section class="hmi-panel">
+      <h2 class="panel-title">03 // Media Stream</h2>
+      <div class="media-info">
+        <div class="media-source">YOUTUBE // CYBERPUNK MIX</div>
+        <div class="media-track" id="track-name">V's Theme (Rebel Path)</div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill"></div></div>
+      <div class="btn-row">
+        <button class="hmi-btn" onclick="playHaptic()">|&lt;&lt;</button>
+        <button class="hmi-btn" style="flex:2;" onclick="playHaptic()">PLAY / PAUSE</button>
+        <button class="hmi-btn" onclick="playHaptic()">&gt;&gt;|</button>
+      </div>
+    </section>
+
+    <!-- 4. KEYBOARD PANEL -->
+    <section class="hmi-panel panel-keyboard">
+      <h2 class="panel-title">04 // Navigation Speller</h2>
       
-      <button class="nav-btn active" data-target="screen-status">01 // Car Status</button>
-      <button class="nav-btn" data-target="screen-control">02 // Controls</button>
-      <button class="nav-btn" data-target="screen-media">03 // YouTube / Media</button>
-      <button class="nav-btn transcend" data-target="screen-nav">04 // Navigation</button>
-    </nav>
+      <div class="kb-display">
+        <span id="kb-text"></span><span class="cursor"></span>
+      </div>
 
-    <!-- Main Screens Container -->
-    <main class="main-content">
-      
-      <!-- SCREEN 1: STATUS -->
-      <section id="screen-status" class="screen active">
-        <h2 class="section-title">Telemetry & Status</h2>
-        <div class="card-grid">
-          <div class="hmi-card">
-            <h3>Battery Charge</h3>
-            <div class="status-value">84%</div>
-            <p style="color: var(--cyan-neon);">Range: 412 km</p>
-          </div>
-          <div class="hmi-card transcend-card" style="border-color: var(--gold-transcend);">
-            <h3 style="color: var(--gold-transcend);">SSHAnet Node</h3>
-            <div class="status-value">ONLINE</div>
-            <p>100 Billion Neurons Synced</p>
-          </div>
-          <div class="hmi-card" style="border-color: var(--pink-neon);">
-            <h3 style="color: var(--pink-neon);">Threat Level</h3>
-            <div class="status-value" style="color: var(--pink-neon);">NEUTRAL</div>
-            <p>Tracker Armed</p>
-          </div>
-        </div>
-      </section>
+      <div class="kb-suggestions" id="kb-suggestions">
+        <!-- Rendered via JS -->
+      </div>
 
-      <!-- SCREEN 2: CONTROLS -->
-      <section id="screen-control" class="screen">
-        <h2 class="section-title">Vehicle Controls</h2>
-        <div class="card-grid">
-          <div class="hmi-card">
-            <h3>Climate</h3>
-            <div class="status-value" style="color: var(--cyan-neon);">21.5°C</div>
-            <div class="media-controls">
-              <button class="ctrl-btn">-</button>
-              <button class="ctrl-btn">+</button>
-            </div>
-          </div>
-          <div class="hmi-card">
-            <h3>Doors & Locks</h3>
-            <button class="ctrl-btn" style="margin-top: 15px; border-color: var(--pink-neon); color: var(--pink-neon);">UNLOCK ALL DOORS</button>
-          </div>
-        </div>
-      </section>
+      <div class="kb-grid" id="kb-grid">
+        <!-- Rendered via JS -->
+      </div>
+    </section>
 
-      <!-- SCREEN 3: MEDIA -->
-      <section id="screen-media" class="screen">
-        <h2 class="section-title">Media Synapse</h2>
-        <div class="media-player">
-          <h3 style="color: var(--pink-neon); margin-bottom: 10px;">NOW PLAYING // YOUTUBE MUSIC</h3>
-          <div class="status-value" style="font-size: 2rem;">Cyberpunk OST - V's Theme</div>
-          <p style="color: var(--text-muted); margin-top: 10px;">Source: SSHAnet Stream Link</p>
-          
-          <div class="media-controls">
-            <button class="ctrl-btn">|&lt;&lt;</button>
-            <button class="ctrl-btn" style="border-color: var(--gold-transcend); color: var(--gold-transcend);">PLAY / PAUSE</button>
-            <button class="ctrl-btn">&gt;&gt;|</button>
-          </div>
-        </div>
-      </section>
+  </main>
 
-      <!-- SCREEN 4: NAVIGATION SPELLER (ADAPTIVE KEYBOARD) -->
-      <section id="screen-nav" class="screen">
-        <h2 class="section-title">Destination Query</h2>
-        
-        <div class="hmi-search-display">
-          <div class="hmi-input-terminal" id="kb-display">
-            <span id="kb-text"></span><span class="cursor"></span>
-          </div>
-        </div>
-
-        <!-- Adaptive Grid Keyboard -->
-        <div class="hmi-keyboard" id="hmi-keyboard">
-          <!-- Rendered via JS -->
-        </div>
-      </section>
-
-    </main>
-  </div>
-
+  <!-- INTERACTIVE LOGIC -->
   <script>
-    // --- 1. TAB NAVIGATION LOGIC ---
-    const navButtons = document.querySelectorAll('.nav-btn');
-    const screens = document.querySelectorAll('.screen');
-
-    navButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        // Audio feedback
-        playHaptic(880, 0.05);
-
-        // UI Switch
-        navButtons.forEach(b => b.classList.remove('active'));
-        screens.forEach(s => s.classList.remove('active'));
-        
-        btn.classList.add('active');
-        document.getElementById(btn.getAttribute('data-target')).classList.add('active');
-      });
-    });
-
-    // --- 2. ADAPTIVE PREDICTIVE KEYBOARD LOGIC ---
-    const dict = ["PRAHA", "BRNO", "OSTRAVA", "PLZEN", "LIBEREC", "NAVIGACE", "RADIO", "CYBERPEAR", "SSHANET"];
-    const rows = [
-      ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
-      ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
-      ["Z", "X", "C", "V", "B", "N", "M"]
-    ];
-
-    let inputBuffer = "";
-    const kbText = document.getElementById('kb-text');
-    const kbContainer = document.getElementById('hmi-keyboard');
-
-    function renderKeyboard() {
-      // Calculate allowed next characters based on dictionary
-      const allowedKeys = new Set();
-      if (inputBuffer.length === 0) {
-        dict.forEach(w => allowedKeys.add(w[0]));
-      } else {
-        const matches = dict.filter(w => w.startsWith(inputBuffer));
-        matches.forEach(w => {
-          if (w.length > inputBuffer.length) allowedKeys.add(w[inputBuffer.length]);
-        });
-      }
-
-      kbContainer.innerHTML = '';
-      
-      rows.forEach((row, idx) => {
-        const rowDiv = document.createElement('div');
-        rowDiv.className = 'hmi-row';
-        
-        if (idx === 2) {
-          rowDiv.innerHTML += `<button class="hmi-key hmi-action-key" onclick="handleKey('CLR')">CLR</button>`;
-        }
-
-        row.forEach(char => {
-          const isEnabled = allowedKeys.has(char);
-          rowDiv.innerHTML += `<button class="hmi-key" ${isEnabled ? '' : 'disabled'} onclick="handleKey('${char}')">${char}</button>`;
-        });
-
-        if (idx === 2) {
-          rowDiv.innerHTML += `<button class="hmi-key hmi-action-key" onclick="handleKey('DEL')">DEL</button>`;
-        }
-
-        kbContainer.appendChild(rowDiv);
-      });
-    }
-
-    window.handleKey = function(char) {
-      if (char === 'CLR') {
-        inputBuffer = "";
-        playHaptic(600, 0.08);
-      } else if (char === 'DEL') {
-        inputBuffer = inputBuffer.slice(0, -1);
-        playHaptic(600, 0.08);
-      } else {
-        inputBuffer += char;
-        playHaptic(1200, 0.04);
-      }
-      kbText.innerText = inputBuffer;
-      renderKeyboard();
-    };
-
-    // Initialize keyboard on load
-    renderKeyboard();
-
-    // --- 3. WEB AUDIO HAPTIC FEEDBACK ---
+    // --- AUDIO HAPTIC FEEDBACK ---
     let audioCtx = null;
-    function playHaptic(freq, duration) {
+    function playHaptic(freq = 800, duration = 0.05) {
       try {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = audioCtx.createOscillator();
@@ -527,12 +352,117 @@
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
         osc.start();
         osc.stop(audioCtx.currentTime + duration);
       } catch (e) {}
     }
+
+    // --- CONTROLS LOGIC ---
+    let temp = 21.5;
+    function adjTemp(change) {
+      temp += change;
+      document.getElementById('temp-val').innerText = temp.toFixed(1) + '°C';
+      playHaptic(600, 0.08);
+    }
+
+    let locked = true;
+    function toggleLock() {
+      locked = !locked;
+      const btn = document.getElementById('lock-btn');
+      btn.innerText = locked ? "UNLOCK DOORS" : "LOCK DOORS";
+      btn.style.color = locked ? "var(--pink-neon)" : "var(--cyan-neon)";
+      btn.style.borderColor = locked ? "var(--pink-neon)" : "var(--cyan-neon)";
+      playHaptic(locked ? 400 : 1200, 0.1);
+    }
+
+    // --- PREDICTIVE KEYBOARD LOGIC ---
+    const dict = [
+      "PRAHA", "BRNO", "OSTRAVA", "PLZEN", "LIBEREC", 
+      "NAVIGACE", "RADIO", "TELEFON", "KLIMATIZACE", 
+      "CYBERPEAR", "SSHANET", "CREITERS"
+    ];
+    
+    const layoutRows = [
+      ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+      ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
+      ["Z", "X", "C", "V", "B", "N", "M"]
+    ];
+
+    let inputBuffer = "";
+    const kbText = document.getElementById('kb-text');
+    const kbGrid = document.getElementById('kb-grid');
+    const kbSugg = document.getElementById('kb-suggestions');
+
+    function renderKeyboard() {
+      // 1. Calculate allowed characters and suggestions
+      const allowedKeys = new Set();
+      let suggestions = [];
+
+      if (inputBuffer.length === 0) {
+        dict.forEach(w => allowedKeys.add(w[0]));
+        suggestions = ["PRAHA", "BRNO", "CYBERPEAR"];
+      } else {
+        const matches = dict.filter(w => w.startsWith(inputBuffer));
+        suggestions = matches.slice(0, 4);
+        matches.forEach(w => {
+          if (w.length > inputBuffer.length) allowedKeys.add(w[inputBuffer.length]);
+        });
+      }
+
+      // 2. Render Suggestions
+      kbSugg.innerHTML = suggestions.map(s => 
+        `<div class="suggestion-chip" onclick="selectWord('${s}')">⚡ ${s}</div>`
+      ).join('');
+
+      // 3. Render Grid
+      kbGrid.innerHTML = '';
+      layoutRows.forEach((row, idx) => {
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'kb-row';
+        
+        if (idx === 2) {
+          rowDiv.innerHTML += `<button class="kb-key kb-action" onclick="handleKey('CLR')">CLR</button>`;
+        }
+
+        row.forEach(char => {
+          const isEnabled = allowedKeys.has(char);
+          rowDiv.innerHTML += `<button class="kb-key" ${isEnabled ? '' : 'disabled'} onclick="handleKey('${char}')">${char}</button>`;
+        });
+
+        if (idx === 2) {
+          rowDiv.innerHTML += `<button class="kb-key kb-action" onclick="handleKey('DEL')">DEL</button>`;
+        }
+
+        kbGrid.appendChild(rowDiv);
+      });
+    }
+
+    window.handleKey = function(char) {
+      if (char === 'CLR') {
+        inputBuffer = "";
+        playHaptic(500, 0.08);
+      } else if (char === 'DEL') {
+        inputBuffer = inputBuffer.slice(0, -1);
+        playHaptic(500, 0.08);
+      } else {
+        inputBuffer += char;
+        playHaptic(1000, 0.04);
+      }
+      kbText.innerText = inputBuffer;
+      renderKeyboard();
+    };
+
+    window.selectWord = function(word) {
+      inputBuffer = word;
+      kbText.innerText = inputBuffer;
+      playHaptic(1200, 0.1);
+      renderKeyboard();
+    };
+
+    // Initialize on load
+    renderKeyboard();
   </script>
 </body>
 </html>
