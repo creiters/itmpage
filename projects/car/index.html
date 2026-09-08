@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberPear // HMI Speller Node [2026]</title>
+  <link rel="stylesheet" href="css/keyboard.css">
+</head>
+<body>
+  <div id="hmi-root"></div>
+
+  <script type="module">
+    import { KeyboardModel } from './app/KeyboardModel.js';
+    import { KeyboardViewModel } from './app/KeyboardViewModel.js';
+    import { KeyboardView } from './app/KeyboardView.js';
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const root = document.getElementById('hmi-root');
+      const model = new KeyboardModel();
+      const viewModel = new KeyboardViewModel(model);
+      new KeyboardView(viewModel, root);
+      await viewModel.init();
+    });
+  </script>
+</body>
+</html>
+
