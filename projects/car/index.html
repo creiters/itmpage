@@ -3,24 +3,536 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>CyberPear // Automotive Speller Node [2026]</title>
-  <link rel="stylesheet" href="css/keyboard.css">
+  <title>CyberPear // Car HMI Core [2026]</title>
+  <style>
+    /* --- SSHAnet BASE STYLES --- */
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    
+    :root {
+      --bg-color: #030707;
+      --card-bg: rgba(8, 16, 16, 0.85);
+      --cyan-neon: #1affff;
+      --pink-neon: #ff1a75;
+      --yellow-glow: #ffff00;
+      --gold-transcend: #D4AF37;
+      --text-main: #e0ffff;
+      --text-muted: #88aaaa;
+      --font-mono: 'Courier New', Courier, monospace;
+      --key-disabled: rgba(5, 13, 13, 0.5);
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      min-height: 100vh;
+      overflow: hidden;
+      display: flex;
+    }
+
+    /* --- CRT SCANLINE & GRID BACKGROUND[span_1](start_span)[span_1](end_span) --- */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: 
+        radial-gradient(circle at center, rgba(212, 175, 55, 0.03) 0%, transparent 70%),
+        radial-gradient(circle at center, rgba(26, 255, 255, 0.05) 0%, transparent 75%),
+        linear-gradient(rgba(26, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(26, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 24px 24px, 24px 24px;
+      z-index: -2;
+      pointer-events: none;
+    }
+
+    body::after {
+      content: " ";
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%);
+      background-size: 100% 4px;
+      z-index: 999;
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    /* --- HMI LAYOUT (RESPONSIVE) --- */
+    .hmi-layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      width: 100vw;
+      height: 100vh;
+      z-index: 10;
+    }
+
+    @media (max-width: 768px) {
+      .hmi-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+      }
+      .sidebar { border-right: none; border-bottom: 2px solid var(--cyan-neon); flex-direction: row; overflow-x: auto; }
+      .brand-title { display: none; }
+      .nav-btn { flex: 1; padding: 12px; font-size: 0.8rem; }
+    }
+
+    /* --- SIDEBAR NAVIGATION --- */
+    .sidebar {
+      background: rgba(4, 10, 10, 0.92);
+      border-right: 2px solid var(--cyan-neon);
+      backdrop-filter: blur(6px);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      box-shadow: 0 0 15px rgba(26, 255, 255, 0.2);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .brand svg {
+      width: 42px;
+      height: 42px;
+      filter: drop-shadow(0 0 8px var(--cyan-neon));
+    }
+
+    .brand-title {
+      color: var(--pink-neon);
+      font-weight: 900;
+      font-size: 1.2rem;
+      letter-spacing: 2px;
+      text-shadow: 0 0 8px var(--pink-neon);
+    }
+
+    .nav-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--cyan-neon);
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: bold;
+      text-transform: uppercase;
+      padding: 14px 16px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+      letter-spacing: 1px;
+    }
+
+    .nav-btn:hover, .nav-btn.active {
+      border-color: var(--cyan-neon);
+      background: rgba(26, 255, 255, 0.1);
+      box-shadow: 0 0 10px rgba(26, 255, 255, 0.4);
+    }
+
+    .nav-btn.transcend { color: var(--gold-transcend); }
+    .nav-btn.transcend.active {
+      border-color: var(--gold-transcend);
+      background: rgba(212, 175, 55, 0.15);
+      box-shadow: 0 0 12px rgba(212, 175, 55, 0.5);
+    }
+
+    /* --- CONTENT AREA --- */
+    .main-content {
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .screen {
+      display: none;
+      animation: fadeIn 0.3s ease;
+      flex-direction: column;
+      gap: 20px;
+      height: 100%;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .section-title {
+      font-size: 1.8rem;
+      color: var(--pink-neon);
+      text-shadow: 0 0 10px var(--pink-neon);
+      border-bottom: 1px solid var(--pink-neon);
+      padding-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    /* --- CARDS & MODULES --- */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .hmi-card {
+      background: var(--card-bg);
+      border: 1px solid var(--cyan-neon);
+      padding: 24px;
+      box-shadow: 0 0 10px rgba(26, 255, 255, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .hmi-card h3 {
+      color: var(--yellow-glow);
+      font-size: 1.1rem;
+      text-transform: uppercase;
+    }
+
+    .status-value {
+      font-size: 2.5rem;
+      font-weight: 900;
+      color: var(--gold-transcend);
+      text-shadow: 0 0 12px var(--gold-transcend);
+    }
+
+    /* --- ADAPTIVE KEYBOARD SPELLER --- */
+    .hmi-search-display {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .hmi-input-terminal {
+      flex: 1;
+      background: #020505;
+      border: 1.5px solid var(--cyan-neon);
+      border-radius: 4px;
+      padding: 16px 24px;
+      font-size: 2rem;
+      letter-spacing: 5px;
+      color: var(--cyan-neon);
+      text-shadow: 0 0 12px var(--cyan-neon);
+      display: flex;
+      align-items: center;
+      min-height: 72px;
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 14px;
+      height: 32px;
+      background: var(--gold-transcend);
+      margin-left: 10px;
+      animation: blink 0.9s infinite;
+    }
+
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+    .hmi-keyboard {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      flex: 1;
+      justify-content: flex-end;
+    }
+
+    .hmi-row {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .hmi-key {
+      flex: 1;
+      min-width: 0; /* Allows shrinking on small screens */
+      height: 7vh; /* Scales with screen height */
+      min-height: 54px;
+      max-height: 80px;
+      background: #071414;
+      border: 1.5px solid var(--cyan-neon);
+      border-radius: 6px;
+      color: var(--cyan-neon);
+      font-family: inherit;
+      font-size: 1.8rem;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(26, 255, 255, 0.15);
+      transition: all 0.1s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .hmi-key:active:not(:disabled) {
+      background: var(--cyan-neon);
+      color: #020505;
+      transform: scale(0.95);
+    }
+
+    .hmi-key:disabled {
+      background: var(--key-disabled);
+      border-color: #162424;
+      color: var(--text-muted);
+      box-shadow: none;
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    .hmi-action-key {
+      flex: 1.5;
+      border-color: var(--pink-neon);
+      color: var(--pink-neon);
+      font-size: 1.2rem;
+    }
+
+    /* --- MEDIA PLAYER MODULE --- */
+    .media-player {
+      border: 2px solid var(--gold-transcend);
+      padding: 30px;
+      text-align: center;
+      background: rgba(8, 16, 16, 0.95);
+    }
+    
+    .media-controls {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-top: 20px;
+    }
+
+    .ctrl-btn {
+      background: transparent;
+      border: 2px solid var(--cyan-neon);
+      color: var(--cyan-neon);
+      padding: 16px 24px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    
+    .ctrl-btn:active {
+      background: var(--cyan-neon);
+      color: #000;
+    }
+  </style>
 </head>
 <body>
-  <div id="hmi-root"></div>
 
-  <script type="module">
-    import { KeyboardModel } from './app/KeyboardModel.js';
-    import { KeyboardViewModel } from './app/KeyboardViewModel.js';
-    import { KeyboardView } from './app/KeyboardView.js';
+  <div class="hmi-layout">
+    
+    <!-- Navigation Sidebar -->
+    <nav class="sidebar">
+      <div class="brand">
+        <!-- CyberPear SVG Logo[span_2](start_span)[span_2](end_span) -->
+        <svg viewBox="0 0 500 550" xmlns="http://www.w3.org/2000/svg">
+          <style>
+            .np-main { fill: #22B14C; } .np-dark { fill: #156B2E; }
+            .np-cyan { fill: #1AFFFF; } .np-gold { fill: #D4AF37; }
+            .np-stem { fill: #8B5A2B; } .np-leaf { fill: #158837; }
+          </style>
+          <g transform="translate(10, 10)">
+            <g class="np-stem"><rect x="230" y="70" width="12" height="60" /></g>
+            <g class="np-leaf"><rect x="182" y="94" width="48" height="24" /></g>
+            <g class="np-dark"><rect x="254" y="130" width="60" height="200" /></g>
+            <g class="np-main"><rect x="182" y="130" width="80" height="200" /></g>
+            <g class="np-cyan"><rect x="134" y="214" width="36" height="80" /></g>
+            <g class="np-gold"><rect x="170" y="250" width="12" height="12" /></g>
+          </g>
+        </svg>
+        <span class="brand-title">CreITers // HMI</span>
+      </div>
+      
+      <button class="nav-btn active" data-target="screen-status">01 // Car Status</button>
+      <button class="nav-btn" data-target="screen-control">02 // Controls</button>
+      <button class="nav-btn" data-target="screen-media">03 // YouTube / Media</button>
+      <button class="nav-btn transcend" data-target="screen-nav">04 // Navigation</button>
+    </nav>
 
-    document.addEventListener('DOMContentLoaded', async () => {
-      const root = document.getElementById('hmi-root');
-      const model = new KeyboardModel();
-      const viewModel = new KeyboardViewModel(model);
-      new KeyboardView(viewModel, root);
-      await viewModel.init();
+    <!-- Main Screens Container -->
+    <main class="main-content">
+      
+      <!-- SCREEN 1: STATUS -->
+      <section id="screen-status" class="screen active">
+        <h2 class="section-title">Telemetry & Status</h2>
+        <div class="card-grid">
+          <div class="hmi-card">
+            <h3>Battery Charge</h3>
+            <div class="status-value">84%</div>
+            <p style="color: var(--cyan-neon);">Range: 412 km</p>
+          </div>
+          <div class="hmi-card transcend-card" style="border-color: var(--gold-transcend);">
+            <h3 style="color: var(--gold-transcend);">SSHAnet Node</h3>
+            <div class="status-value">ONLINE</div>
+            <p>100 Billion Neurons Synced</p>
+          </div>
+          <div class="hmi-card" style="border-color: var(--pink-neon);">
+            <h3 style="color: var(--pink-neon);">Threat Level</h3>
+            <div class="status-value" style="color: var(--pink-neon);">NEUTRAL</div>
+            <p>Tracker Armed</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 2: CONTROLS -->
+      <section id="screen-control" class="screen">
+        <h2 class="section-title">Vehicle Controls</h2>
+        <div class="card-grid">
+          <div class="hmi-card">
+            <h3>Climate</h3>
+            <div class="status-value" style="color: var(--cyan-neon);">21.5°C</div>
+            <div class="media-controls">
+              <button class="ctrl-btn">-</button>
+              <button class="ctrl-btn">+</button>
+            </div>
+          </div>
+          <div class="hmi-card">
+            <h3>Doors & Locks</h3>
+            <button class="ctrl-btn" style="margin-top: 15px; border-color: var(--pink-neon); color: var(--pink-neon);">UNLOCK ALL DOORS</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 3: MEDIA -->
+      <section id="screen-media" class="screen">
+        <h2 class="section-title">Media Synapse</h2>
+        <div class="media-player">
+          <h3 style="color: var(--pink-neon); margin-bottom: 10px;">NOW PLAYING // YOUTUBE MUSIC</h3>
+          <div class="status-value" style="font-size: 2rem;">Cyberpunk OST - V's Theme</div>
+          <p style="color: var(--text-muted); margin-top: 10px;">Source: SSHAnet Stream Link</p>
+          
+          <div class="media-controls">
+            <button class="ctrl-btn">|&lt;&lt;</button>
+            <button class="ctrl-btn" style="border-color: var(--gold-transcend); color: var(--gold-transcend);">PLAY / PAUSE</button>
+            <button class="ctrl-btn">&gt;&gt;|</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 4: NAVIGATION SPELLER (ADAPTIVE KEYBOARD) -->
+      <section id="screen-nav" class="screen">
+        <h2 class="section-title">Destination Query</h2>
+        
+        <div class="hmi-search-display">
+          <div class="hmi-input-terminal" id="kb-display">
+            <span id="kb-text"></span><span class="cursor"></span>
+          </div>
+        </div>
+
+        <!-- Adaptive Grid Keyboard -->
+        <div class="hmi-keyboard" id="hmi-keyboard">
+          <!-- Rendered via JS -->
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    // --- 1. TAB NAVIGATION LOGIC ---
+    const navButtons = document.querySelectorAll('.nav-btn');
+    const screens = document.querySelectorAll('.screen');
+
+    navButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        // Audio feedback
+        playHaptic(880, 0.05);
+
+        // UI Switch
+        navButtons.forEach(b => b.classList.remove('active'));
+        screens.forEach(s => s.classList.remove('active'));
+        
+        btn.classList.add('active');
+        document.getElementById(btn.getAttribute('data-target')).classList.add('active');
+      });
     });
+
+    // --- 2. ADAPTIVE PREDICTIVE KEYBOARD LOGIC ---
+    const dict = ["PRAHA", "BRNO", "OSTRAVA", "PLZEN", "LIBEREC", "NAVIGACE", "RADIO", "CYBERPEAR", "SSHANET"];
+    const rows = [
+      ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+      ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
+      ["Z", "X", "C", "V", "B", "N", "M"]
+    ];
+
+    let inputBuffer = "";
+    const kbText = document.getElementById('kb-text');
+    const kbContainer = document.getElementById('hmi-keyboard');
+
+    function renderKeyboard() {
+      // Calculate allowed next characters based on dictionary
+      const allowedKeys = new Set();
+      if (inputBuffer.length === 0) {
+        dict.forEach(w => allowedKeys.add(w[0]));
+      } else {
+        const matches = dict.filter(w => w.startsWith(inputBuffer));
+        matches.forEach(w => {
+          if (w.length > inputBuffer.length) allowedKeys.add(w[inputBuffer.length]);
+        });
+      }
+
+      kbContainer.innerHTML = '';
+      
+      rows.forEach((row, idx) => {
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'hmi-row';
+        
+        if (idx === 2) {
+          rowDiv.innerHTML += `<button class="hmi-key hmi-action-key" onclick="handleKey('CLR')">CLR</button>`;
+        }
+
+        row.forEach(char => {
+          const isEnabled = allowedKeys.has(char);
+          rowDiv.innerHTML += `<button class="hmi-key" ${isEnabled ? '' : 'disabled'} onclick="handleKey('${char}')">${char}</button>`;
+        });
+
+        if (idx === 2) {
+          rowDiv.innerHTML += `<button class="hmi-key hmi-action-key" onclick="handleKey('DEL')">DEL</button>`;
+        }
+
+        kbContainer.appendChild(rowDiv);
+      });
+    }
+
+    window.handleKey = function(char) {
+      if (char === 'CLR') {
+        inputBuffer = "";
+        playHaptic(600, 0.08);
+      } else if (char === 'DEL') {
+        inputBuffer = inputBuffer.slice(0, -1);
+        playHaptic(600, 0.08);
+      } else {
+        inputBuffer += char;
+        playHaptic(1200, 0.04);
+      }
+      kbText.innerText = inputBuffer;
+      renderKeyboard();
+    };
+
+    // Initialize keyboard on load
+    renderKeyboard();
+
+    // --- 3. WEB AUDIO HAPTIC FEEDBACK ---
+    let audioCtx = null;
+    function playHaptic(freq, duration) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
   </script>
 </body>
 </html>
