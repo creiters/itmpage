@@ -8,55 +8,43 @@ export class KeyboardView {
   render(state) {
     this.container.innerHTML = `
       <div class="hmi-keyboard-container">
-        <!-- Top Status & Logo Bar -->
+        <!-- Top Status Bar & CyberPear Branding -->
         <div class="hmi-brand-panel">
           <div class="brand-wrapper">
-            <!-- Animated CyberPear Cockpit Asset -->
-            <svg class="hmi-logo" viewBox="0 0 500 550" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <filter id="cyan-glow-hmi" x="-30%" y="-30%" width="160%" height="160%">
-                  <feGaussianBlur stdDeviation="6" result="blur" />
-                  <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-                </filter>
-              </defs>
-              <g transform="translate(10, 10)">
-                <g fill="#8B5A2B"><rect x="230" y="70" width="12" height="60" /></g>
-                <g fill="#158837"><rect x="182" y="94" width="48" height="24" /></g>
-                <g fill="#156B2E"><rect x="254" y="130" width="60" height="200" /></g>
-                <g fill="#22B14C"><rect x="182" y="130" width="80" height="200" /></g>
-                <g fill="#1affff" filter="url(#cyan-glow-hmi)"><rect x="134" y="214" width="36" height="80" /></g>
-                <g fill="#D4AF37"><rect x="170" y="250" width="12" height="12" /></g>
-              </g>
-            </svg>
-            <span class="brand-label">CYBERPEAR // HMI SPELLER</span>
+            <img src="assets/images/creiters_cyberpear.svg" alt="CyberPear Logo" class="hmi-logo-asset" />
+            <div>
+              <span class="brand-label">CYBERPEAR // HMI SPELLER</span>
+              <div class="corpus-indicator">ACTIVE REPOSITORY: ${state.indexedWordCount} WORDS [~1K PERMUTATIONS]</div>
+            </div>
           </div>
-          <span class="driver-mode-tag">DISTRACTION-LOCK: ACTIVE</span>
+          <button class="hmi-lang-toggle" id="lang-btn">LANG: [ ${state.language.toUpperCase()} ]</button>
         </div>
 
-        <!-- Current Query Target Screen -->
+        <!-- Cockpit Search Terminal -->
         <div class="hmi-search-display">
           <div class="hmi-input-terminal">
-            ${state.inputBuffer ? `${state.inputBuffer}<span class="cursor"></span>` : '<span style="opacity:0.25;">SELECT DESTINATION...</span>'}
+            ${state.inputBuffer ? `${state.inputBuffer}<span class="cursor"></span>` : '<span class="placeholder">ENTER NAVIGATION OR COMMAND TARGET...</span>'}
           </div>
-          <button class="hmi-lang-toggle" id="lang-btn">[ ${state.language.toUpperCase()} ]</button>
+          <button class="hmi-action-key-square" id="clear-btn">CLR</button>
+          <button class="hmi-action-key-square" id="del-btn">DEL</button>
         </div>
 
-        <!-- Predictive Words Strip -->
+        <!-- Predictive Suggestions Carousel -->
         <div class="hmi-prediction-strip">
-          ${state.suggestions.map((entry) => `
-            <div class="prediction-chip" data-phrase="${entry}">⚡ ${entry}</div>
-          `).join('')}
+          ${state.suggestions.length > 0 
+            ? state.suggestions.map((entry) => `<div class="prediction-chip" data-phrase="${entry}">⚡ ${entry}</div>`).join('')
+            : '<span class="no-prediction">NO MATCHING LEXICON ENTRIES</span>'
+          }
         </div>
 
-        <!-- Virtual Matrix Speller -->
+        <!-- Automotive Matrix Keyboard -->
         <div class="hmi-speller-grid">
-          ${state.rows.map((row, idx) => `
+          ${state.rows.map((row) => `
             <div class="hmi-row">
-              ${idx === 2 ? `<button class="hmi-key hmi-action-key" id="clear-btn">CLEAR</button>` : ''}
               ${row.map((char) => {
                 const isEnabled = state.allowedKeys.has(char);
                 const isSpace = char === ' ';
-                const label = isSpace ? 'SPACE' : char;
+                const label = isSpace ? 'SPACE [ _ ]' : char;
                 return `
                   <button 
                     class="hmi-key ${isSpace ? 'hmi-space-key' : ''}" 
@@ -66,7 +54,6 @@ export class KeyboardView {
                   </button>
                 `;
               }).join('')}
-              ${idx === 2 ? `<button class="hmi-key hmi-action-key" id="del-btn">DELETE</button>` : ''}
             </div>
           `).join('')}
         </div>
