@@ -1,0 +1,20 @@
+{
+  "title": "Project Meshi // CreITers SSHAnet P2P Mesh",
+  "description": "Zero-cloud, browser-to-browser WebRTC DataChannel synchronization layer for CreITers nodes over local subnets.",
+  "keywords": ["WebRTC", "P2P", "IndexedDB", "PWA", "SSHAnet", "WebMCP", "Offline", "CreITers"],
+  "canonical": "https://creiters.cz/projects/meshi",
+  "geo": {
+    "region": "CZ-PR",
+    "placename": "Prague",
+    "position": "50.075538;14.437800",
+    "icbm": "50.075538, 14.437800"
+  },
+  "schema": {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Project Meshi Engine",
+    "operatingSystem": "Web, Modern Browsers",
+    "applicationCategory": "P2PCommunication"
+  }
+}
+
