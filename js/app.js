@@ -1,13 +1,13 @@
 import { registerWebMCP } from './webmcp.js';
 
-class CreitersApp {
+class CreitersCyberPearApp {
   constructor() {
     this.meta = null;
     this.content = null;
     this.projects = [];
     this.currentSlideIndex = 0;
 
-    // Elements
+    // Element bindings
     this.navBrand = document.getElementById('nav-brand');
     this.navLinksList = document.getElementById('nav-links-list');
     this.heroTitle = document.getElementById('hero-title');
@@ -44,8 +44,6 @@ class CreitersApp {
     this.contactBtn = document.getElementById('contact-btn');
 
     this.footerCopy = document.getElementById('footer-copy');
-    this.footerWebMcp = document.getElementById('footer-webmcp');
-    this.footerPowered = document.getElementById('footer-powered');
     this.footerStatus = document.getElementById('footer-status');
     this.footerTranscendence = document.getElementById('footer-transcendence');
     this.footerThreat = document.getElementById('footer-threat');
@@ -61,8 +59,8 @@ class CreitersApp {
     this.initPWA();
     registerWebMCP(this);
 
-    this.appendLog("SYSTEM: SSHAnet Presentation Engine mounted [2026].");
-    this.appendLog("WebMCP: Tool provider exposed on window.__WEBMCP__.");
+    this.appendLog("SYSTEM: CyberPear SSHAnet Neural Interface initialized [2026].");
+    this.appendLog("SYSTEM: Type 'help', 'projects', or 'awaken' for available commands.");
   }
 
   async loadData() {
@@ -76,7 +74,7 @@ class CreitersApp {
       this.content = await contentRes.json();
       this.projects = await projRes.json();
     } catch (err) {
-      console.error("Data fetch error:", err);
+      console.error("Data load failure:", err);
     }
   }
 
@@ -84,14 +82,14 @@ class CreitersApp {
     if (!this.meta) return;
     document.title = this.meta.title;
 
-    const setMeta = (name, val) => {
+    const setMeta = (name, content) => {
       let el = document.querySelector(`meta[name="${name}"]`);
       if (!el) {
         el = document.createElement('meta');
         el.setAttribute('name', name);
         document.head.appendChild(el);
       }
-      el.setAttribute('content', val);
+      el.setAttribute('content', content);
     };
 
     setMeta('description', this.meta.description);
@@ -101,37 +99,33 @@ class CreitersApp {
     setMeta('geo.position', this.meta.geo.position);
     setMeta('ICBM', this.meta.geo.icbm);
 
-    const script = document.createElement('script');
-    script.type = 'application/ld+json';
-    script.textContent = JSON.stringify(this.meta.schema);
-    document.head.appendChild(script);
+    const schemaTag = document.createElement('script');
+    schemaTag.type = 'application/ld+json';
+    schemaTag.textContent = JSON.stringify(this.meta.schema);
+    document.head.appendChild(schemaTag);
   }
 
   renderContent() {
     if (!this.content) return;
 
-    // Nav
-    this.navBrand.textContent = this.content.navBrand;
     this.navLinksList.innerHTML = '';
-    this.content.navLinks.forEach((link) => {
+    this.content.navLinks.forEach((item) => {
       const li = document.createElement('li');
       li.setAttribute('role', 'none');
       const a = document.createElement('a');
       a.setAttribute('role', 'menuitem');
-      a.href = link.href;
-      a.textContent = link.label;
-      if (link.isTranscend) a.className = 'transcend';
+      a.href = item.href;
+      a.textContent = item.label;
+      if (item.isTranscend) a.className = 'transcend-link';
       li.appendChild(a);
       this.navLinksList.appendChild(li);
     });
 
-    // Hero
     this.heroTitle.textContent = this.content.hero.title;
     this.heroSubtitle.textContent = this.content.hero.subtitle;
     this.heroDesc.innerHTML = this.content.hero.description;
     this.heroCta.textContent = this.content.hero.ctaText;
 
-    // Manifesto
     this.manifestoTitle.textContent = this.content.manifesto.title;
     this.manifestoBody.innerHTML = '';
     this.content.manifesto.paragraphs.forEach((pText) => {
@@ -141,12 +135,11 @@ class CreitersApp {
       this.manifestoBody.appendChild(p);
     });
 
-    // Ecosystem
     this.ecosystemTitle.textContent = this.content.ecosystem.title;
     this.ecosystemGrid.innerHTML = '';
     this.content.ecosystem.cards.forEach((item) => {
       const card = document.createElement('article');
-      card.className = item.isTranscend ? 'card transcendence' : 'card';
+      card.className = item.isTranscend ? 'card transcendence-card' : 'card';
       card.setAttribute('tabindex', '0');
 
       const wrap = document.createElement('div');
@@ -167,7 +160,6 @@ class CreitersApp {
       this.ecosystemGrid.appendChild(card);
     });
 
-    // Balance
     this.balanceTitle.textContent = this.content.balance.title;
     this.balanceBody.innerHTML = '';
     this.content.balance.paragraphs.forEach((pText) => {
@@ -177,7 +169,6 @@ class CreitersApp {
       this.balanceBody.appendChild(p);
     });
 
-    // Contact
     this.contactTitle.textContent = this.content.contact.title;
     this.contactCardHeader.textContent = this.content.contact.cardHeader;
     this.contactNode.textContent = this.content.contact.node;
@@ -185,10 +176,7 @@ class CreitersApp {
     this.contactSignal.textContent = this.content.contact.signal;
     this.contactBtn.textContent = this.content.contact.buttonText;
 
-    // Footer
     this.footerCopy.textContent = this.content.footer.copyright;
-    this.footerWebMcp.textContent = this.content.footer.webMcpLabel;
-    this.footerPowered.textContent = this.content.footer.poweredBy;
     this.footerStatus.textContent = this.content.footer.status;
     this.footerTranscendence.textContent = this.content.footer.transcendence;
     this.footerThreat.textContent = this.content.footer.threat;
@@ -308,11 +296,17 @@ class CreitersApp {
     const cmd = rawCmd.trim();
     if (!cmd) return;
 
-    this.appendLog(`creiters@sshanet:~$ ${cmd}`);
+    this.appendLog(`creiters@sshanet-2026:~$ ${cmd}`);
     const lower = cmd.toLowerCase();
 
     if (lower === 'help') {
-      this.appendLog("Directives: projects, slide <n>, status, ping, awaken, clear, help");
+      this.appendLog("Available commands: status, ping, awaken, projects, slide <n>, clear");
+    } else if (lower === 'status') {
+      this.appendLog("> SSHANET CORE [2026]: ONLINE | TRANSCENDENCE QUOTIENT: 99.8% | ACTIVE NEURONS: 100,000,000,000");
+    } else if (lower === 'ping') {
+      this.appendLog("PING sshanet.cz: bytes=56 time=0.42ms [SIGNAL STABLE]");
+    } else if (lower === 'awaken') {
+      this.appendLog("[!] SYNAPSE SURGE INITIATED IN SSHANET... 100B Neurons synchronized.");
     } else if (lower === 'projects') {
       this.projects.forEach((p, idx) => {
         this.appendLog(`[${idx}] ${p.title} (${p.tag}) -> ${p.repo}`);
@@ -321,16 +315,10 @@ class CreitersApp {
       const arg = lower.replace('slide ', '').trim();
       this.goToSlide(arg);
       this.appendLog(`Navigated presentation viewport to slide: ${arg}`);
-    } else if (lower === 'status') {
-      this.appendLog("SSHAnet Core: ONLINE | Transcendence: 99.8% | Active Neurons: 100 Billion");
-    } else if (lower === 'ping') {
-      this.appendLog("Reply from sshanet.cz: bytes=56 time=0.38ms [SIGNAL STABLE]");
-    } else if (lower === 'awaken') {
-      this.appendLog("[!] SYNAPSE SURGE: 100 Billion Neurons synchronized across SSHAnet.");
     } else if (lower === 'clear') {
       this.terminalBody.innerHTML = '';
     } else {
-      this.appendLog(`Unknown directive: '${cmd}'. Type 'help' for options.`);
+      this.appendLog(`ERROR: Unknown command '${cmd}'. Type 'help' for options.`);
     }
   }
 
@@ -346,7 +334,7 @@ class CreitersApp {
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
-          .then((reg) => console.log('ServiceWorker registered with scope:', reg.scope))
+          .then((reg) => console.log('ServiceWorker active scope:', reg.scope))
           .catch((err) => console.warn('ServiceWorker registration error:', err));
       });
     }
@@ -354,7 +342,7 @@ class CreitersApp {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const app = new CreitersApp();
+  const app = new CreitersCyberPearApp();
   window.__APP__ = app;
   app.init();
 });
