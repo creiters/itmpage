@@ -1,95 +1,41 @@
-:root {
-  --bg-color: #030707;
-  --panel-bg: rgba(6, 14, 14, 0.9);
-  --cyan-neon: #1affff;
-  --pink-neon: #ff1a75;
-  --gold: #d4af37;
-  --font-mono: 'Courier New', Courier, monospace;
-}
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meshi // Offline WebRTC DataChannel Mesh</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="css/meshi.css">
+</head>
+<body>
+  <header role="banner">
+    <h1>PROJECT MESHI // METHOD 02</h1>
+    <span id="node-status" class="badge" aria-live="polite">LINK: DISCONNECTED</span>
+  </header>
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  background: var(--bg-color);
-  color: #e0ffff;
-  font-family: var(--font-mono);
-  min-height: 100vh;
-  padding: 24px;
-}
+  <main role="main" class="hud-container">
+    <!-- Air-gapped Signaling Bridge -->
+    <section class="card" aria-labelledby="signal-head">
+      <h2 id="signal-head">Subnet Signaler (Air-Gapped Exchange)</h2>
+      <textarea id="signal-token" placeholder="Paste or copy base64 handshake tokens..." aria-label="Signaling Token Box"></textarea>
+      <div class="control-row">
+        <button id="btn-create-offer" class="btn">1. Create Offer</button>
+        <button id="btn-create-answer" class="btn">2. Accept & Answer</button>
+        <button id="btn-finalize" class="btn">3. Finalize Handshake</button>
+      </div>
+    </section>
 
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 2px solid var(--cyan-neon);
-  padding-bottom: 12px;
-  margin-bottom: 24px;
-}
+    <!-- Duplex Transmission Console -->
+    <section class="card" aria-labelledby="channel-head">
+      <h2 id="channel-head">P2P Socket Transceiver</h2>
+      <div class="input-row">
+        <input type="text" id="payload-input" placeholder="Type JSON/Text payload..." aria-label="Payload Text">
+        <button id="btn-broadcast" class="btn btn-primary">Dispatch</button>
+      </div>
+      <div id="mesh-logs" class="terminal" role="log" aria-live="polite" aria-atomic="false"></div>
+    </section>
+  </main>
 
-h1 { font-size: 1.4rem; color: var(--cyan-neon); letter-spacing: 2px; }
-h2 { font-size: 1rem; color: var(--gold); margin-bottom: 12px; }
-
-.badge {
-  padding: 4px 8px;
-  border: 1px solid var(--pink-neon);
-  color: var(--pink-neon);
-  font-size: 0.75rem;
-}
-.badge.badge-online {
-  border-color: #22b14c;
-  color: #22b14c;
-}
-
-.hud-container { display: flex; flex-direction: column; gap: 20px; max-width: 900px; margin: 0 auto; }
-.card {
-  background: var(--panel-bg);
-  border: 1px solid rgba(26, 255, 255, 0.2);
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-textarea {
-  width: 100%;
-  height: 90px;
-  background: #020404;
-  border: 1px solid var(--cyan-neon);
-  color: #fff;
-  font-family: inherit;
-  font-size: 0.75rem;
-  padding: 8px;
-}
-
-.control-row, .input-row { display: flex; gap: 10px; }
-.input-row input {
-  flex: 1;
-  background: #020404;
-  border: 1px solid var(--cyan-neon);
-  color: #fff;
-  padding: 10px;
-  font-family: inherit;
-}
-
-.btn {
-  background: transparent;
-  border: 1px solid var(--cyan-neon);
-  color: var(--cyan-neon);
-  padding: 8px 16px;
-  font-family: inherit;
-  font-weight: bold;
-  cursor: pointer;
-}
-.btn:hover { background: var(--cyan-neon); color: #000; }
-.btn-primary { border-color: var(--gold); color: var(--gold); }
-.btn-primary:hover { background: var(--gold); color: #000; }
-
-.terminal {
-  background: #020505;
-  border: 1px solid rgba(26, 255, 255, 0.2);
-  height: 220px;
-  overflow-y: auto;
-  padding: 12px;
-  font-size: 0.8rem;
-  line-height: 1.4;
-}
-.terminal-entry { margin-bottom: 4px; }
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
