@@ -1,107 +1,95 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SSHAnet Edge Node</title>
-    <link rel="manifest" href="manifest.json">
-    <style>
-        body { background: #0a0a0a; color: #00ff66; font-family: 'Courier New', Courier, monospace; padding: 20px; margin: 0; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        header { border-bottom: 2px solid #00ff66; padding-bottom: 10px; margin-bottom: 20px; }
-        h1 { margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
-        .panel { border: 1px solid #00ff66; padding: 15px; background: #000; box-shadow: 0 0 10px #00ff6622; }
-        .panel h3 { margin-top: 0; border-bottom: 1px dashed #00ff66; padding-bottom: 5px; text-transform: uppercase; }
-        .terminal { border: 1px solid #00ff66; padding: 10px; background: #020202; height: 250px; overflow-y: auto; font-size: 13px; line-height: 1.4; color: #00ff66; }
-        button { background: #00ff66; color: #000; border: none; padding: 10px 15px; cursor: pointer; font-weight: bold; font-family: monospace; text-transform: uppercase; transition: all 0.2s; margin: 5px 0; }
-        button:hover { background: #fff; box-shadow: 0 0 8px #fff; }
-        button.danger { background: #ff0055; color: #fff; }
-        button.danger:hover { background: #fff; color: #000; box-shadow: 0 0 8px #ff0055; }
-        textarea { width: 100%; background: #111; color: #00ff66; border: 1px solid #00ff66; padding: 8px; font-family: monospace; box-sizing: border-box; resize: vertical; }
-        input[type="text"], input[type="file"] { background: #000; color: #00ff66; border: 1px solid #00ff66; padding: 10px; font-family: monospace; box-sizing: border-box; }
-        input[type="text"] { width: calc(100% - 180px); }
-        .qr-zone { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 15px; }
-        .qr-box { flex: 1; min-width: 200px; border: 1px dashed #00ff66; padding: 10px; text-align: center; background: #050505; }
-        #qr-container { background: white; padding: 10px; display: inline-block; min-height: 150px; min-width: 150px; margin-top: 10px; }
-        #scanner-video { width: 100%; max-width: 320px; height: auto; display: none; margin: 10px auto; border: 1px solid #ff0055; }
-        .file-transfer-zone { margin-top: 15px; background: #050505; padding: 10px; border: 1px solid #00ff66; }
-        .progress-bar { width: 100%; background: #222; border: 1px solid #00ff66; height: 15px; margin-top: 5px; position: relative; }
-        .progress-fill { background: #00ff66; width: 0%; height: 100%; transition: width 0.1s; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>🌐 SSHAnet Autonomous Edge Node</h1>
-            <div style="font-size: 11px; color: #888;">STATUS: LOCAL-FIRST // DECENTRALIZED SYSTEM v2.0</div>
-        </header>
+:root {
+  --bg-color: #030707;
+  --panel-bg: rgba(6, 14, 14, 0.9);
+  --cyan-neon: #1affff;
+  --pink-neon: #ff1a75;
+  --gold: #d4af37;
+  --font-mono: 'Courier New', Courier, monospace;
+}
 
-        <div class="grid">
-            <!-- Left Column: Node Monitor & Wasm Computations -->
-            <div style="display: flex; flex-direction: column; gap: 20px;">
-                <div class="panel">
-                    <h3>🖥️ Core Execution Terminal</h3>
-                    <div class="terminal" id="output">> Booting node architecture...</div>
-                    <div style="margin-top: 10px; display: flex; gap: 10px;">
-                        <button id="btn-save">Log Local Event</button>
-                        <button id="btn-wasm">Trigger C-Wasm Core</button>
-                        <button id="btn-clear-logs" style="background:#444; color:#fff;">Clear Screen</button>
-                    </div>
-                </div>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg-color);
+  color: #e0ffff;
+  font-family: var(--font-mono);
+  min-height: 100vh;
+  padding: 24px;
+}
 
-                <div class="panel">
-                    <h3>🗄️ IndexedDB Storage Diagnostic</h3>
-                    <button id="btn-view-db">Dump Encrypted Local Records</button>
-                    <div id="db-dump" style="margin-top: 10px; font-size: 11px; max-height: 150px; overflow-y: auto; color: #00ff66;"></div>
-                </div>
-            </div>
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid var(--cyan-neon);
+  padding-bottom: 12px;
+  margin-bottom: 24px;
+}
 
-            <!-- Right Column: P2P Operations & QR Signalling -->
-            <div class="panel">
-                <h3>📡 Serverless P2P Link (WebRTC Mesh)</h3>
-                <div>
-                    <button id="btn-host">1. Host Node</button>
-                    <button id="btn-join">2. Await Join</button>
-                    <button id="btn-connect">3. Confirm Handshake</button>
-                </div>
+h1 { font-size: 1.4rem; color: var(--cyan-neon); letter-spacing: 2px; }
+h2 { font-size: 1rem; color: var(--gold); margin-bottom: 12px; }
 
-                <div class="qr-zone">
-                    <div class="qr-box">
-                        <h5>Local QR Token</h5>
-                        <div id="qr-container"><span style="color:#000; font-size:11px;">Awaiting Initialization...</span></div>
-                    </div>
-                    <div class="qr-box">
-                        <h5>Camera Optical Target</h5>
-                        <button id="btn-start-scan" class="danger">📷 Activate Scan</button>
-                        <video id="scanner-video" playsinline></video>
-                    </div>
-                </div>
+.badge {
+  padding: 4px 8px;
+  border: 1px solid var(--pink-neon);
+  color: var(--pink-neon);
+  font-size: 0.75rem;
+}
+.badge.badge-online {
+  border-color: #22b14c;
+  color: #22b14c;
+}
 
-                <div style="margin-top: 15px; display: none;">
-                    <textarea id="p2p-local-sdp" rows="1" placeholder="Local Data Pool"></textarea>
-                    <textarea id="p2p-remote-sdp" rows="1" placeholder="Remote Data Pool"></textarea>
-                </div>
+.hud-container { display: flex; flex-direction: column; gap: 20px; max-width: 900px; margin: 0 auto; }
+.card {
+  background: var(--panel-bg);
+  border: 1px solid rgba(26, 255, 255, 0.2);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 
-                <div class="file-transfer-zone">
-                    <h5>⚡ P2P Instantaneous Pipeline</h5>
-                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                        <input type="text" id="p2p-msg" placeholder="Broadcast string packets...">
-                        <button id="btn-send" style="width: 170px;">Send Packet</button>
-                    </div>
-                    <div style="border-top: 1px dashed #00ff66; padding-top: 10px;">
-                        <input type="file" id="p2p-file-input">
-                        <button id="btn-send-file">Transfer Binary Payload</button>
-                        <div class="progress-bar"><div class="progress-fill" id="file-progress"></div></div>
-                        <div id="file-status" style="font-size: 11px; margin-top: 5px;">Ready for peer deployment.</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+textarea {
+  width: 100%;
+  height: 90px;
+  background: #020404;
+  border: 1px solid var(--cyan-neon);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.75rem;
+  padding: 8px;
+}
 
-    <!-- Core Runtime Integrations -->
-    <script type="module" src="app.js"></script>
-</body>
-</html>
+.control-row, .input-row { display: flex; gap: 10px; }
+.input-row input {
+  flex: 1;
+  background: #020404;
+  border: 1px solid var(--cyan-neon);
+  color: #fff;
+  padding: 10px;
+  font-family: inherit;
+}
+
+.btn {
+  background: transparent;
+  border: 1px solid var(--cyan-neon);
+  color: var(--cyan-neon);
+  padding: 8px 16px;
+  font-family: inherit;
+  font-weight: bold;
+  cursor: pointer;
+}
+.btn:hover { background: var(--cyan-neon); color: #000; }
+.btn-primary { border-color: var(--gold); color: var(--gold); }
+.btn-primary:hover { background: var(--gold); color: #000; }
+
+.terminal {
+  background: #020505;
+  border: 1px solid rgba(26, 255, 255, 0.2);
+  height: 220px;
+  overflow-y: auto;
+  padding: 12px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+.terminal-entry { margin-bottom: 4px; }
