@@ -12,7 +12,7 @@
     "id": "cyberpear",
     "badge": "02",
     "title": "CyberPear & SSHAnet Core",
-    "repo": "https://creiters.cz/prohects/presentation.html",
+    "repo": "https://creiters.cz/projects/cyberpear",
     "tag": "NEURAL WASI NODE [2026]",
     "description": "Cognitive AI micro-agent running directly in client-side WebAssembly. Implements strict 42-norm compliant C bytecode using snapshot preview 1 system pipes to manipulate page structures and terminal state.",
     "metrics": "Norminette Compliant // 0.38ms Latency // WASI Preview 1"
