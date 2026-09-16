@@ -1,139 +1,164 @@
-import { MeshiSignaler, MeshiMeshSocket } from './mesh_socket.js';
 import { MeshiDB } from './db.js';
+import { MeshiSignaler } from './signaling.js';
+import { MeshiMeshSocket } from './mesh_socket.js';
+import { registerWebMCP } from './webmcp.js';
 
 class MeshiApp {
   constructor() {
+    this.nodeId = `sshanet_${Math.random().toString(36).substring(2, 7)}`;
     this.db = new MeshiDB();
     this.activeSocket = null;
     this.pendingPc = null;
 
-    // Elements
-    this.statusBadge = document.getElementById('node-status');
-    this.tokenBox = document.getElementById('signal-token');
-    this.btnOffer = document.getElementById('btn-create-offer');
-    this.btnAnswer = document.getElementById('btn-create-answer');
+    // Element references
+    this.nodeStatusEl = document.getElementById('node-status');
+    this.signalTokenInput = document.getElementById('signal-token');
+    this.btnCreateOffer = document.getElementById('btn-create-offer');
+    this.btnAcceptOffer = document.getElementById('btn-accept-offer');
     this.btnFinalize = document.getElementById('btn-finalize');
-    this.btnSend = document.getElementById('btn-broadcast');
-    this.inputPayload = document.getElementById('payload-input');
-    this.logContainer = document.getElementById('mesh-logs');
+    this.payloadInput = document.getElementById('payload-input');
+    this.btnSend = document.getElementById('btn-send');
+    this.terminalBody = document.getElementById('term-body');
   }
 
   async init() {
-    await this.db.init();
+    await this.db.open();
     this.bindEvents();
-    this.renderExistingRecords();
-    this.appendLog('MESHI // Method 2 RTCDataChannel socket engine initialized.');
+    registerWebMCP(this, this.db);
+    this.initPWA();
+    this.appendLog(`SYSTEM: Node ${this.nodeId} initialized. IndexedDB ready.`);
+    await this.loadInitialMetadata();
+  }
+
+  async loadInitialMetadata() {
+    try {
+      const res = await fetch('./data/meta.json');
+      const meta = await res.json();
+      document.title = meta.title;
+      this.appendLog("META: Loaded SSHAnet node descriptors.");
+    } catch {
+      this.appendLog("META: Using fallback configuration.");
+    }
   }
 
   bindEvents() {
     // 1. Host creates Offer
-    this.btnOffer.addEventListener('click', async () => {
+    this.btnCreateOffer.addEventListener('click', async () => {
       try {
         const { pc, dc, token } = await MeshiSignaler.createOffer();
         this.pendingPc = pc;
-        this.tokenBox.value = token;
-        this.setupSocket(new MeshiMeshSocket('remote-peer', dc));
-        this.appendLog('Generated Offer Token. Transmit to Responder via subnet or copy/paste.');
+        this.signalTokenInput.value = token;
+        this.mountSocket(new MeshiMeshSocket('peer-responder', dc));
+        this.appendLog("OFFER: Token generated. Transmit to Responder node.");
       } catch (err) {
-        this.appendLog(`Error generating offer: ${err.message}`);
+        this.appendLog(`OFFER_ERROR: ${err.message}`);
       }
     });
 
-    // 2. Client consumes Offer and creates Answer
-    this.btnAnswer.addEventListener('click', async () => {
+    // 2. Responder accepts Offer and creates Answer
+    this.btnAcceptOffer.addEventListener('click', async () => {
       try {
-        const offerToken = this.tokenBox.value.trim();
-        if (!offerToken) throw new Error('Token field is empty.');
-        const { pc, answerToken, dcPromise } = await MeshiSignaler.acceptOffer(offerToken);
-        this.tokenBox.value = answerToken;
+        const token = this.signalTokenInput.value.trim();
+        if (!token) throw new Error("Token field is empty.");
+        const { pc, dcPromise, token: answerToken } = await MeshiSignaler.acceptOffer(token);
+        this.signalTokenInput.value = answerToken;
         const dc = await dcPromise;
-        this.setupSocket(new MeshiMeshSocket('remote-peer', dc));
-        this.appendLog('Generated Answer Token. Transmit back to Initiator.');
+        this.mountSocket(new MeshiMeshSocket('peer-initiator', dc));
+        this.appendLog("ANSWER: Token generated. Send back to Host node.");
       } catch (err) {
-        this.appendLog(`Error creating answer: ${err.message}`);
+        this.appendLog(`ANSWER_ERROR: ${err.message}`);
       }
     });
 
-    // 3. Host consumes Answer and finalizes link
+    // 3. Host finalizes link
     this.btnFinalize.addEventListener('click', async () => {
       try {
-        const answerToken = this.tokenBox.value.trim();
-        if (!answerToken || !this.pendingPc) throw new Error('Invalid state or missing answer token.');
-        await MeshiSignaler.finalizeConnection(this.pendingPc, answerToken);
-        this.appendLog('Handshake finalized. Awaiting DataChannel open state...');
+        const token = this.signalTokenInput.value.trim();
+        if (!token || !this.pendingPc) throw new Error("Missing answer token or invalid state.");
+        await MeshiSignaler.finalizeHandshake(this.pendingPc, token);
+        this.appendLog("HANDSHAKE: Handshake dispatched. Awaiting DataChannel open...");
       } catch (err) {
-        this.appendLog(`Finalize error: ${err.message}`);
+        this.appendLog(`FINALIZE_ERROR: ${err.message}`);
       }
     });
 
-    // Send payload
-    this.btnSend.addEventListener('click', () => {
-      const val = this.inputPayload.value.trim();
-      if (!val) return;
+    // Dispatch payload
+    this.btnSend.addEventListener('click', async () => {
+      const content = this.payloadInput.value.trim();
+      if (!content) return;
       if (!this.activeSocket || this.activeSocket.readyState !== MeshiMeshSocket.OPEN) {
-        this.appendLog('ERROR: Duplex socket is not open.');
+        this.appendLog("TRANSMIT_ERROR: No active WebRTC DataChannel connection.");
         return;
       }
 
-      const packet = {
+      const doc = await this.db.putDocument({
         id: `meshi_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        data: val,
-        timestamp: Date.now()
-      };
+        content,
+        sender: this.nodeId
+      });
 
-      this.activeSocket.send(packet);
-      this.db.save(packet);
-      this.appendLog(`[TX] Sent packet: ${packet.id}`);
-      this.inputPayload.value = '';
+      this.activeSocket.send({ type: 'DOC_SYNC', payload: doc });
+      this.appendLog(`TX: Dispatched record -> ${doc.id}`);
+      this.payloadInput.value = '';
     });
   }
 
-  setupSocket(socket) {
+  mountSocket(socket) {
     this.activeSocket = socket;
 
     socket.onopen = async () => {
-      this.statusBadge.textContent = 'LINK: CONNECTED (RTC)';
-      this.statusBadge.classList.add('badge-online');
-      this.appendLog('[NET] Offline WebRTC DataChannel connected.');
+      this.nodeStatusEl.textContent = 'STATUS: MESH_ACTIVE (RTC)';
+      this.nodeStatusEl.classList.add('badge-online');
+      this.appendLog("NET: Direct P2P RTCDataChannel link active.");
 
-      // Push initial synchronization
-      const localDocs = await this.db.listAll();
+      // Sync initial local dataset to peer
+      const localDocs = await this.db.getAllDocuments();
       socket.send({ type: 'BATCH_SYNC', payload: localDocs });
+      this.appendLog(`TX_SYNC: Transmitted ${localDocs.length} local records to peer.`);
     };
 
     socket.onmessage = async (e) => {
       try {
-        const message = JSON.parse(e.data);
-        if (message.type === 'BATCH_SYNC') {
-          for (const item of message.payload) await this.db.save(item);
-          this.appendLog(`[RX] Synced batch of ${message.payload.length} records.`);
-        } else if (message.id) {
-          await this.db.save(message);
-          this.appendLog(`[RX] Received record: ${message.id} -> ${message.data}`);
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'BATCH_SYNC') {
+          let mergedCount = 0;
+          for (const item of msg.payload) {
+            const { merged } = await this.db.mergeRemoteDocument(item);
+            if (merged) mergedCount++;
+          }
+          this.appendLog(`RX_SYNC: Merged ${mergedCount}/${msg.payload.length} incoming records.`);
+        } else if (msg.type === 'DOC_SYNC') {
+          const { merged, doc } = await this.db.mergeRemoteDocument(msg.payload);
+          if (merged) {
+            this.appendLog(`RX_UPDATE: [${doc.id}] "${doc.content}"`);
+          }
         }
       } catch {
-        this.appendLog(`[RX Raw]: ${e.data}`);
+        this.appendLog(`RX_RAW: ${e.data}`);
       }
     };
 
     socket.onclose = () => {
-      this.statusBadge.textContent = 'LINK: DISCONNECTED';
-      this.statusBadge.classList.remove('badge-online');
-      this.appendLog('[NET] WebRTC DataChannel closed.');
+      this.nodeStatusEl.textContent = 'STATUS: STANDALONE';
+      this.nodeStatusEl.classList.remove('badge-online');
+      this.appendLog("NET: RTCDataChannel disconnected.");
     };
   }
 
-  async renderExistingRecords() {
-    const records = await this.db.listAll();
-    this.appendLog(`[DB] ${records.length} records loaded from local IndexedDB.`);
+  appendLog(line) {
+    const p = document.createElement('p');
+    p.className = 'terminal-log-entry';
+    p.textContent = `[${new Date().toLocaleTimeString()}] ${line}`;
+    this.terminalBody.appendChild(p);
+    this.terminalBody.scrollTop = this.terminalBody.scrollHeight;
   }
 
-  appendLog(msg) {
-    const p = document.createElement('p');
-    p.className = 'terminal-entry';
-    p.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-    this.logContainer.appendChild(p);
-    this.logContainer.scrollTop = this.logContainer.scrollHeight;
+  initPWA() {
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch((err) => console.warn('SW error:', err));
+      });
+    }
   }
 }
 
