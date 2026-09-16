@@ -1,16 +1,16 @@
 /**
- * Web Model Context Protocol (WebMCP) Bridge
- * Exposes page tools directly to browser AI agents and autonomous assistants.
+ * Web Model Context Protocol (WebMCP) Registration
+ * Exposes portfolio inspection, slide carousel navigation, and SSHAnet terminal dispatch.
  */
 export function registerWebMCP(appInstance) {
   const tools = [
     {
       name: "list_portfolio_projects",
-      description: "Returns the complete catalog of projects hosted on CreITers / ITMpage node.",
+      description: "Returns the complete catalog of CreITers projects with descriptions, tags, and repo links.",
       parameters: { type: "object", properties: {} },
       handler: async () => {
         return {
-          node: "creiters.cz",
+          node: "creiters.cz/projects/cyberpear",
           repository: "https://github.com/creiters/itmpage",
           projects: appInstance.projects
         };
@@ -22,7 +22,7 @@ export function registerWebMCP(appInstance) {
       parameters: {
         type: "object",
         properties: {
-          slide: { type: "string", description: "Project ID (e.g. 'itmpage') or numeric slide index" }
+          slide: { type: "string", description: "Project id (e.g., 'itmpage') or numeric slide index" }
         },
         required: ["slide"]
       },
@@ -37,7 +37,7 @@ export function registerWebMCP(appInstance) {
       parameters: {
         type: "object",
         properties: {
-          command: { type: "string", description: "Command string to execute" }
+          command: { type: "string", description: "Command line input string" }
         },
         required: ["command"]
       },
