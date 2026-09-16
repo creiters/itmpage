@@ -1,74 +1,60 @@
-/**
- * WebMCP Specification Implementation for Project Meshi
- * Allows browser-based AI agents to query the P2P engine and dispatch state deltas.
- */
-export function registerWebMCP(meshiEngine) {
+export function registerWebMCP(meshCoordinator, db) {
   const tools = [
     {
-      name: "meshi_get_node_status",
-      description: "Returns the local Meshi WebRTC node ID, connection state, and current replica state snapshot.",
+      name: "meshi_get_topology",
+      description: "Returns active subnet WebRTC DataChannel connections and local node state.",
       parameters: { type: "object", properties: {} },
-      handler: async () => {
-        return {
-          nodeId: meshiEngine.nodeId,
-          connectionState: meshiEngine.connection?.iceConnectionState || "disconnected",
-          channelReady: meshiEngine.channel?.readyState === "open",
-          state: meshiEngine.getStateSnapshot()
-        };
-      }
+      handler: async () => ({
+        localNode: meshCoordinator.nodeId,
+        activeSocket: meshCoordinator.activeSocket ? "CONNECTED" : "DISCONNECTED",
+        documentsCount: (await db.getAllDocuments()).length,
+        timestamp: new Date().toISOString()
+      })
     },
     {
-      name: "meshi_sync_delta",
-      description: "Publishes a CRDT key-value state update to all connected peers.",
+      name: "meshi_publish_document",
+      description: "Creates and pushes a JSON document payload across active mesh sockets.",
       parameters: {
         type: "object",
         properties: {
-          key: { type: "string", description: "Storage identifier key" },
-          value: { description: "Arbitrary JSON value or string payload" }
+          id: { type: "string", description: "Unique document identifier" },
+          content: { type: "string", description: "Body text or serialised payload" }
         },
-        required: ["key", "value"]
+        required: ["id", "content"]
       },
-      handler: async ({ key, value }) => {
-        meshiEngine.set(key, value);
-        return { status: "dispatched", key, timestamp: Date.now() };
-      }
-    },
-    {
-      name: "meshi_create_offer",
-      description: "Generates a WebRTC session offer envelope for peer-to-peer pairing.",
-      parameters: { type: "object", properties: {} },
-      handler: async () => {
-        const envelope = await meshiEngine.createOfferEnvelope();
-        return { offer: envelope };
+      handler: async ({ id, content }) => {
+        const saved = await db.putDocument({ id, content });
+        if (meshCoordinator.activeSocket?.readyState === 1) {
+          meshCoordinator.activeSocket.send({ type: 'DOC_SYNC', payload: saved });
+        }
+        return { status: "persisted_and_broadcast", doc: saved };
       }
     }
   ];
 
-  // W3C document.modelContext standard registration
   if (typeof document !== 'undefined' && 'modelContext' in document) {
-    tools.forEach((tool) => {
+    tools.forEach((t) => {
       try {
         document.modelContext.registerTool({
-          name: tool.name,
-          description: tool.description,
-          inputSchema: tool.parameters,
-          execute: tool.handler
+          name: t.name,
+          description: t.description,
+          inputSchema: t.parameters,
+          execute: t.handler
         });
       } catch (err) {
-        console.warn('WebMCP tool registration skipped:', tool.name, err);
+        console.warn("WebMCP registration skipped:", t.name, err);
       }
     });
   }
 
-  // Global browser agent fallback
   window.__WEBMCP__ = {
     version: "1.0.0",
     protocol: "mcp/1.0",
     listTools: () => tools.map((t) => ({ name: t.name, description: t.description, parameters: t.parameters })),
     callTool: async (name, args) => {
-      const t = tools.find((tool) => tool.name === name);
-      if (!t) throw new Error(`Tool '${name}' not found.`);
-      return await t.handler(args);
+      const tool = tools.find((t) => t.name === name);
+      if (!tool) throw new Error(`WebMCP Tool '${name}' not found`);
+      return await tool.handler(args);
     }
   };
 }
