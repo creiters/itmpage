@@ -30,7 +30,7 @@
     "id": "hmi-hud",
     "badge": "04",
     "title": "Automotive Adaptive HMI",
-    "repo": "https://creiters.cz/projects/cars",
+    "repo": "https://creiters.cz/projects/car",
     "tag": "CYBERNETIC INTERFACE",
     "description": "Adaptive vehicular HUD and predictive keyboard layout designed for automotive safety. Dynamically grays out invalid letter pathways to eliminate driver distraction across varied screen aspect ratios.",
     "metrics": "Adaptive CSS Grid // Touch Speller // Real-Time Feedback"
