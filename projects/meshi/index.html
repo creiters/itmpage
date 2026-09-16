@@ -1,68 +1,117 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SSHAnet // Sovereign Edge Terminal</title>
-    <link rel="manifest" href="data:application/json,{%22name%22:%22SSHAnet%22,%22short_name%22:%22SSHAnet%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%230a0a0a%22,%22theme_color%22:%22%230a0a0a%22}">
-    <meta name="theme-color" content="#0a0a0a">
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Meshi // P2P Local Data Exchange [2026]</title>
+  <meta name="description" content="CreITers Project Meshi: Zero-cloud peer-to-peer local network and hotspot sync runtime powered by WebRTC DataChannels.">
+  <link rel="stylesheet" href="./css/meshi.css">
 </head>
 <body>
+  <div class="crt-overlay" aria-hidden="true"></div>
 
-    <header>
-        <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke-width="2">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-        </svg>
-        <h1>SSHAnet // Sovereign Edge Terminal</h1>
+  <nav role="navigation" aria-label="Main Navigation">
+    <div class="nav-brand">
+      <span class="nav-tag">[05]</span>
+      <span class="nav-title">MESHI // P2P MESH NODE</span>
+    </div>
+    <div class="nav-meta">
+      <span id="node-id-display" class="badge">NODE: INITIALIZING...</span>
+      <span id="net-status-badge" class="badge status-disconnected">DISCONNECTED</span>
+    </div>
+  </nav>
+
+  <main id="meshi-app">
+    <!-- HERO HEADER -->
+    <header class="hero-section">
+      <h1 class="glitch-title">PROJECT MESHI</h1>
+      <p class="subtitle">SSHAnet Zero-Cloud Peer-to-Peer Subnet Data Exchange Protocol</p>
+      <div class="hero-tags">
+        <span class="tag">WebRTC DataChannel</span>
+        <span class="tag">IndexedDB CRDT</span>
+        <span class="tag">Local Hotspot Ready</span>
+        <span class="tag">Zero-NPM</span>
+      </div>
     </header>
 
-    <div class="grid">
-        <main class="panel">
-            <h3>System Activity Console (IndexedDB)</h3>
-            <div class="terminal" id="term-log">> Initializing operational layers...</div>
-            
-            <div class="btn-group">
-                <button id="btn-wasm">Simulate Edge Telemetry</button>
-                <button id="btn-clear" class="alt">Flush Logs</button>
-            </div>
+    <!-- CONTROL GRID -->
+    <div class="hud-grid">
+      <!-- PANEL 1: HANDSHAKE & SIGNALING -->
+      <section class="hud-card" aria-labelledby="signal-heading">
+        <h2 id="signal-heading" class="card-title">01 // SIGNALING & HANDSHAKE</h2>
+        <p class="card-desc">Generate or accept connection envelopes to establish a WebRTC DataChannel over LAN/Hotspot.</p>
 
-            <h3>Local Mesh Interconnect (Serverless P2P)</h3>
-            <div class="btn-group">
-                <button id="btn-host">1. Host Node (Create Offer)</button>
-                <button id="btn-join" class="alt">2. Join Node (Accept Offer)</button>
-                <button id="btn-link" class="alt">3. Confirm Connection</button>
-            </div>
+        <div class="button-row">
+          <button id="btn-create-offer" class="btn primary">Init Session (Offer)</button>
+          <button id="btn-accept-offer" class="btn secondary">Join Session (Answer)</button>
+          <button id="btn-finalize" class="btn secondary">Finalize Link</button>
+        </div>
 
-            <div class="btn-group">
-                <input type="text" id="msg-input" placeholder="Inject text broadcast data stream packet...">
-                <button id="btn-send">Broadcast</button>
-            </div>
+        <div class="input-group">
+          <label for="handshake-envelope">HANDSHAKE ENVELOPE (OFFER / ANSWER):</label>
+          <textarea id="handshake-envelope" placeholder="Paste peer payload here..." spellcheck="false"></textarea>
+        </div>
 
-            <label for="token-local">Local Node Handshake Token:</label>
-            <textarea id="token-local" rows="2" readonly placeholder="Awaiting handshake parameter allocation..."></textarea>
-            
-            <label for="token-remote">Remote Node Handshake Token:</label>
-            <textarea id="token-remote" rows="2" placeholder="Paste incoming remote peer metadata matrix..."></textarea>
-        </main>
+        <button id="btn-copy-envelope" class="btn outline full-width">Copy Envelope To Clipboard</button>
+      </section>
 
-        <aside class="panel status-panel">
-            <div class="matrix-wrapper">
-                <h3>Optical Matrix</h3>
-                <p class="section-desc">Native SVG Matrix Stream Output</p>
-                <div class="qr-container" id="svg-qr-target">
-                    <span class="awaiting-text">Awaiting Data Array</span>
-                </div>
-            </div>
-            
-            <div class="info-footer">
-                <p class="section-desc">Manual Handshake IO</p>
-                <p class="footer-note">Connection routing establishes by copy-pasting the text tokens between terminal units.</p>
-            </div>
-        </aside>
+      <!-- PANEL 2: CRDT STATE SYNCHRONIZATION -->
+      <section class="hud-card" aria-labelledby="crdt-heading">
+        <h2 id="crdt-heading" class="card-title">02 // AD-HOC DATA REPLICATION</h2>
+        <p class="card-desc">State updates are synchronized across active nodes with vector clocks.</p>
+
+        <div class="input-group">
+          <label for="sync-key">DATABASE KEY:</label>
+          <input type="text" id="sync-key" placeholder="e.g. system.telemetry.freq">
+        </div>
+
+        <div class="input-group">
+          <label for="sync-val">PAYLOAD VALUE (JSON / STRING):</label>
+          <input type="text" id="sync-val" placeholder='e.g. {"mhz": 433.92, "power": 1.0}'>
+        </div>
+
+        <button id="btn-sync-send" class="btn primary full-width">Transmit State Delta</button>
+
+        <div class="state-preview-box">
+          <div class="box-header">LOCAL SYNCHRONIZED STORAGE:</div>
+          <pre id="state-store-view">{}</pre>
+        </div>
+      </section>
+
+      <!-- PANEL 3: BINARY STREAM DISPATCHER -->
+      <section class="hud-card" aria-labelledby="stream-heading">
+        <h2 id="stream-heading" class="card-title">03 // BINARY STREAM ENGINE</h2>
+        <p class="card-desc">Direct memory chunking for files and arbitrary byte buffers with backpressure control.</p>
+
+        <div class="drop-zone" id="file-drop-zone" tabindex="0" role="button" aria-label="Drop file to transmit">
+          <input type="file" id="file-input" class="hidden-file-input">
+          <p id="drop-zone-text">Click or Drop Binary File Here</p>
+        </div>
+
+        <div class="progress-wrap" id="progress-wrapper">
+          <div class="progress-bar-fill" id="progress-fill"></div>
+          <span class="progress-label" id="progress-text">IDLE // 0%</span>
+        </div>
+
+        <div class="box-header" style="margin-top:12px;">TRANSFERRED ARTIFACTS:</div>
+        <ul class="file-list" id="received-files-list"></ul>
+      </section>
     </div>
 
-    <script type="module" src="app.js"></script>
+    <!-- TERMINAL LOG CONSOLE -->
+    <section class="terminal-card" aria-labelledby="term-heading">
+      <div class="term-header">
+        <span id="term-heading">SSHAnet // MESHI PEER CONSOLE</span>
+        <span class="term-dim">STANDALONE RUNTIME v2026.09</span>
+      </div>
+      <div class="term-logs" id="terminal-stream" role="log" aria-live="polite"></div>
+      <div class="term-input-row">
+        <span class="term-prompt">meshi@node:~$</span>
+        <input type="text" id="term-cmd-input" placeholder="type 'help', 'peers', 'broadcast', or 'clear'..." autocomplete="off">
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./js/meshi-ui.js"></script>
 </body>
 </html>
-
