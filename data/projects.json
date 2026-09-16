@@ -1,0 +1,38 @@
+[
+  {
+    "id": "creiters",
+    "badge": "01",
+    "title": "CreITers Platform",
+    "repo": "https://creiters.cz",
+    "tag": "CORE RUNTIME // PWA",
+    "description": "Interactive terminal modular page runtime engineered with zero external dependencies. Features reactive MVVM state updates, client-side AST DOM reconciliation, and instant offline caching.",
+    "metrics": "Zero NPM // < 1MB Footprint // 100% Offline PWA"
+  },
+  {
+    "id": "cyberpear",
+    "badge": "02",
+    "title": "CyberPear & SSHAnet Core",
+    "repo": "https://creiters.cz/prohects/presentation.html",
+    "tag": "NEURAL WASI NODE [2026]",
+    "description": "Cognitive AI micro-agent running directly in client-side WebAssembly. Implements strict 42-norm compliant C bytecode using snapshot preview 1 system pipes to manipulate page structures and terminal state.",
+    "metrics": "Norminette Compliant // 0.38ms Latency // WASI Preview 1"
+  },
+  {
+    "id": "nevimto",
+    "badge": "03",
+    "title": "nevimto.cz Cognitive RAG",
+    "repo": "https://nevimto.cz",
+    "tag": "KNOWLEDGE SUB-SYSTEM",
+    "description": "CPU-bound retrieval-augmented generation engine operating over local IndexedDB memory stores. Queries knowledge bases instantly without external GPU dependency or recurrent cloud costs.",
+    "metrics": "IndexedDB Store // Tokenized C Parser // Zero WebGPU"
+  },
+  {
+    "id": "hmi-hud",
+    "badge": "04",
+    "title": "Automotive Adaptive HMI",
+    "repo": "https://creiters.cz/projects/cars",
+    "tag": "CYBERNETIC INTERFACE",
+    "description": "Adaptive vehicular HUD and predictive keyboard layout designed for automotive safety. Dynamically grays out invalid letter pathways to eliminate driver distraction across varied screen aspect ratios.",
+    "metrics": "Adaptive CSS Grid // Touch Speller // Real-Time Feedback"
+  }
+]
