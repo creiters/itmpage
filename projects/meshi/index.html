@@ -2,116 +2,90 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Project Meshi // P2P Local Data Exchange [2026]</title>
-  <meta name="description" content="CreITers Project Meshi: Zero-cloud peer-to-peer local network and hotspot sync runtime powered by WebRTC DataChannels.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Project Meshi // Peer-to-Peer Data Transport</title>
   <link rel="stylesheet" href="./css/meshi.css">
 </head>
 <body>
-  <div class="crt-overlay" aria-hidden="true"></div>
-
-  <nav role="navigation" aria-label="Main Navigation">
-    <div class="nav-brand">
-      <span class="nav-tag">[05]</span>
-      <span class="nav-title">MESHI // P2P MESH NODE</span>
-    </div>
-    <div class="nav-meta">
-      <span id="node-id-display" class="badge">NODE: INITIALIZING...</span>
-      <span id="net-status-badge" class="badge status-disconnected">DISCONNECTED</span>
-    </div>
-  </nav>
-
-  <main id="meshi-app">
-    <!-- HERO HEADER -->
-    <header class="hero-section">
-      <h1 class="glitch-title">PROJECT MESHI</h1>
-      <p class="subtitle">SSHAnet Zero-Cloud Peer-to-Peer Subnet Data Exchange Protocol</p>
-      <div class="hero-tags">
-        <span class="tag">WebRTC DataChannel</span>
-        <span class="tag">IndexedDB CRDT</span>
-        <span class="tag">Local Hotspot Ready</span>
-        <span class="tag">Zero-NPM</span>
+  <div class="meshi-shell">
+    
+    <!-- TOP STATUS HUD -->
+    <header class="meshi-topbar">
+      <div class="meshi-brand">
+        <span class="meshi-node-tag">STANDALONE NODE</span>
+        <span class="meshi-title">PROJECT MESHI // P2P DATA EXCHANGE</span>
+      </div>
+      <div class="meshi-telemetry-cluster">
+        <div class="signal-pill">
+          <span class="pulse-dot"></span>
+          <span id="label-signal">SUBNET_READY</span>
+        </div>
+        <div class="signal-pill" id="label-node-id">
+          ID: INITIALIZING...
+        </div>
       </div>
     </header>
 
-    <!-- CONTROL GRID -->
-    <div class="hud-grid">
-      <!-- PANEL 1: HANDSHAKE & SIGNALING -->
-      <section class="hud-card" aria-labelledby="signal-heading">
-        <h2 id="signal-heading" class="card-title">01 // SIGNALING & HANDSHAKE</h2>
-        <p class="card-desc">Generate or accept connection envelopes to establish a WebRTC DataChannel over LAN/Hotspot.</p>
-
-        <div class="button-row">
-          <button id="btn-create-offer" class="btn primary">Init Session (Offer)</button>
-          <button id="btn-accept-offer" class="btn secondary">Join Session (Answer)</button>
-          <button id="btn-finalize" class="btn secondary">Finalize Link</button>
+    <!-- DUAL WORKSPACE: CONTROL & TRANSPORT -->
+    <main class="meshi-grid">
+      
+      <!-- LEFT CHANNEL: SESSION SIGNALING & CRDT REPLICATION -->
+      <section class="meshi-panel-box">
+        <div class="panel-legend">
+          <span>01 // AD-HOC SIGNALING</span>
+          <span>WEBRTC</span>
         </div>
 
-        <div class="input-group">
-          <label for="handshake-envelope">HANDSHAKE ENVELOPE (OFFER / ANSWER):</label>
-          <textarea id="handshake-envelope" placeholder="Paste peer payload here..." spellcheck="false"></textarea>
+        <textarea class="envelope-field" id="txt-envelope" placeholder="Session offer/answer envelope..."></textarea>
+
+        <div class="btn-cluster">
+          <button class="meshi-btn" id="btn-init-offer">Generate Offer</button>
+          <button class="meshi-btn btn-amber" id="btn-accept-offer">Join Answer</button>
+          <button class="meshi-btn full-span" id="btn-apply-link">Finalize Link Pipe</button>
         </div>
 
-        <button id="btn-copy-envelope" class="btn outline full-width">Copy Envelope To Clipboard</button>
+        <div class="panel-legend" style="margin-top: 10px;">
+          <span>02 // CRDT VECTOR STORE</span>
+          <span>LOCAL REPLICA</span>
+        </div>
+
+        <div class="crdt-input-group">
+          <input type="text" class="meshi-input" id="input-crdt-k" placeholder="Key (e.g. waypoint)">
+          <input type="text" class="meshi-input" id="input-crdt-v" placeholder="Value">
+        </div>
+        <button class="meshi-btn" id="btn-crdt-sync">Broadcast Delta</button>
+
+        <pre class="crdt-snapshot" id="view-crdt-store">{}</pre>
       </section>
 
-      <!-- PANEL 2: CRDT STATE SYNCHRONIZATION -->
-      <section class="hud-card" aria-labelledby="crdt-heading">
-        <h2 id="crdt-heading" class="card-title">02 // AD-HOC DATA REPLICATION</h2>
-        <p class="card-desc">State updates are synchronized across active nodes with vector clocks.</p>
-
-        <div class="input-group">
-          <label for="sync-key">DATABASE KEY:</label>
-          <input type="text" id="sync-key" placeholder="e.g. system.telemetry.freq">
+      <!-- RIGHT CHANNEL: HIGH-VOLUME CHUNK TRANSFER & DIAGNOSTICS -->
+      <section class="meshi-panel-box amber-accent">
+        <div class="panel-legend">
+          <span>03 // CHUNKED BINARY STREAM PIPE</span>
+          <span>RAM-TO-RAM</span>
         </div>
 
-        <div class="input-group">
-          <label for="sync-val">PAYLOAD VALUE (JSON / STRING):</label>
-          <input type="text" id="sync-val" placeholder='e.g. {"mhz": 433.92, "power": 1.0}'>
+        <div class="chunk-dropzone" id="panel-dropzone">
+          <input type="file" id="binary-file-input" style="display:none;">
+          <p style="color: var(--meshi-cyan);">STAGED ARTIFACT: NONE</p>
+          <p style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">SELECT OR DROP ARBITRARY BINARY BLOB</p>
         </div>
 
-        <button id="btn-sync-send" class="btn primary full-width">Transmit State Delta</button>
+        <div class="stream-progress-rail">
+          <div class="stream-progress-fill" id="stream-bar"></div>
+        </div>
 
-        <div class="state-preview-box">
-          <div class="box-header">LOCAL SYNCHRONIZED STORAGE:</div>
-          <pre id="state-store-view">{}</pre>
+        <div class="panel-legend" style="margin-top: 10px;">
+          <span>04 // TRANSPORT TRACE & TELEMETRY</span>
+          <span>16KB FRAGMENTS</span>
+        </div>
+
+        <div class="meshi-console-deck" id="panel-console">
+          <div class="console-entry"><span class="console-ts">[00:00:00]</span> Engine initialized in zero-cloud sandbox mode.</div>
         </div>
       </section>
 
-      <!-- PANEL 3: BINARY STREAM DISPATCHER -->
-      <section class="hud-card" aria-labelledby="stream-heading">
-        <h2 id="stream-heading" class="card-title">03 // BINARY STREAM ENGINE</h2>
-        <p class="card-desc">Direct memory chunking for files and arbitrary byte buffers with backpressure control.</p>
-
-        <div class="drop-zone" id="file-drop-zone" tabindex="0" role="button" aria-label="Drop file to transmit">
-          <input type="file" id="file-input" class="hidden-file-input">
-          <p id="drop-zone-text">Click or Drop Binary File Here</p>
-        </div>
-
-        <div class="progress-wrap" id="progress-wrapper">
-          <div class="progress-bar-fill" id="progress-fill"></div>
-          <span class="progress-label" id="progress-text">IDLE // 0%</span>
-        </div>
-
-        <div class="box-header" style="margin-top:12px;">TRANSFERRED ARTIFACTS:</div>
-        <ul class="file-list" id="received-files-list"></ul>
-      </section>
-    </div>
-
-    <!-- TERMINAL LOG CONSOLE -->
-    <section class="terminal-card" aria-labelledby="term-heading">
-      <div class="term-header">
-        <span id="term-heading">SSHAnet // MESHI PEER CONSOLE</span>
-        <span class="term-dim">STANDALONE RUNTIME v2026.09</span>
-      </div>
-      <div class="term-logs" id="terminal-stream" role="log" aria-live="polite"></div>
-      <div class="term-input-row">
-        <span class="term-prompt">meshi@node:~$</span>
-        <input type="text" id="term-cmd-input" placeholder="type 'help', 'peers', 'broadcast', or 'clear'..." autocomplete="off">
-      </div>
-    </section>
-  </main>
-
-  <script type="module" src="./js/meshi-ui.js"></script>
+    </main>
+  </div>
 </body>
 </html>
