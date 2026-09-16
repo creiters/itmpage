@@ -2,90 +2,67 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Project Meshi // Peer-to-Peer Data Transport</title>
-  <link rel="stylesheet" href="./css/meshi.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Meshi // Play & Share</title>
+  <link rel="stylesheet" href="./css/meshi-friendly.css">
 </head>
 <body>
-  <div class="meshi-shell">
+
+  <main class="app-card">
     
-    <!-- TOP STATUS HUD -->
-    <header class="meshi-topbar">
-      <div class="meshi-brand">
-        <span class="meshi-node-tag">STANDALONE NODE</span>
-        <span class="meshi-title">PROJECT MESHI // P2P DATA EXCHANGE</span>
+    <!-- PLAYFUL AVATAR & RADAR -->
+    <header class="hero-header">
+      <div class="radar-bubble" id="radar-ring">
+        <div class="device-avatar" id="avatar-icon">🍐</div>
       </div>
-      <div class="meshi-telemetry-cluster">
-        <div class="signal-pill">
-          <span class="pulse-dot"></span>
-          <span id="label-signal">SUBNET_READY</span>
-        </div>
-        <div class="signal-pill" id="label-node-id">
-          ID: INITIALIZING...
-        </div>
+      <h1 class="fun-title">Project Meshi</h1>
+      <div class="status-pill status-searching" id="status-tag">
+        <span class="dot"></span>
+        <span id="status-text">Looking for nearby friends...</span>
       </div>
     </header>
 
-    <!-- DUAL WORKSPACE: CONTROL & TRANSPORT -->
-    <main class="meshi-grid">
+    <!-- BIG ACTION BUTTONS -->
+    <section class="action-grid">
       
-      <!-- LEFT CHANNEL: SESSION SIGNALING & CRDT REPLICATION -->
-      <section class="meshi-panel-box">
-        <div class="panel-legend">
-          <span>01 // AD-HOC SIGNALING</span>
-          <span>WEBRTC</span>
-        </div>
+      <!-- CARD 1: CONNECT -->
+      <button class="fun-card card-cyan" id="btn-magic-connect">
+        <span class="card-emoji">🪄</span>
+        <span class="card-name">Magic Connect</span>
+        <span class="card-hint">Tap here to join friend's hotspot</span>
+      </button>
 
-        <textarea class="envelope-field" id="txt-envelope" placeholder="Session offer/answer envelope..."></textarea>
+      <!-- CARD 2: SEND A TOY OR PICTURE -->
+      <label class="fun-card card-gold" for="simple-file-picker">
+        <input type="file" id="simple-file-picker" style="display:none;">
+        <span class="card-emoji">🎁</span>
+        <span class="card-name">Send a Gift</span>
+        <span class="card-hint">Share a photo, drawing or sound</span>
+      </label>
 
-        <div class="btn-cluster">
-          <button class="meshi-btn" id="btn-init-offer">Generate Offer</button>
-          <button class="meshi-btn btn-amber" id="btn-accept-offer">Join Answer</button>
-          <button class="meshi-btn full-span" id="btn-apply-link">Finalize Link Pipe</button>
-        </div>
+    </section>
 
-        <div class="panel-legend" style="margin-top: 10px;">
-          <span>02 // CRDT VECTOR STORE</span>
-          <span>LOCAL REPLICA</span>
-        </div>
+    <!-- BIG PROGRESS BAR -->
+    <div class="transfer-box" id="transfer-container">
+      <div class="box-labels">
+        <span id="transfer-label">Sending gift...</span>
+        <span id="transfer-percent">0%</span>
+      </div>
+      <div class="big-progress-rail">
+        <div class="big-progress-fill" id="progress-bar-fill"></div>
+      </div>
+    </div>
 
-        <div class="crdt-input-group">
-          <input type="text" class="meshi-input" id="input-crdt-k" placeholder="Key (e.g. waypoint)">
-          <input type="text" class="meshi-input" id="input-crdt-v" placeholder="Value">
-        </div>
-        <button class="meshi-btn" id="btn-crdt-sync">Broadcast Delta</button>
+    <!-- INBOX: WHERE RECEIVED ITEMS SHOW UP -->
+    <section class="gifts-section">
+      <div class="gifts-title">Received Gifts 🎈</div>
+      <div class="gifts-shelf" id="gifts-inbox">
+        <div class="gift-empty" id="empty-gift-note">No gifts yet! Bring another phone close to you.</div>
+      </div>
+    </section>
 
-        <pre class="crdt-snapshot" id="view-crdt-store">{}</pre>
-      </section>
+  </main>
 
-      <!-- RIGHT CHANNEL: HIGH-VOLUME CHUNK TRANSFER & DIAGNOSTICS -->
-      <section class="meshi-panel-box amber-accent">
-        <div class="panel-legend">
-          <span>03 // CHUNKED BINARY STREAM PIPE</span>
-          <span>RAM-TO-RAM</span>
-        </div>
-
-        <div class="chunk-dropzone" id="panel-dropzone">
-          <input type="file" id="binary-file-input" style="display:none;">
-          <p style="color: var(--meshi-cyan);">STAGED ARTIFACT: NONE</p>
-          <p style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">SELECT OR DROP ARBITRARY BINARY BLOB</p>
-        </div>
-
-        <div class="stream-progress-rail">
-          <div class="stream-progress-fill" id="stream-bar"></div>
-        </div>
-
-        <div class="panel-legend" style="margin-top: 10px;">
-          <span>04 // TRANSPORT TRACE & TELEMETRY</span>
-          <span>16KB FRAGMENTS</span>
-        </div>
-
-        <div class="meshi-console-deck" id="panel-console">
-          <div class="console-entry"><span class="console-ts">[00:00:00]</span> Engine initialized in zero-cloud sandbox mode.</div>
-        </div>
-      </section>
-
-    </main>
-  </div>
+  <script type="module" src="./js/meshi-friendly.js"></script>
 </body>
 </html>
