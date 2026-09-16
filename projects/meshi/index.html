@@ -3,38 +3,53 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Meshi // Offline WebRTC DataChannel Mesh</title>
+  <title>Project Meshi // SSHAnet P2P Mesh</title>
+
+  <meta name="description" content="Zero-cloud, browser-to-browser WebRTC DataChannel synchronization layer.">
+  <meta name="geo.region" content="CZ-PR">
+  <meta name="geo.placename" content="Prague">
+  <meta name="geo.position" content="50.075538;14.437800">
+  <meta name="ICBM" content="50.075538, 14.437800">
+
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="css/meshi.css">
 </head>
 <body>
-  <header role="banner">
-    <h1>PROJECT MESHI // METHOD 02</h1>
-    <span id="node-status" class="badge" aria-live="polite">LINK: DISCONNECTED</span>
+  <header role="banner" class="hud-header">
+    <nav role="navigation" aria-label="System Identity">
+      <h1>PROJECT MESHI // P2P MESH</h1>
+      <span id="node-status" class="badge" aria-live="polite">STATUS: STANDALONE</span>
+    </nav>
   </header>
 
-  <main role="main" class="hud-container">
-    <!-- Air-gapped Signaling Bridge -->
-    <section class="card" aria-labelledby="signal-head">
-      <h2 id="signal-head">Subnet Signaler (Air-Gapped Exchange)</h2>
-      <textarea id="signal-token" placeholder="Paste or copy base64 handshake tokens..." aria-label="Signaling Token Box"></textarea>
+  <main id="main-content" role="main" class="hud-main">
+    <!-- Air-gapped Signaling View -->
+    <section class="hud-card" aria-labelledby="signal-head">
+      <h2 id="signal-head">Subnet Signaler (Zero-Cloud Handshake)</h2>
+      <label for="signal-token" class="visually-hidden">Signaling Token</label>
+      <textarea id="signal-token" placeholder="Paste or copy base64 handshake tokens..." autocomplete="off"></textarea>
       <div class="control-row">
         <button id="btn-create-offer" class="btn">1. Create Offer</button>
-        <button id="btn-create-answer" class="btn">2. Accept & Answer</button>
-        <button id="btn-finalize" class="btn">3. Finalize Handshake</button>
+        <button id="btn-accept-offer" class="btn">2. Accept & Answer</button>
+        <button id="btn-finalize" class="btn btn-primary">3. Finalize Handshake</button>
       </div>
     </section>
 
-    <!-- Duplex Transmission Console -->
-    <section class="card" aria-labelledby="channel-head">
-      <h2 id="channel-head">P2P Socket Transceiver</h2>
+    <!-- Transceiver & Log Panel -->
+    <section class="hud-card" aria-labelledby="transceiver-head">
+      <h2 id="transceiver-head">P2P Socket Transceiver</h2>
       <div class="input-row">
-        <input type="text" id="payload-input" placeholder="Type JSON/Text payload..." aria-label="Payload Text">
-        <button id="btn-broadcast" class="btn btn-primary">Dispatch</button>
+        <label for="payload-input" class="visually-hidden">Data payload</label>
+        <input type="text" id="payload-input" placeholder="Type document JSON/text..." autocomplete="off">
+        <button id="btn-send" class="btn btn-primary">Publish</button>
       </div>
-      <div id="mesh-logs" class="terminal" role="log" aria-live="polite" aria-atomic="false"></div>
+      <div id="term-body" class="terminal-box" role="log" aria-live="polite" aria-atomic="false"></div>
     </section>
   </main>
+
+  <footer role="contentinfo" class="hud-footer">
+    <small>CreITers // SSHAnet Subnet Data Synchronizer [2026]</small>
+  </footer>
 
   <script type="module" src="js/app.js"></script>
 </body>
