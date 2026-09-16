@@ -27,7 +27,7 @@
     "metrics": "IndexedDB Store // Tokenized C Parser // Zero WebGPU"
   },
   {
-    "id": "hmi-hud",
+    "id": "car",
     "badge": "04",
     "title": "Automotive Adaptive HMI",
     "repo": "https://creiters.cz/projects/car",
