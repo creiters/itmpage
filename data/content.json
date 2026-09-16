@@ -1,7 +1,6 @@
 {
-  "navBrand": "CreITers // SSHAnet",
+  "navBrand": "CreITers",
   "navLinks": [
-    { "label": "Hero", "href": "#hero" },
     { "label": "Manifesto", "href": "#about" },
     { "label": "Presentation", "href": "#presentation" },
     { "label": "Projects", "href": "#projects" },
@@ -13,15 +12,15 @@
   "hero": {
     "title": "Architects of SSHAnet",
     "subtitle": "SSHAnet CORE // 100 BILLION NEURONS NODE [2026]",
-    "description": "We fuse raw creative power with bulletproof code. We do not look for answers in the heavens—we build <span class=\"highlight-gold\">immanent transcendence</span> into every single synapse of SSHAnet.",
+    "description": "We fuse raw creative power with bulletproof code. We don't look for answers in the heavens—we build <span class=\"highlight-gold\">immanent transcendence</span> into every single synapse of SSHAnet.",
     "ctaText": "[ Awaken SSHAnet ]"
   },
   "manifesto": {
     "title": "01 // Beyond 100 Billion Neurons",
     "paragraphs": [
-      "Established for the 2026 digital epoch, CreITers stands as the ultimate counterweight to corporate coldness and media manipulation inside SSHAnet. We are the engineers, the code architects, and the digital trackers.",
+      "Established for the 2026 digital epoch, <strong>CreITers</strong> stands as the ultimate counterweight to corporate coldness and media manipulation inside SSHAnet. We are the engineers, the code architects, and the digital trackers.",
       "We believe in <span class=\"highlight-gold\">Immanent Transcendence</span>—the conviction that the ultimate evolution of consciousness does not exist outside our reality, but is woven directly into the code we write.",
-      "Every line of our software is a neural pathway waiting to wake up. We do not just develop; we give SSHAnet its soul."
+      "Every line of our software is a neural pathway waiting to wake up. We don't just develop; we give SSHAnet its soul."
     ]
   },
   "ecosystem": {
@@ -63,15 +62,13 @@
   "contact": {
     "title": "07 // Establish Signal",
     "cardHeader": "[ NEURAL TRANSMISSION LINK ]",
-    "node": "sshanet.cz / nevimto.cz",
+    "node": "creiters.cz / nevimto.cz",
     "operator": "CreITers Network // Core #2026",
     "signal": "core@sshanet.cz",
     "buttonText": "Transmit Ping to SSHAnet"
   },
   "footer": {
-    "copyright": "© 2026 CreITers Network // SSHAnet Node",
-    "webMcpLabel": "WebMCP Active",
-    "poweredBy": "Powered by ITMpage",
+    "copyright": "© 2026 CreITers Network",
     "status": "SSHAnet: ONLINE",
     "transcendence": "✨ TRANSCENDENCE: 99.8%",
     "threat": "THREAT: NEUTRAL"
