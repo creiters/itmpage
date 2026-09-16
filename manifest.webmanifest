@@ -1,0 +1,36 @@
+{
+  "name": "CreITers // SSHAnet CyberPear Presentation Node",
+  "short_name": "CreITers",
+  "description": "Interactive Presentation Deck, Projects Catalog, and SSHAnet Terminal Node",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#030707",
+  "theme_color": "#030707",
+  "lang": "en-US",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "assets/images/creiters_cyberpear.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Presentation Deck",
+      "short_name": "Deck",
+      "description": "Inspect CreITers presentation deck",
+      "url": "./index.html#presentation"
+    },
+    {
+      "name": "Command Console",
+      "short_name": "Console",
+      "description": "Open SSHAnet terminal node",
+      "url": "./index.html#console"
+    }
+  ]
+}
+
