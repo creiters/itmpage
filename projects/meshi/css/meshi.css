@@ -1,315 +1,95 @@
-/* ==========================================================================
-   PROJECT MESHI // P2P DATA TRANSPORT STYLESHEET
-   Independent Local Discovery & Transfer Console
-   ========================================================================== */
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
 :root {
-  --meshi-bg: #020708;
-  --meshi-panel: rgba(4, 14, 16, 0.92);
-  --meshi-cyan: #1affff;
-  --meshi-amber: #ffaa00;
-  --meshi-emerald: #00ffaa;
-  --meshi-crimson: #ff1a53;
-  --meshi-gold: #d4af37;
-  --text-main: #e6ffff;
-  --text-dim: #446e6e;
+  --bg-color: #030707;
+  --panel-bg: rgba(6, 14, 14, 0.9);
+  --cyan-neon: #1affff;
+  --pink-neon: #ff1a75;
+  --gold: #d4af37;
   --font-mono: 'Courier New', Courier, monospace;
 }
 
-html, body {
-  background-color: var(--meshi-bg);
-  color: var(--text-main);
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg-color);
+  color: #e0ffff;
   font-family: var(--font-mono);
   min-height: 100vh;
-  overflow-x: hidden;
-  font-size: 14px;
+  padding: 24px;
 }
 
-/* CRT SCANLINE & AD-HOC RADIAL SIGNAL GRID */
-body::before {
-  content: "";
-  position: fixed;
-  top: 0; left: 0; width: 100vw; height: 100vh;
-  background: 
-    radial-gradient(circle at 50% 30%, rgba(26, 255, 255, 0.06) 0%, transparent 65%),
-    radial-gradient(circle at 80% 80%, rgba(255, 170, 0, 0.04) 0%, transparent 60%),
-    linear-gradient(rgba(26, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(26, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 20px 20px, 20px 20px;
-  z-index: -2;
-  pointer-events: none;
-}
-
-body::after {
-  content: "";
-  position: fixed;
-  top: 0; left: 0; width: 100vw; height: 100vh;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%);
-  background-size: 100% 4px;
-  z-index: 999;
-  pointer-events: none;
-  opacity: 0.65;
-}
-
-/* SHELL LAYOUT */
-.meshi-shell {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 16px 20px 40px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-/* TOP STATUS HUD BAR */
-.meshi-topbar {
+header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 18px;
-  background: var(--meshi-panel);
-  border: 1px solid var(--meshi-cyan);
-  box-shadow: 0 0 15px rgba(26, 255, 255, 0.15);
+  border-bottom: 2px solid var(--cyan-neon);
+  padding-bottom: 12px;
+  margin-bottom: 24px;
 }
 
-.meshi-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
+h1 { font-size: 1.4rem; color: var(--cyan-neon); letter-spacing: 2px; }
+h2 { font-size: 1rem; color: var(--gold); margin-bottom: 12px; }
 
-.meshi-node-tag {
+.badge {
+  padding: 4px 8px;
+  border: 1px solid var(--pink-neon);
+  color: var(--pink-neon);
   font-size: 0.75rem;
-  color: var(--meshi-gold);
-  border: 1px solid var(--meshi-gold);
-  padding: 2px 6px;
-  letter-spacing: 1px;
+}
+.badge.badge-online {
+  border-color: #22b14c;
+  color: #22b14c;
 }
 
-.meshi-title {
-  color: var(--meshi-cyan);
-  font-size: 1.1rem;
-  font-weight: 900;
-  letter-spacing: 2px;
-  text-shadow: 0 0 8px var(--meshi-cyan);
-}
-
-.meshi-telemetry-cluster {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.signal-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
-  padding: 4px 10px;
-  border: 1px solid var(--text-dim);
-  background: #030a0c;
-}
-
-.pulse-dot {
-  width: 8px;
-  height: 8px;
-  background-color: var(--meshi-emerald);
-  border-radius: 50%;
-  box-shadow: 0 0 6px var(--meshi-emerald);
-  animation: radarBlink 1.4s infinite;
-}
-
-@keyframes radarBlink {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.3; transform: scale(0.8); }
-}
-
-/* DUAL WORKSPACE GRID */
-.meshi-grid {
-  display: grid;
-  grid-template-columns: 360px 1fr;
-  gap: 20px;
-}
-
-@media (max-width: 900px) {
-  .meshi-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* PANELS */
-.meshi-panel-box {
-  background: var(--meshi-panel);
-  border: 1px solid var(--meshi-cyan);
-  box-shadow: 0 0 12px rgba(26, 255, 255, 0.08);
-  padding: 18px;
+.hud-container { display: flex; flex-direction: column; gap: 20px; max-width: 900px; margin: 0 auto; }
+.card {
+  background: var(--panel-bg);
+  border: 1px solid rgba(26, 255, 255, 0.2);
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
-.meshi-panel-box.amber-accent {
-  border-color: var(--meshi-amber);
-  box-shadow: 0 0 12px rgba(255, 170, 0, 0.1);
-}
-
-.panel-legend {
-  font-size: 0.85rem;
-  color: var(--meshi-gold);
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  display: flex;
-  justify-content: space-between;
-  border-bottom: 1px dashed rgba(26, 255, 255, 0.2);
-  padding-bottom: 6px;
-}
-
-/* SESSION ENVELOPE / SIGNALING STACK */
-.envelope-field {
+textarea {
   width: 100%;
-  height: 110px;
-  background: #010405;
-  border: 1px solid #143232;
-  color: var(--meshi-emerald);
+  height: 90px;
+  background: #020404;
+  border: 1px solid var(--cyan-neon);
+  color: #fff;
   font-family: inherit;
   font-size: 0.75rem;
   padding: 8px;
-  resize: none;
-  outline: none;
-  word-break: break-all;
 }
 
-.envelope-field:focus {
-  border-color: var(--meshi-cyan);
-}
-
-/* BUTTON CONTROLS */
-.btn-cluster {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.meshi-btn {
-  background: #041214;
-  border: 1px solid var(--meshi-cyan);
-  color: var(--meshi-cyan);
-  font-family: inherit;
-  font-size: 0.8rem;
-  font-weight: bold;
-  padding: 10px;
-  cursor: pointer;
-  text-transform: uppercase;
-  transition: all 0.15s ease;
-}
-
-.meshi-btn:active {
-  background: var(--meshi-cyan);
-  color: #010405;
-  box-shadow: 0 0 14px var(--meshi-cyan);
-}
-
-.meshi-btn.btn-amber {
-  border-color: var(--meshi-amber);
-  color: var(--meshi-amber);
-}
-
-.meshi-btn.btn-amber:active {
-  background: var(--meshi-amber);
-  color: #010405;
-  box-shadow: 0 0 14px var(--meshi-amber);
-}
-
-.meshi-btn.full-span {
-  grid-column: span 2;
-}
-
-/* CRDT DATA STORE VIEW */
-.crdt-input-group {
-  display: flex;
-  gap: 8px;
-}
-
-.meshi-input {
+.control-row, .input-row { display: flex; gap: 10px; }
+.input-row input {
   flex: 1;
-  background: #010405;
-  border: 1px solid #143232;
-  color: var(--text-main);
-  padding: 8px 10px;
+  background: #020404;
+  border: 1px solid var(--cyan-neon);
+  color: #fff;
+  padding: 10px;
   font-family: inherit;
-  font-size: 0.8rem;
-  outline: none;
 }
 
-.meshi-input:focus {
-  border-color: var(--meshi-cyan);
-}
-
-.crdt-snapshot {
-  background: #010405;
-  border: 1px solid #143232;
-  padding: 10px;
-  height: 160px;
-  overflow-y: auto;
-  font-size: 0.75rem;
-  color: var(--meshi-cyan);
-}
-
-/* CHUNKED STREAM ENGINE / DROPZONE */
-.chunk-dropzone {
-  border: 2px dashed #143232;
-  background: #010405;
-  padding: 24px;
-  text-align: center;
+.btn {
+  background: transparent;
+  border: 1px solid var(--cyan-neon);
+  color: var(--cyan-neon);
+  padding: 8px 16px;
+  font-family: inherit;
+  font-weight: bold;
   cursor: pointer;
-  transition: border-color 0.2s ease;
 }
+.btn:hover { background: var(--cyan-neon); color: #000; }
+.btn-primary { border-color: var(--gold); color: var(--gold); }
+.btn-primary:hover { background: var(--gold); color: #000; }
 
-.chunk-dropzone:hover {
-  border-color: var(--meshi-emerald);
-}
-
-.stream-progress-rail {
-  width: 100%;
-  height: 12px;
-  background: #010405;
-  border: 1px solid #143232;
-  position: relative;
-  overflow: hidden;
-}
-
-.stream-progress-fill {
-  height: 100%;
-  background: var(--meshi-emerald);
-  box-shadow: 0 0 8px var(--meshi-emerald);
-  width: 0%;
-  transition: width 0.1s linear;
-}
-
-/* CONSOLE MONITOR */
-.meshi-console-deck {
-  background: #010304;
-  border: 1px solid #143232;
-  padding: 10px;
-  height: 140px;
+.terminal {
+  background: #020505;
+  border: 1px solid rgba(26, 255, 255, 0.2);
+  height: 220px;
   overflow-y: auto;
-  font-size: 0.75rem;
+  padding: 12px;
+  font-size: 0.8rem;
   line-height: 1.4;
 }
-
-.console-entry {
-  margin-bottom: 2px;
-  word-break: break-all;
-}
-
-.console-ts {
-  color: var(--text-dim);
-}
+.terminal-entry { margin-bottom: 4px; }
