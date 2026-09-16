@@ -1,23 +1,4 @@
 {
-  "title": "CreITers // SSHAnet CyberPear Presentation Node 2026",
-  "description": "Architects of SSHAnet digital infrastructure, featuring interactive presentation slides, ITMpage projects, and WebMCP agent protocols.",
-  "keywords": "CreITers, SSHAnet, ITMpage, CyberPear, WebMCP, PWA, ARIA, Presentation",
-  "canonical": "https://creiters.cz/",
-  "geo": {
-    "region": "CZ-PR",
-    "placename": "Prague",
-    "position": "50.075538;14.437800",
-    "icbm": "50.075538, 14.437800"
-  },
-  "schema": {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "WebSite",
-        "@id": "https://creiters.cz/#website",
-        "url": "https://creiters.cz/",
-        "name": "CreITers SSHAnet Node",
-        "{
   "title": "CreITers // CyberPear SSHAnet Node [2026]",
   "description": "Architects of SSHAnet digital infrastructure, featuring interactive presentation slides, ITMpage projects, and WebMCP agent protocols.",
   "keywords": "CreITers, CyberPear, SSHAnet, ITMpage, WebMCP, PWA, WebAssembly",
@@ -42,17 +23,3 @@
     ]
   }
 }
-": "Architects of SSHAnet neural digital infrastructure and presentation showcase.",
-        "inLanguage": "en-US"
-      },
-      {
-        "@type": "SoftwareApplication",
-        "@id": "https://creiters.cz/#app",
-        "name": "SSHAnet_OS Presentation & Command Console",
-        "operatingSystem": "Web, Modern Browsers, WebAssembly",
-        "applicationCategory": "DeveloperApplication"
-      }
-    ]
-  }
-}
-
