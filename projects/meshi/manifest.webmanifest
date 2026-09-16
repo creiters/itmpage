@@ -1,0 +1,21 @@
+{
+  "name": "Project Meshi // SSHAnet P2P Mesh",
+  "short_name": "Meshi",
+  "description": "Zero-cloud offline WebRTC DataChannel data synchronization engine.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#030707",
+  "theme_color": "#030707",
+  "lang": "en-US",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "./assets/images/creiters_cyberpear.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
