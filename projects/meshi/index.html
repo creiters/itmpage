@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSHAnet // Sovereign Edge Terminal</title>
+    <link rel="manifest" href="data:application/json,{%22name%22:%22SSHAnet%22,%22short_name%22:%22SSHAnet%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%230a0a0a%22,%22theme_color%22:%22%230a0a0a%22}">
+    <meta name="theme-color" content="#0a0a0a">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+        <h1>SSHAnet // Sovereign Edge Terminal</h1>
+    </header>
+
+    <div class="grid">
+        <main class="panel">
+            <h3>System Activity Console (IndexedDB)</h3>
+            <div class="terminal" id="term-log">> Initializing operational layers...</div>
+            
+            <div class="btn-group">
+                <button id="btn-wasm">Simulate Edge Telemetry</button>
+                <button id="btn-clear" class="alt">Flush Logs</button>
+            </div>
+
+            <h3>Local Mesh Interconnect (Serverless P2P)</h3>
+            <div class="btn-group">
+                <button id="btn-host">1. Host Node (Create Offer)</button>
+                <button id="btn-join" class="alt">2. Join Node (Accept Offer)</button>
+                <button id="btn-link" class="alt">3. Confirm Connection</button>
+            </div>
+
+            <div class="btn-group">
+                <input type="text" id="msg-input" placeholder="Inject text broadcast data stream packet...">
+                <button id="btn-send">Broadcast</button>
+            </div>
+
+            <label for="token-local">Local Node Handshake Token:</label>
+            <textarea id="token-local" rows="2" readonly placeholder="Awaiting handshake parameter allocation..."></textarea>
+            
+            <label for="token-remote">Remote Node Handshake Token:</label>
+            <textarea id="token-remote" rows="2" placeholder="Paste incoming remote peer metadata matrix..."></textarea>
+        </main>
+
+        <aside class="panel status-panel">
+            <div class="matrix-wrapper">
+                <h3>Optical Matrix</h3>
+                <p class="section-desc">Native SVG Matrix Stream Output</p>
+                <div class="qr-container" id="svg-qr-target">
+                    <span class="awaiting-text">Awaiting Data Array</span>
+                </div>
+            </div>
+            
+            <div class="info-footer">
+                <p class="section-desc">Manual Handshake IO</p>
+                <p class="footer-note">Connection routing establishes by copy-pasting the text tokens between terminal units.</p>
+            </div>
+        </aside>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
+
