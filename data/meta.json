@@ -17,7 +17,32 @@
         "@id": "https://creiters.cz/#website",
         "url": "https://creiters.cz/",
         "name": "CreITers SSHAnet Node",
-        "description": "Architects of SSHAnet neural digital infrastructure and presentation showcase.",
+        "{
+  "title": "CreITers // CyberPear SSHAnet Node [2026]",
+  "description": "Architects of SSHAnet digital infrastructure, featuring interactive presentation slides, ITMpage projects, and WebMCP agent protocols.",
+  "keywords": "CreITers, CyberPear, SSHAnet, ITMpage, WebMCP, PWA, WebAssembly",
+  "canonical": "https://creiters.cz/projects/cyberpear",
+  "geo": {
+    "region": "CZ-PR",
+    "placename": "Prague",
+    "position": "50.075538;14.437800",
+    "icbm": "50.075538, 14.437800"
+  },
+  "schema": {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://creiters.cz/#website",
+        "url": "https://creiters.cz/",
+        "name": "CreITers CyberPear Node",
+        "description": "Architects of SSHAnet neural infrastructure.",
+        "inLanguage": "en-US"
+      }
+    ]
+  }
+}
+": "Architects of SSHAnet neural digital infrastructure and presentation showcase.",
         "inLanguage": "en-US"
       },
       {
