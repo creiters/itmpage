@@ -11,8 +11,9 @@ class MeshiApp {
     this.crypto = null;
     this.activeSocket = null;
     this.pendingPc = null;
+    this.isReconnecting = false;
 
-    // UI Nodes
+    // DOM Elements
     this.statusBadge = document.getElementById('node-status');
     this.authBadge = document.getElementById('auth-status');
     this.localKeyDisplay = document.getElementById('local-key');
@@ -29,17 +30,21 @@ class MeshiApp {
 
   async init() {
     await this.db.open();
-    this.crypto = await MeshiCrypto.generateIdentity();
+    this.crypto = await MeshiCrypto.init(this.db);
     this.localKeyDisplay.value = this.crypto.publicKeyBase64;
 
-    // Self-trust local key for loopback testing
-    await this.db.addTrustedPeer(this.crypto.publicKeyBase64, 'Local Loopback Node');
+    await this.db.addTrustedPeer(this.crypto.publicKeyBase64, 'Self Loopback');
 
     this.bindEvents();
+    this.setupServiceWorkerWatchdog();
     registerWebMCP(this, this.db);
-    this.initPWA();
     await this.loadMetadata();
-    this.appendLog(`INIT: Node ${this.nodeId} active. ECDSA P-256 key generated.`);
+
+    this.appendLog(`INIT: Node ${this.nodeId} initialized.`);
+    this.appendLog(`KEY: ECDSA SPKI identity persistent across reloads.`);
+
+    // Automatically recover active connection if cached
+    await this.attemptResumeLastSession();
   }
 
   async loadMetadata() {
@@ -47,12 +52,10 @@ class MeshiApp {
       const res = await fetch('./data/meta.json');
       const meta = await res.json();
       document.title = meta.title;
-
       const script = document.createElement('script');
       script.type = 'application/ld+json';
       script.textContent = JSON.stringify(meta.schema);
       document.head.appendChild(script);
-      this.appendLog("META: SSHAnet schema and GEO descriptors mounted.");
     } catch {
       this.appendLog("META: Using standalone fallback.");
     }
@@ -62,18 +65,19 @@ class MeshiApp {
     this.btnTrustKey.addEventListener('click', async () => {
       const key = this.peerKeyInput.value.trim();
       if (!key) return;
-      await this.db.addTrustedPeer(key, 'Operator Whitelisted');
-      this.appendLog(`AUTH: Whitelisted peer key: ${key.substring(0, 24)}...`);
+      await this.db.addTrustedPeer(key, 'Whitelisted Peer');
+      this.appendLog(`AUTH: Peer key whitelisted.`);
       this.peerKeyInput.value = '';
     });
 
     this.btnCreateOffer.addEventListener('click', async () => {
       try {
-        const { pc, dc, token } = await MeshiSignaler.createOffer();
+        const { pc, dc, token } = await MeshiSignaler.createOffer(this.crypto);
         this.pendingPc = pc;
         this.tokenArea.value = token;
-        this.mountSocket(new MeshiMeshSocket('remote-peer', dc, this.crypto, this.db));
-        this.appendLog("OFFER: Generated Offer. Copy and transmit to Responder.");
+        await this.db.setSystemKey('last_offer_token', token);
+        this.mountSocket(new MeshiMeshSocket('remote-peer', dc, this.crypto, this.db, () => this.handleSocketDropout()));
+        this.appendLog("OFFER: Generated & signed with WebCrypto. Copy to responder.");
       } catch (err) {
         this.appendLog(`OFFER_ERR: ${err.message}`);
       }
@@ -83,11 +87,15 @@ class MeshiApp {
       try {
         const token = this.tokenArea.value.trim();
         if (!token) throw new Error("Token field empty.");
-        const { pc, dcPromise, token: answerToken } = await MeshiSignaler.acceptOffer(token);
+        const { pc, dcPromise, token: answerToken, remotePublicKey } = await MeshiSignaler.acceptOffer(token, this.crypto);
+        
+        await this.db.addTrustedPeer(remotePublicKey, 'Auto-Approved Signaling Peer');
         this.tokenArea.value = answerToken;
+        await this.db.setSystemKey('last_peer_key', remotePublicKey);
+        
         const dc = await dcPromise;
-        this.mountSocket(new MeshiMeshSocket('remote-peer', dc, this.crypto, this.db));
-        this.appendLog("ANSWER: Generated Answer. Transmit back to Host node.");
+        this.mountSocket(new MeshiMeshSocket('remote-peer', dc, this.crypto, this.db, () => this.handleSocketDropout()));
+        this.appendLog("ANSWER: Generated & signed. Send back to initiator.");
       } catch (err) {
         this.appendLog(`ANSWER_ERR: ${err.message}`);
       }
@@ -97,8 +105,10 @@ class MeshiApp {
       try {
         const token = this.tokenArea.value.trim();
         if (!token || !this.pendingPc) throw new Error("Missing token or invalid peer connection.");
-        await MeshiSignaler.finalizeHandshake(this.pendingPc, token);
-        this.appendLog("HANDSHAKE: Handshake applied. Awaiting RTCDataChannel open state...");
+        const remotePubKey = await MeshiSignaler.finalizeHandshake(this.pendingPc, token, this.crypto);
+        await this.db.addTrustedPeer(remotePubKey, 'Auto-Approved Signaling Peer');
+        await this.db.setSystemKey('last_peer_key', remotePubKey);
+        this.appendLog("HANDSHAKE: Verified & finalized via WebCrypto.");
       } catch (err) {
         this.appendLog(`FINALIZE_ERR: ${err.message}`);
       }
@@ -119,35 +129,36 @@ class MeshiApp {
       });
 
       this.activeSocket.send({ type: 'DOC_SYNC', payload: doc });
-      this.appendLog(`TX: Document persisted & dispatched [Clock: ${doc.clock}] -> ${doc.id}`);
+      this.appendLog(`TX: Dispatched [Clock: ${doc.clock}] -> ${doc.id}`);
       this.inputPayload.value = '';
+    });
+
+    window.addEventListener('online', () => {
+      this.appendLog("NET: Device online event detected. Running reconnection...");
+      this.handleSocketDropout();
     });
   }
 
   mountSocket(socket) {
     this.activeSocket = socket;
 
-    socket.onopen = () => {
+    socket.dc.addEventListener('open', () => {
       this.statusBadge.textContent = 'LINK: CONNECTED';
       this.statusBadge.classList.add('badge-online');
-      this.appendLog("NET: Raw WebRTC DataChannel established. Initiating mutual auth...");
-    };
+      this.appendLog("NET: WebRTC DataChannel established.");
+    });
 
     socket.addEventListener('meshi:authorized', (e) => {
       this.authBadge.textContent = 'AUTH: TRUSTED';
       this.authBadge.classList.add('badge-auth');
-      this.appendLog(`AUTH: Mutual ECDSA challenge verified. Key: ${e.detail.remoteKey.substring(0, 18)}...`);
+      this.appendLog(`AUTH: Mutual ECDSA verification succeeded.`);
     });
 
     socket.addEventListener('meshi:synced', (e) => {
-      this.appendLog(`SYNC: Catch-up completed. Merged ${e.detail.count} missing records.`);
+      this.appendLog(`SYNC: Reconnection delta resolved. Merged ${e.detail.count} records.`);
     });
 
-    socket.addEventListener('meshi:net-restored', () => {
-      this.appendLog("NET: Device back online. Querying peer for delta updates...");
-    });
-
-    socket.onmessage = async (e) => {
+    socket.addEventListener('message', async (e) => {
       try {
         const msg = JSON.parse(e.data);
         if (msg.type === 'DOC_SYNC') {
@@ -159,15 +170,82 @@ class MeshiApp {
       } catch {
         this.appendLog(`RX_RAW: ${e.data}`);
       }
-    };
+    });
 
-    socket.onclose = () => {
-      this.statusBadge.textContent = 'LINK: CLOSED';
+    socket.addEventListener('close', () => {
+      this.statusBadge.textContent = 'LINK: DISCONNECTED';
       this.statusBadge.classList.remove('badge-online');
       this.authBadge.textContent = 'AUTH: UNVERIFIED';
       this.authBadge.classList.remove('badge-auth');
-      this.appendLog("NET: Peer connection dropped.");
-    };
+      this.appendLog("NET: Channel disconnected.");
+    });
+  }
+
+  async handleSocketDropout() {
+    if (this.isReconnecting) return;
+    this.isReconnecting = true;
+    this.appendLog("RECONNECT: Attempting session restoration...");
+
+    try {
+      const lastPeer = await this.db.getSystemKey('last_peer_key');
+      if (lastPeer && (!this.activeSocket || this.activeSocket.readyState !== MeshiMeshSocket.OPEN)) {
+        // Regenerate connection offer to re-anchor local subnet candidates
+        const { pc, dc, token } = await MeshiSignaler.createOffer(this.crypto);
+        this.pendingPc = pc;
+        this.mountSocket(new MeshiMeshSocket('remote-peer', dc, this.crypto, this.db, () => this.handleSocketDropout()));
+        
+        // Broadcast renegotiation beacon to background worker & sibling tabs
+        navigator.serviceWorker?.controller?.postMessage({
+          type: 'MESHI_BROADCAST_SIGNAL',
+          token,
+          targetPeer: lastPeer
+        });
+      }
+    } catch (err) {
+      console.warn("Dropout recovery warning:", err);
+    } finally {
+      this.isReconnecting = false;
+    }
+  }
+
+  async attemptResumeLastSession() {
+    const lastPeer = await this.db.getSystemKey('last_peer_key');
+    if (lastPeer) {
+      this.appendLog(`RESUME: Restoring previous session for peer: ${lastPeer.substring(0, 16)}...`);
+      this.handleSocketDropout();
+    }
+  }
+
+  setupServiceWorkerWatchdog() {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').then(async (reg) => {
+        // Register periodic background sync if available
+        if ('periodicSync' in reg) {
+          try {
+            await reg.periodicSync.register('meshi-keepalive', { minInterval: 60 * 1000 });
+          } catch (e) {
+            console.warn('Periodic sync not permitted:', e);
+          }
+        }
+        // Register standard background sync for offline recovery
+        if ('sync' in reg) {
+          try {
+            await reg.sync.register('meshi-reconnect-sync');
+          } catch (e) {
+            console.warn('Sync registration failed:', e);
+          }
+        }
+      });
+
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type === 'MESHI_BACKGROUND_NET_STABLE') {
+          this.appendLog("SW: Background sync network restoration heartbeat received.");
+          if (!this.activeSocket || this.activeSocket.readyState !== MeshiMeshSocket.OPEN) {
+            this.handleSocketDropout();
+          }
+        }
+      });
+    }
   }
 
   appendLog(text) {
@@ -176,14 +254,6 @@ class MeshiApp {
     entry.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
     this.terminal.appendChild(entry);
     this.terminal.scrollTop = this.terminal.scrollHeight;
-  }
-
-  initPWA() {
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch((err) => console.warn('SW failed:', err));
-      });
-    }
   }
 }
 
