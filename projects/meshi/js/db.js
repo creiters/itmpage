@@ -1,5 +1,5 @@
 export class MeshiDB {
-  constructor(dbName = 'meshi_mesh_db', version = 1) {
+  constructor(dbName = 'meshi_mesh_db', version = 2) {
     this.dbName = dbName;
     this.version = version;
     this.db = null;
@@ -16,11 +16,28 @@ export class MeshiDB {
           store.createIndex('clock', 'clock');
           store.createIndex('updatedAt', 'updatedAt');
         }
+        if (!d.objectStoreNames.contains('trusted_peers')) {
+          d.createObjectStore('trusted_peers', { keyPath: 'publicKey' });
+        }
       };
       req.onsuccess = () => {
         this.db = req.result;
         resolve(this.db);
       };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async getRecordsSince(sinceClock = 0) {
+    if (!this.db) await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('documents', 'readonly');
+      const store = tx.objectStore('documents');
+      const index = store.index('clock');
+      const range = IDBKeyRange.lowerBound(sinceClock, true); // clock > sinceClock
+      const req = index.getAll(range);
+
+      req.onsuccess = () => resolve(req.result || []);
       req.onerror = () => reject(req.error);
     });
   }
@@ -33,7 +50,6 @@ export class MeshiDB {
       clock: this.clock,
       updatedAt: Date.now()
     };
-
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction('documents', 'readwrite');
       tx.objectStore('documents').put(record);
@@ -51,8 +67,7 @@ export class MeshiDB {
 
       getReq.onsuccess = () => {
         const localDoc = getReq.result;
-        // Last-Write-Wins based on logical clock, timestamp tie-breaker
-        if (!localDoc || remoteDoc.clock > localDoc.clock || 
+        if (!localDoc || remoteDoc.clock > localDoc.clock ||
            (remoteDoc.clock === localDoc.clock && remoteDoc.updatedAt > localDoc.updatedAt)) {
           this.clock = Math.max(this.clock, remoteDoc.clock) + 1;
           store.put(remoteDoc);
@@ -62,16 +77,6 @@ export class MeshiDB {
         }
       };
       getReq.onerror = () => reject(getReq.error);
-    });
-  }
-
-  async getAllDocuments() {
-    if (!this.db) await this.open();
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('documents', 'readonly');
-      const req = tx.objectStore('documents').getAll();
-      req.onsuccess = () => resolve(req.result || []);
-      req.onerror = () => reject(req.error);
     });
   }
 }
