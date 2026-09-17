@@ -1,8 +1,8 @@
 {
-  "title": "Project Meshi // CreITers SSHAnet P2P Mesh",
-  "description": "Zero-cloud, browser-to-browser WebRTC DataChannel synchronization layer for CreITers nodes over local subnets.",
-  "keywords": ["WebRTC", "P2P", "IndexedDB", "PWA", "SSHAnet", "WebMCP", "Offline", "CreITers"],
-  "canonical": "https://creiters.cz/projects/meshi",
+  "title": "Project Meshi // CreITers SSHAnet P2P Mesh 2026",
+  "description": "Zero-cloud browser-to-browser WebRTC DataChannel synchronization with Web Crypto API mutual authentication and IndexedDB Lamport clock consensus.",
+  "keywords": ["WebRTC", "P2P", "WebCrypto", "IndexedDB", "PWA", "SSHAnet", "WebMCP", "Offline", "CreITers"],
+  "canonical": "https://creiters.cz/projects/meshi.html",
   "geo": {
     "region": "CZ-PR",
     "placename": "Prague",
@@ -11,10 +11,27 @@
   },
   "schema": {
     "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "Project Meshi Engine",
-    "operatingSystem": "Web, Modern Browsers",
-    "applicationCategory": "P2PCommunication"
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://creiters.cz/#meshi",
+        "name": "Project Meshi Engine",
+        "operatingSystem": "Web, Modern Browsers",
+        "applicationCategory": "P2PCommunication",
+        "featureList": [
+          "WebRTC DataChannel Mesh",
+          "WebCrypto ECDSA Authentication",
+          "IndexedDB Lamport Consensus",
+          "Auto-sync on network reconnect",
+          "WebMCP Agent Actuation"
+        ]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://creiters.cz/#organization",
+        "name": "CreITers Network",
+        "url": "https://creiters.cz/"
+      }
+    ]
   }
 }
-
