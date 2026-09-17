@@ -1,7 +1,7 @@
 {
   "name": "Project Meshi // SSHAnet P2P Mesh",
   "short_name": "Meshi",
-  "description": "Zero-cloud offline WebRTC DataChannel data synchronization engine.",
+  "description": "Zero-cloud offline WebRTC DataChannel synchronization engine with ECDSA authentication.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
