@@ -1,4 +1,4 @@
-import { MeshiSignaler } from './signaling.js';
+import { MeshiCrypto } from './crypto.js';
 
 export class MeshiMeshSocket extends EventTarget {
   static CONNECTING = 0;
@@ -6,132 +6,153 @@ export class MeshiMeshSocket extends EventTarget {
   static CLOSING = 2;
   static CLOSED = 3;
 
-  constructor(peerId, dataChannel, authContext, db) {
+  constructor(peerId, dataChannel, cryptoContext, db) {
     super();
     this.peerId = peerId;
     this.dc = dataChannel;
-    this.auth = authContext;
+    this.crypto = cryptoContext;
     this.db = db;
-    
+
     this.readyState = MeshiMeshSocket.CONNECTING;
     this.isAuthorized = false;
     this.currentChallenge = null;
+    this.remotePublicKey = null;
 
     this.onopen = null;
     this.onmessage = null;
     this.onclose = null;
     this.onauthorized = null;
 
-    this._bindChannel();
-    this._initNetworkWatchdog();
+    this._bindEvents();
+    this._watchNetworkState();
   }
 
-  _bindChannel() {
+  _bindEvents() {
     this.dc.onopen = () => {
       this.readyState = MeshiMeshSocket.OPEN;
-      // Step 1: Challenge remote peer upon physical RTC link open
-      this.currentChallenge = `CHAL_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      // Step 1: Challenge remote peer upon link open
+      this.currentChallenge = `AUTH_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       this.dc.send(JSON.stringify({
         type: 'AUTH_CHALLENGE',
         nonce: this.currentChallenge,
-        fromKey: this.auth.publicKeyBase64
+        fromKey: this.crypto.publicKeyBase64
       }));
     };
 
     this.dc.onmessage = async (event) => {
       try {
         const msg = JSON.parse(event.data);
-        await this._handleAuthAndSync(msg);
+        await this._handleProtocolPacket(msg);
       } catch (err) {
-        console.error('Meshi Protocol Error:', err);
+        console.error('Meshi Parse Error:', err);
       }
     };
 
     this.dc.onclose = () => {
       this.readyState = MeshiMeshSocket.CLOSED;
       this.isAuthorized = false;
-      this.dispatchEvent(new CloseEvent('close'));
+      const ev = new CloseEvent('close', { wasClean: true });
+      if (typeof this.onclose === 'function') this.onclose(ev);
+      this.dispatchEvent(ev);
     };
   }
 
-  async _handleAuthAndSync(msg) {
-    // 1. Peer challenges local node -> sign challenge
+  async _handleProtocolPacket(msg) {
+    // Protocol Step 1: Inbound challenge -> sign and return public key
     if (msg.type === 'AUTH_CHALLENGE') {
-      const signature = await this.auth.signChallenge(msg.nonce);
+      const signature = await this.crypto.signChallenge(msg.nonce);
       this.dc.send(JSON.stringify({
         type: 'AUTH_RESPONSE',
         signature,
-        publicKey: this.auth.publicKeyBase64
+        publicKey: this.crypto.publicKeyBase64
       }));
       return;
     }
 
-    // 2. Peer responds to our challenge -> verify against whitelist
+    // Protocol Step 2: Inbound challenge response -> verify signature and local trust store
     if (msg.type === 'AUTH_RESPONSE') {
-      const ok = await this.auth.verifyPeer(msg.publicKey, this.currentChallenge, msg.signature);
-      if (ok) {
+      const isValidSig = await MeshiCrypto.verifyPeer(msg.publicKey, this.currentChallenge, msg.signature);
+      const isTrusted = await this.db.isPeerTrusted(msg.publicKey);
+
+      if (isValidSig && isTrusted) {
         this.isAuthorized = true;
-        this.dc.send(JSON.stringify({ type: 'AUTH_SUCCESS' }));
-        this._triggerSyncCatchUp();
+        this.remotePublicKey = msg.publicKey;
+        this.dc.send(JSON.stringify({ type: 'AUTH_OK' }));
+        this._dispatchAuthorized();
+        this.triggerCatchUpSync();
       } else {
-        this.dc.send(JSON.stringify({ type: 'AUTH_FAIL', reason: 'UNAUTHORIZED_KEY' }));
+        this.dc.send(JSON.stringify({
+          type: 'AUTH_DENIED',
+          reason: !isValidSig ? 'BAD_SIGNATURE' : 'UNAUTHORIZED_KEY'
+        }));
         this.close();
       }
       return;
     }
 
-    // 3. Remote peer validated our signature
-    if (msg.type === 'AUTH_SUCCESS') {
+    // Protocol Step 3: Peer validated our signature
+    if (msg.type === 'AUTH_OK') {
       this.isAuthorized = true;
-      if (typeof this.onauthorized === 'function') this.onauthorized();
-      this._triggerSyncCatchUp();
+      this._dispatchAuthorized();
+      this.triggerCatchUpSync();
       return;
     }
 
-    // 4. Reject unverified commands
+    if (msg.type === 'AUTH_DENIED') {
+      console.warn('Meshi link authorization rejected:', msg.reason);
+      this.close();
+      return;
+    }
+
+    // Drop all unauthenticated operational packets
     if (!this.isAuthorized) {
-      console.warn('Meshi: Received data prior to authorization. Dropping.');
+      console.warn('Meshi: Received data prior to mutual authorization. Dropped.');
       return;
     }
 
-    // 5. Delta sync handshake: remote sends current Lamport watermark
-    if (msg.type === 'SYNC_REQ') {
-      const delta = await this.db.getRecordsSince(msg.sinceClock);
-      this.dc.send(JSON.stringify({ type: 'SYNC_DELTA', payload: delta }));
+    // Protocol Step 4: Catch-up synchronization
+    if (msg.type === 'SYNC_WATERMARK_REQ') {
+      const deltas = await this.db.getDeltaSince(msg.sinceClock);
+      this.dc.send(JSON.stringify({ type: 'SYNC_DELTA_BATCH', payload: deltas }));
       return;
     }
 
-    // 6. Incoming catch-up sync batch
-    if (msg.type === 'SYNC_DELTA') {
+    if (msg.type === 'SYNC_DELTA_BATCH') {
       let mergedCount = 0;
       for (const item of msg.payload) {
         const { merged } = await this.db.mergeRemoteDocument(item);
         if (merged) mergedCount++;
       }
-      this.dispatchEvent(new CustomEvent('meshi:synced', { detail: { mergedCount } }));
+      this.dispatchEvent(new CustomEvent('meshi:synced', { detail: { count: mergedCount } }));
       return;
     }
 
-    // Pass standard payload to app listeners
+    // Normal application-level packet
     const msgEvent = new MessageEvent('message', { data: JSON.stringify(msg) });
     if (typeof this.onmessage === 'function') this.onmessage(msgEvent);
     this.dispatchEvent(msgEvent);
   }
 
-  async _triggerSyncCatchUp() {
-    // Solicit missing deltas using local clock
-    const currentClock = this.db.clock || 0;
-    this.dc.send(JSON.stringify({ type: 'SYNC_REQ', sinceClock: currentClock }));
+  _dispatchAuthorized() {
+    if (typeof this.onauthorized === 'function') this.onauthorized();
+    this.dispatchEvent(new CustomEvent('meshi:authorized', { detail: { remoteKey: this.remotePublicKey } }));
   }
 
-  _initNetworkWatchdog() {
-    window.addEventListener('online', async () => {
-      // If physical network restores and link dropped, re-trigger local reconnect
-      if (this.readyState === MeshiMeshSocket.CLOSED) {
-        this.dispatchEvent(new CustomEvent('meshi:network-online'));
-      } else if (this.isAuthorized) {
-        // If link stayed alive across network interface toggles, poll catch-up
-        this._triggerSyncCatchUp();
+  triggerCatchUpSync() {
+    if (this.readyState === MeshiMeshSocket.OPEN && this.isAuthorized) {
+      this.dc.send(JSON.stringify({
+        type: 'SYNC_WATERMARK_REQ',
+        sinceClock: this.db.clock || 0
+      }));
+    }
+  }
+
+  _watchNetworkState() {
+    // When device reconnects to Wi-Fi / hotspot subnet
+    window.addEventListener('online', () => {
+      this.dispatchEvent(new CustomEvent('meshi:net-restored'));
+      if (this.readyState === MeshiMeshSocket.OPEN && this.isAuthorized) {
+        this.triggerCatchUpSync();
       }
     });
   }
