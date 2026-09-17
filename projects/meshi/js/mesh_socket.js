@@ -1,36 +1,30 @@
-import { MeshiCrypto } from './crypto.js';
-
 export class MeshiMeshSocket extends EventTarget {
   static CONNECTING = 0;
   static OPEN = 1;
   static CLOSING = 2;
   static CLOSED = 3;
 
-  constructor(peerId, dataChannel, cryptoContext, db) {
+  constructor(peerId, dataChannel, cryptoContext, db, reconnectHandler) {
     super();
     this.peerId = peerId;
     this.dc = dataChannel;
     this.crypto = cryptoContext;
     this.db = db;
+    this.reconnectHandler = reconnectHandler;
 
     this.readyState = MeshiMeshSocket.CONNECTING;
     this.isAuthorized = false;
     this.currentChallenge = null;
     this.remotePublicKey = null;
-
-    this.onopen = null;
-    this.onmessage = null;
-    this.onclose = null;
-    this.onauthorized = null;
+    this.heartbeatTimer = null;
 
     this._bindEvents();
-    this._watchNetworkState();
+    this._startHeartbeat();
   }
 
   _bindEvents() {
     this.dc.onopen = () => {
       this.readyState = MeshiMeshSocket.OPEN;
-      // Step 1: Challenge remote peer upon link open
       this.currentChallenge = `AUTH_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       this.dc.send(JSON.stringify({
         type: 'AUTH_CHALLENGE',
@@ -44,23 +38,31 @@ export class MeshiMeshSocket extends EventTarget {
         const msg = JSON.parse(event.data);
         await this._handleProtocolPacket(msg);
       } catch (err) {
-        console.error('Meshi Parse Error:', err);
+        console.error('Meshi Protocol Error:', err);
       }
     };
 
     this.dc.onclose = () => {
-      this.readyState = MeshiMeshSocket.CLOSED;
-      this.isAuthorized = false;
-      const ev = new CloseEvent('close', { wasClean: true });
-      if (typeof this.onclose === 'function') this.onclose(ev);
-      this.dispatchEvent(ev);
+      this._teardown();
+      this.dispatchEvent(new CloseEvent('close', { wasClean: true }));
+      this._attemptAutoReconnect();
+    };
+
+    this.dc.onerror = () => {
+      this._teardown();
+      this._attemptAutoReconnect();
     };
   }
 
   async _handleProtocolPacket(msg) {
-    // Protocol Step 1: Inbound challenge -> sign and return public key
+    if (msg.type === 'HEARTBEAT_PING') {
+      this.dc.send(JSON.stringify({ type: 'HEARTBEAT_PONG' }));
+      return;
+    }
+    if (msg.type === 'HEARTBEAT_PONG') return;
+
     if (msg.type === 'AUTH_CHALLENGE') {
-      const signature = await this.crypto.signChallenge(msg.nonce);
+      const signature = await this.crypto.sign(msg.nonce);
       this.dc.send(JSON.stringify({
         type: 'AUTH_RESPONSE',
         signature,
@@ -69,9 +71,8 @@ export class MeshiMeshSocket extends EventTarget {
       return;
     }
 
-    // Protocol Step 2: Inbound challenge response -> verify signature and local trust store
     if (msg.type === 'AUTH_RESPONSE') {
-      const isValidSig = await MeshiCrypto.verifyPeer(msg.publicKey, this.currentChallenge, msg.signature);
+      const isValidSig = await this.crypto.constructor.verify(msg.publicKey, this.currentChallenge, msg.signature);
       const isTrusted = await this.db.isPeerTrusted(msg.publicKey);
 
       if (isValidSig && isTrusted) {
@@ -81,16 +82,12 @@ export class MeshiMeshSocket extends EventTarget {
         this._dispatchAuthorized();
         this.triggerCatchUpSync();
       } else {
-        this.dc.send(JSON.stringify({
-          type: 'AUTH_DENIED',
-          reason: !isValidSig ? 'BAD_SIGNATURE' : 'UNAUTHORIZED_KEY'
-        }));
+        this.dc.send(JSON.stringify({ type: 'AUTH_DENIED' }));
         this.close();
       }
       return;
     }
 
-    // Protocol Step 3: Peer validated our signature
     if (msg.type === 'AUTH_OK') {
       this.isAuthorized = true;
       this._dispatchAuthorized();
@@ -98,19 +95,8 @@ export class MeshiMeshSocket extends EventTarget {
       return;
     }
 
-    if (msg.type === 'AUTH_DENIED') {
-      console.warn('Meshi link authorization rejected:', msg.reason);
-      this.close();
-      return;
-    }
+    if (!this.isAuthorized) return;
 
-    // Drop all unauthenticated operational packets
-    if (!this.isAuthorized) {
-      console.warn('Meshi: Received data prior to mutual authorization. Dropped.');
-      return;
-    }
-
-    // Protocol Step 4: Catch-up synchronization
     if (msg.type === 'SYNC_WATERMARK_REQ') {
       const deltas = await this.db.getDeltaSince(msg.sinceClock);
       this.dc.send(JSON.stringify({ type: 'SYNC_DELTA_BATCH', payload: deltas }));
@@ -127,14 +113,10 @@ export class MeshiMeshSocket extends EventTarget {
       return;
     }
 
-    // Normal application-level packet
-    const msgEvent = new MessageEvent('message', { data: JSON.stringify(msg) });
-    if (typeof this.onmessage === 'function') this.onmessage(msgEvent);
-    this.dispatchEvent(msgEvent);
+    this.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(msg) }));
   }
 
   _dispatchAuthorized() {
-    if (typeof this.onauthorized === 'function') this.onauthorized();
     this.dispatchEvent(new CustomEvent('meshi:authorized', { detail: { remoteKey: this.remotePublicKey } }));
   }
 
@@ -147,14 +129,28 @@ export class MeshiMeshSocket extends EventTarget {
     }
   }
 
-  _watchNetworkState() {
-    // When device reconnects to Wi-Fi / hotspot subnet
-    window.addEventListener('online', () => {
-      this.dispatchEvent(new CustomEvent('meshi:net-restored'));
-      if (this.readyState === MeshiMeshSocket.OPEN && this.isAuthorized) {
-        this.triggerCatchUpSync();
+  _startHeartbeat() {
+    this.heartbeatTimer = setInterval(() => {
+      if (this.readyState === MeshiMeshSocket.OPEN) {
+        try {
+          this.dc.send(JSON.stringify({ type: 'HEARTBEAT_PING' }));
+        } catch {
+          this._attemptAutoReconnect();
+        }
       }
-    });
+    }, 5000);
+  }
+
+  _teardown() {
+    clearInterval(this.heartbeatTimer);
+    this.readyState = MeshiMeshSocket.CLOSED;
+    this.isAuthorized = false;
+  }
+
+  _attemptAutoReconnect() {
+    if (typeof this.reconnectHandler === 'function') {
+      setTimeout(() => this.reconnectHandler(), 2000);
+    }
   }
 
   send(data) {
@@ -168,7 +164,7 @@ export class MeshiMeshSocket extends EventTarget {
   }
 
   close() {
-    this.readyState = MeshiMeshSocket.CLOSING;
+    this._teardown();
     this.dc.close();
   }
 }
