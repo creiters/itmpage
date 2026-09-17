@@ -4,10 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Project Meshi // CreITers SSHAnet P2P Mesh 2026</title>
-  <meta name="description" content="Zero-cloud offline WebRTC DataChannel synchronization with Web Crypto API mutual authentication and IndexedDB Lamport clock consensus.">
-  <meta name="keywords" content="WebRTC, P2P, WebCrypto, IndexedDB, PWA, SSHAnet, WebMCP, Offline, CreITers">
-  <meta name="author" content="CreITers Network">
+  <title>Project Meshi // SSHAnet Auto-Reconnecting P2P Mesh</title>
+  <meta name="description" content="Persistent zero-cloud browser WebRTC DataChannel synchronization with WebCrypto-signed handshakes and Background Sync keep-alive.">
+  <meta name="keywords" content="WebRTC, P2P, WebCrypto, IndexedDB, PWA, SSHAnet, WebMCP, Offline, BackgroundSync">
   <link rel="canonical" href="https://creiters.cz/projects/meshi.html">
 
   <meta name="geo.region" content="CZ-PR">
@@ -21,7 +20,7 @@
 <body>
   <header role="banner" class="hud-header">
     <nav role="navigation" aria-label="System Identity and Status">
-      <h1>MESHI // SSHAnet P2P PROTOCOL</h1>
+      <h1>MESHI // PERSISTENT P2P MESH</h1>
       <div class="status-wrap">
         <span id="node-status" class="badge" aria-live="polite">LINK: DISCONNECTED</span>
         <span id="auth-status" class="badge" aria-live="polite">AUTH: UNVERIFIED</span>
@@ -30,27 +29,26 @@
   </header>
 
   <main id="main-content" role="main" class="hud-main">
-    
-    <!-- Cryptographic Identity & Authorization Whitelist -->
+    <!-- Cryptographic Identity Whitelist -->
     <section class="hud-card" aria-labelledby="sec-crypto">
-      <h2 id="sec-crypto">01 // Web Crypto Identity &amp; Authorization</h2>
-      <label for="local-key" class="field-label">Node Public Key (ECDSA P-256 SPKI):</label>
+      <h2 id="sec-crypto">01 // Persistent WebCrypto Identity &amp; Auth</h2>
+      <label for="local-key" class="field-label">Node Public Key (Persistent ECDSA P-256):</label>
       <input type="text" id="local-key" readonly aria-label="Your Node Public Key">
       
       <div class="input-row">
-        <label for="peer-key-input" class="visually-hidden">Peer Public Key Whitelist</label>
-        <input type="text" id="peer-key-input" placeholder="Paste Peer Public Key to Authorize..." autocomplete="off">
-        <button id="btn-trust-key" class="btn btn-gold">Whitelist Key</button>
+        <label for="peer-key-input" class="visually-hidden">Peer Public Key</label>
+        <input type="text" id="peer-key-input" placeholder="Paste Remote Peer Public Key..." autocomplete="off">
+        <button id="btn-trust-key" class="btn btn-gold">Authorize Peer</button>
       </div>
     </section>
 
     <!-- Air-gapped Signaling View -->
     <section class="hud-card" aria-labelledby="sec-signal">
-      <h2 id="sec-signal">02 // Subnet Signaler (Air-Gapped Handshake)</h2>
-      <label for="signal-token" class="visually-hidden">Signaling Exchange Token</label>
-      <textarea id="signal-token" placeholder="Paste or copy base64 handshake SDP/candidates..." autocomplete="off"></textarea>
+      <h2 id="sec-signal">02 // Subnet Signaler (Auto-Preserved Session)</h2>
+      <label for="signal-token" class="visually-hidden">Signed Handshake Token</label>
+      <textarea id="signal-token" placeholder="Signed Base64 Handshake token..." autocomplete="off"></textarea>
       <div class="control-row">
-        <button id="btn-create-offer" class="btn">1. Create Offer</button>
+        <button id="btn-create-offer" class="btn">1. Create Signed Offer</button>
         <button id="btn-accept-offer" class="btn">2. Accept &amp; Answer</button>
         <button id="btn-finalize" class="btn btn-gold">3. Finalize Handshake</button>
       </div>
@@ -58,19 +56,18 @@
 
     <!-- Transceiver Console -->
     <section class="hud-card" aria-labelledby="sec-console">
-      <h2 id="sec-console">03 // P2P Socket Transceiver &amp; Catch-Up Sync</h2>
+      <h2 id="sec-console">03 // Transceiver &amp; Automatic Catch-Up Sync</h2>
       <div class="input-row">
-        <label for="payload-input" class="visually-hidden">Payload Data Content</label>
+        <label for="payload-input" class="visually-hidden">Record payload data</label>
         <input type="text" id="payload-input" placeholder="Enter record payload string/JSON..." autocomplete="off">
         <button id="btn-send" class="btn btn-gold">Dispatch Sync</button>
       </div>
       <div id="term-log" class="terminal-body" role="log" aria-live="polite" aria-atomic="false"></div>
     </section>
-
   </main>
 
   <footer role="contentinfo" class="hud-footer">
-    <small>CreITers // SSHAnet Subnet Data Synchronizer [2026] &middot; WebMCP Active</small>
+    <small>CreITers // SSHAnet Subnet Engine [2026] &middot; WebMCP Active &middot; Background Sync Armed</small>
   </footer>
 
   <script type="module" src="js/app.js"></script>
