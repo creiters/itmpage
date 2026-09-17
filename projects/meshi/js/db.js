@@ -1,5 +1,5 @@
 export class MeshiDB {
-  constructor(dbName = 'meshi_mesh_db', version = 2) {
+  constructor(dbName = 'meshi_cluster_db', version = 1) {
     this.dbName = dbName;
     this.version = version;
     this.db = null;
@@ -12,9 +12,9 @@ export class MeshiDB {
       req.onupgradeneeded = (e) => {
         const d = e.target.result;
         if (!d.objectStoreNames.contains('documents')) {
-          const store = d.createObjectStore('documents', { keyPath: 'id' });
-          store.createIndex('clock', 'clock');
-          store.createIndex('updatedAt', 'updatedAt');
+          const docs = d.createObjectStore('documents', { keyPath: 'id' });
+          docs.createIndex('clock', 'clock');
+          docs.createIndex('updatedAt', 'updatedAt');
         }
         if (!d.objectStoreNames.contains('trusted_peers')) {
           d.createObjectStore('trusted_peers', { keyPath: 'publicKey' });
@@ -28,15 +28,31 @@ export class MeshiDB {
     });
   }
 
-  async getRecordsSince(sinceClock = 0) {
+  async addTrustedPeer(publicKey, alias = 'Subnet Peer') {
     if (!this.db) await this.open();
     return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('documents', 'readonly');
-      const store = tx.objectStore('documents');
-      const index = store.index('clock');
-      const range = IDBKeyRange.lowerBound(sinceClock, true); // clock > sinceClock
-      const req = index.getAll(range);
+      const tx = this.db.transaction('trusted_peers', 'readwrite');
+      tx.objectStore('trusted_peers').put({ publicKey, alias, addedAt: Date.now() });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
 
+  async isPeerTrusted(publicKey) {
+    if (!this.db) await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('trusted_peers', 'readonly');
+      const req = tx.objectStore('trusted_peers').get(publicKey);
+      req.onsuccess = () => resolve(!!req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async listTrustedPeers() {
+    if (!this.db) await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('trusted_peers', 'readonly');
+      const req = tx.objectStore('trusted_peers').getAll();
       req.onsuccess = () => resolve(req.result || []);
       req.onerror = () => reject(req.error);
     });
@@ -63,20 +79,35 @@ export class MeshiDB {
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction('documents', 'readwrite');
       const store = tx.objectStore('documents');
-      const getReq = store.get(remoteDoc.id);
+      const req = store.get(remoteDoc.id);
 
-      getReq.onsuccess = () => {
-        const localDoc = getReq.result;
-        if (!localDoc || remoteDoc.clock > localDoc.clock ||
-           (remoteDoc.clock === localDoc.clock && remoteDoc.updatedAt > localDoc.updatedAt)) {
+      req.onsuccess = () => {
+        const local = req.result;
+        if (!local || remoteDoc.clock > local.clock || 
+           (remoteDoc.clock === local.clock && remoteDoc.updatedAt > local.updatedAt)) {
           this.clock = Math.max(this.clock, remoteDoc.clock) + 1;
           store.put(remoteDoc);
           resolve({ merged: true, doc: remoteDoc });
         } else {
-          resolve({ merged: false, doc: localDoc });
+          resolve({ merged: false, doc: local });
         }
       };
-      getReq.onerror = () => reject(getReq.error);
+      req.onerror = () => reject(req.error);
     });
+  }
+
+  async getDeltaSince(sinceClock = 0) {
+    if (!this.db) await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('documents', 'readonly');
+      const index = tx.objectStore('documents').index('clock');
+      const req = index.getAll(IDBKeyRange.lowerBound(sinceClock, true));
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async getAllDocuments() {
+    return this.getDeltaSince(-1);
   }
 }
