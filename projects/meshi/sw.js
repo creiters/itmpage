@@ -1,11 +1,11 @@
-const CACHE_NAME = 'meshi-core-v2026.1';
+const CACHE_NAME = 'meshi-core-v2026.2';
 const STATIC_ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
   './css/meshi.css',
   './data/meta.json',
-  './data/initial_nodes.json',
+  './js/crypto.js',
   './js/db.js',
   './js/signaling.js',
   './js/mesh_socket.js',
@@ -33,13 +33,11 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      return cached || fetch(event.request).then((networkRes) => {
-        if (!networkRes || networkRes.status !== 200 || networkRes.type !== 'basic') {
-          return networkRes;
-        }
-        const clone = networkRes.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-        return networkRes;
+      return cached || fetch(event.request).then((res) => {
+        if (!res || res.status !== 200 || res.type !== 'basic') return res;
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        return res;
       }).catch(() => caches.match('./index.html'));
     })
   );
