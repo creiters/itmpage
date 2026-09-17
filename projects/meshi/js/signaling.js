@@ -1,5 +1,5 @@
 export class MeshiSignaler {
-  static async createOffer() {
+  static async createOffer(cryptoInstance) {
     const pc = new RTCPeerConnection({ iceServers: [] });
     const dc = pc.createDataChannel('meshi-p2p-channel', { ordered: true });
     const candidates = [];
@@ -10,17 +10,20 @@ export class MeshiSignaler {
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    await new Promise(r => setTimeout(r, 600));
 
-    return {
-      pc,
-      dc,
-      token: btoa(JSON.stringify({ sdp: pc.localDescription, candidates }))
-    };
+    const token = await cryptoInstance.generateSignedHandshake({
+      sdp: pc.localDescription,
+      candidates
+    });
+
+    return { pc, dc, token };
   }
 
-  static async acceptOffer(encodedOffer) {
-    const { sdp, candidates } = JSON.parse(atob(encodedOffer));
+  static async acceptOffer(encodedOffer, cryptoInstance) {
+    const { payload, publicKey } = await cryptoInstance.constructor.verifyHandshakeToken(encodedOffer);
+    const { sdp, candidates } = payload;
+
     const pc = new RTCPeerConnection({ iceServers: [] });
     const candidatesOut = [];
 
@@ -28,7 +31,7 @@ export class MeshiSignaler {
       if (e.candidate) candidatesOut.push(e.candidate);
     };
 
-    const dcPromise = new Promise((resolve) => {
+    const dcPromise = new Promise(resolve => {
       pc.ondatachannel = (e) => resolve(e.channel);
     });
 
@@ -39,20 +42,24 @@ export class MeshiSignaler {
 
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    await new Promise(r => setTimeout(r, 600));
 
-    return {
-      pc,
-      dcPromise,
-      token: btoa(JSON.stringify({ sdp: pc.localDescription, candidates: candidatesOut }))
-    };
+    const token = await cryptoInstance.generateSignedHandshake({
+      sdp: pc.localDescription,
+      candidates: candidatesOut
+    });
+
+    return { pc, dcPromise, token, remotePublicKey: publicKey };
   }
 
-  static async finalizeHandshake(pc, encodedAnswer) {
-    const { sdp, candidates } = JSON.parse(atob(encodedAnswer));
+  static async finalizeHandshake(pc, encodedAnswer, cryptoInstance) {
+    const { payload, publicKey } = await cryptoInstance.constructor.verifyHandshakeToken(encodedAnswer);
+    const { sdp, candidates } = payload;
+
     await pc.setRemoteDescription(new RTCSessionDescription(sdp));
     for (const cand of candidates) {
       await pc.addIceCandidate(new RTCIceCandidate(cand));
     }
+    return publicKey;
   }
 }
