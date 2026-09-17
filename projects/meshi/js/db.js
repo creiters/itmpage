@@ -1,5 +1,5 @@
 export class MeshiDB {
-  constructor(dbName = 'meshi_cluster_db', version = 1) {
+  constructor(dbName = 'meshi_cluster_db', version = 2) {
     this.dbName = dbName;
     this.version = version;
     this.db = null;
@@ -19,11 +19,34 @@ export class MeshiDB {
         if (!d.objectStoreNames.contains('trusted_peers')) {
           d.createObjectStore('trusted_peers', { keyPath: 'publicKey' });
         }
+        if (!d.objectStoreNames.contains('session_store')) {
+          d.createObjectStore('session_store', { keyPath: 'key' });
+        }
       };
       req.onsuccess = () => {
         this.db = req.result;
         resolve(this.db);
       };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async setSystemKey(key, value) {
+    if (!this.db) await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('session_store', 'readwrite');
+      tx.objectStore('session_store').put({ key, value });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getSystemKey(key) {
+    if (!this.db) await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('session_store', 'readonly');
+      const req = tx.objectStore('session_store').get(key);
+      req.onsuccess = () => resolve(req.result ? req.result.value : null);
       req.onerror = () => reject(req.error);
     });
   }
@@ -44,16 +67,6 @@ export class MeshiDB {
       const tx = this.db.transaction('trusted_peers', 'readonly');
       const req = tx.objectStore('trusted_peers').get(publicKey);
       req.onsuccess = () => resolve(!!req.result);
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  async listTrustedPeers() {
-    if (!this.db) await this.open();
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('trusted_peers', 'readonly');
-      const req = tx.objectStore('trusted_peers').getAll();
-      req.onsuccess = () => resolve(req.result || []);
       req.onerror = () => reject(req.error);
     });
   }
