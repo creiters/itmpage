@@ -4,94 +4,199 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="manifest" href="manifest.json">
-  <title>42 Intra Personal Hub</title>
+  <title>42 Pulse Offline PWA</title>
   <style>
     :root {
-      --bg: #0e1117;
-      --card: #161b22;
-      --border: #30363d;
+      --bg: #090d13;
+      --card: #141b24;
+      --border: #273544;
       --accent: #00babc;
-      --accent-dim: rgba(0, 186, 188, 0.15);
-      --text: #c9d1d9;
-      --text-white: #ffffff;
+      --text: #dbe2ea;
       --green: #2ea043;
-      --red: #da3633;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: var(--bg); color: var(--text); padding: 1.5rem; max-width: 1080px; margin: auto; }
-    header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem; }
-    h1 { color: var(--accent); font-size: 1.4rem; }
-    
-    .panel { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem; }
-    .input-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.75rem; }
-    input { background: #0d1117; border: 1px solid var(--border); color: #fff; padding: 0.6rem 0.8rem; border-radius: 6px; flex: 1; min-width: 260px; }
-    button { background: var(--accent); color: #000; border: none; font-weight: bold; border-radius: 6px; padding: 0.6rem 1.2rem; cursor: pointer; }
-    button.logout { background: #21262d; color: var(--red); border: 1px solid var(--border); }
-    
+    body { background: var(--bg); color: var(--text); padding: 1rem; max-width: 900px; margin: 0 auto; }
+    header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 0.8rem; margin-bottom: 1.2rem; }
+    h1 { font-size: 1.3rem; color: var(--accent); }
+    .status-badge { font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; background: #1c2633; border: 1px solid var(--border); }
+    .online { color: var(--green); border-color: var(--green); }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem; margin-bottom: 1rem; }
+    input, button { background: #0c1117; border: 1px solid var(--border); color: #fff; padding: 0.6rem; border-radius: 6px; font-size: 0.9rem; }
+    button { background: var(--accent); color: #000; font-weight: bold; border: none; cursor: pointer; }
+    .row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
     .hidden { display: none !important; }
-    .profile-card { display: flex; gap: 1.5rem; align-items: center; }
-    .avatar { width: 84px; height: 84px; border-radius: 50%; border: 2px solid var(--accent); object-fit: cover; }
-    .badge-bar { display: flex; gap: 0.5rem; margin-top: 0.5rem; flex-wrap: wrap; }
-    .badge { background: var(--accent-dim); color: var(--accent); font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid var(--accent); }
-    
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
-    .stat-list { list-style: none; margin-top: 0.5rem; max-height: 280px; overflow-y: auto; }
-    .stat-item { display: flex; justify-content: space-between; padding: 0.55rem 0; border-bottom: 1px solid #21262d; font-size: 0.88rem; }
-    .status-ok { color: var(--green); font-weight: 600; }
-    .status-fail { color: var(--red); font-weight: 600; }
-    .status-progress { color: #f0883e; }
+    .stat-list { list-style: none; margin-top: 0.5rem; }
+    .stat-item { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #1a232e; font-size: 0.85rem; }
+    canvas { width: 100%; height: 180px; }
   </style>
 </head>
 <body>
 
   <header>
-    <h1>42 Personal Intra Dashboard</h1>
-    <div id="auth-actions">
-      <button id="btn-logout" class="logout hidden">Disconnect</button>
-    </div>
+    <h1>42Pulse Offline Hub</h1>
+    <span id="net-status" class="status-badge">Checking...</span>
   </header>
 
-  <!-- Setup Section: Configure OAuth App UID -->
-  <div id="setup-view" class="panel">
-    <h3>1. Connect with 42 Intra</h3>
-    <p style="font-size: 0.85rem; color: #8b949e; margin-top: 0.25rem;">
-      Register a regular application on <strong>profile.intra.42.fr/oauth/applications</strong>. 
-      Set Redirect URI to this URL: <code id="display-uri" style="color:var(--accent);"></code>
+  <!-- Section 1: WebCrypto PIN & Token Setup -->
+  <div id="auth-box" class="card">
+    <h3>Secure Client Authentication</h3>
+    <p style="font-size:0.8rem; color:#8b949e; margin: 0.3rem 0;">
+      Tokens are encrypted using <strong>WebCrypto (AES-GCM-256)</strong> and stored in <strong>IndexedDB</strong>.
     </p>
-    <div class="input-row">
-      <input type="text" id="client-id-input" placeholder="Application UID (Client ID)">
-      <button id="btn-login">Authorize with Intra</button>
+    <div class="row">
+      <input type="password" id="pin-input" placeholder="Security PIN (e.g., 1234)">
+      <input type="password" id="token-input" placeholder="Personal Bearer Token">
+      <button id="btn-save">Encrypt & Save</button>
+      <button id="btn-unlock" class="hidden">Unlock With PIN</button>
     </div>
   </div>
 
-  <!-- Dashboard Section: Display User Information -->
-  <div id="dashboard-view" class="hidden">
-    <div class="panel profile-card">
-      <img id="u-avatar" class="avatar" src="" alt="Avatar">
-      <div>
-        <h2 id="u-name" style="color: var(--text-white);"></h2>
-        <div id="u-login" style="color: #8b949e; font-size: 0.9rem;"></div>
-        <div class="badge-bar" id="u-badges"></div>
+  <!-- Section 2: Dashboard (Populated from Live Network or IndexedDB) -->
+  <div id="dashboard" class="hidden">
+    <div class="card" style="display: flex; gap: 1rem; align-items: center;">
+      <div id="user-info">
+        <h2 id="u-login" style="color:#fff;">Loading...</h2>
+        <span id="u-campus" style="font-size: 0.85rem; color:#8b949e;"></span>
+      </div>
+      <div style="margin-left: auto;">
+        <button id="btn-sync">Sync / Refresh</button>
       </div>
     </div>
 
-    <div class="grid">
-      <!-- Projects Panel -->
-      <div class="panel">
-        <h3>My Projects</h3>
-        <ul class="stat-list" id="project-list"></ul>
-      </div>
+    <div class="card">
+      <h3>Cluster Visiting Time (Campus 51 - Prague)</h3>
+      <canvas id="chartCanvas" width="400" height="180"></canvas>
+    </div>
 
-      <!-- Campus Logtime / Presence Panel -->
-      <div class="panel">
-        <h3>Recent Workstation Check-ins</h3>
-        <ul class="stat-list" id="location-list"></ul>
-      </div>
+    <div class="card">
+      <h3>Active / Recent Projects</h3>
+      <ul id="project-list" class="stat-list"></ul>
     </div>
   </div>
 
-  <script src="auth.js"></script>
-  <script src="42.js"></script>
-  <script src="app.js"></script>
+  <script src="db.js"></script>
+  <script src="42pulse.js"></script>
+  <script>
+    const netStatus = document.getElementById('net-status');
+    const authBox = document.getElementById('auth-box');
+    const pinInput = document.getElementById('pin-input');
+    const tokenInput = document.getElementById('token-input');
+    const btnSave = document.getElementById('btn-save');
+    const btnUnlock = document.getElementById('btn-unlock');
+    const dashboard = document.getElementById('dashboard');
+    const uLogin = document.getElementById('u-login');
+    const uCampus = document.getElementById('u-campus');
+    const projectList = document.getElementById('project-list');
+    const btnSync = document.getElementById('btn-sync');
+
+    let activeIntraToken = null;
+
+    // Update connection status
+    function updateOnlineBadge() {
+      if (navigator.onLine) {
+        netStatus.textContent = 'ONLINE';
+        netStatus.className = 'status-badge online';
+      } else {
+        netStatus.textContent = 'OFFLINE (Cached)';
+        netStatus.className = 'status-badge';
+      }
+    }
+    window.addEventListener('online', updateOnlineBadge);
+    window.addEventListener('offline', updateOnlineBadge);
+    updateOnlineBadge();
+
+    // Check for existing encrypted credentials in IndexedDB
+    window.addEventListener('DOMContentLoaded', async () => {
+      const stored = await idbGet('secure_auth', 'active_token');
+      if (stored) {
+        tokenInput.classList.add('hidden');
+        btnSave.classList.add('hidden');
+        btnUnlock.classList.remove('hidden');
+      }
+    });
+
+    // Save and encrypt token
+    btnSave.addEventListener('click', async () => {
+      const pin = pinInput.value.trim();
+      const token = tokenInput.value.trim();
+      if (!pin || !token) return alert('PIN and Token required.');
+
+      const encRecord = await CryptoEngine.encrypt(token, pin);
+      await idbPut('secure_auth', { id: 'active_token', data: encRecord });
+      activeIntraToken = token;
+      loadDashboard();
+    });
+
+    // Unlock and decrypt token using PIN
+    btnUnlock.addEventListener('click', async () => {
+      const pin = pinInput.value.trim();
+      if (!pin) return alert('Enter your PIN.');
+
+      const stored = await idbGet('secure_auth', 'active_token');
+      try {
+        activeIntraToken = await CryptoEngine.decrypt(stored.data, pin);
+        loadDashboard();
+      } catch (e) {
+        alert('Invalid PIN or decryption error.');
+      }
+    });
+
+    async function loadDashboard() {
+      authBox.classList.add('hidden');
+      dashboard.classList.remove('hidden');
+
+      const app = new IntraApp(activeIntraToken);
+      const res = await app.syncData(51); // Prague campus ID = 51
+
+      uLogin.textContent = res.profile.login;
+      uCampus.textContent = `Campus: ${res.profile.campus[0]?.name || '42'} | Source: ${res.source.toUpperCase()}`;
+
+      // Render Projects
+      projectList.innerHTML = '';
+      res.projects.forEach(p => {
+        const li = document.createElement('li');
+        li.className = 'stat-item';
+        li.innerHTML = `<span>${p.project.name}</span><strong>${p.final_mark !== null ? p.final_mark : p.status}</strong>`;
+        projectList.appendChild(li);
+      });
+
+      // Render Canvas Graph
+      drawVisitingChart(res.timeBuckets);
+    }
+
+    btnSync.addEventListener('click', () => loadDashboard());
+
+    function drawVisitingChart(buckets) {
+      if (!buckets) return;
+      const canvas = document.getElementById('chartCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const labels = Object.keys(buckets);
+      const values = Object.values(buckets);
+      const maxVal = Math.max(...values, 1);
+      const w = 60;
+      
+      labels.forEach((lbl, i) => {
+        const val = values[i];
+        const h = (val / maxVal) * 100;
+        const x = 50 + i * 100;
+        const y = 140 - h;
+
+        ctx.fillStyle = '#00babc';
+        ctx.fillRect(x, y, w, h);
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${val}`, x + w / 2, y - 6);
+        ctx.fillText(lbl, x + w / 2, 160);
+      });
+    }
+
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(console.error);
+    }
+  </script>
 </body>
 </html>
