@@ -1,9 +1,9 @@
 {
-  "name": "42 Intra Personal",
-  "short_name": "42Intra",
+  "name": "42 Pulse Offline",
+  "short_name": "42Pulse",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0e1117",
+  "background_color": "#090d13",
   "theme_color": "#00babc",
   "icons": [
     {
