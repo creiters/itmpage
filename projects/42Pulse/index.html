@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>42 Framework Integration Demo</title>
+</head>
+<body style="font-family: sans-serif; background: #121212; color: #fff; padding: 20px;">
+  <h2>42 Client Framework Testing</h2>
+
+  <input type="password" id="token" placeholder="Bearer Token" style="padding: 8px; width: 300px;">
+  <button id="runBtn" style="padding: 8px 16px;">Fetch Campus Stats</button>
+
+  <pre id="output" style="background: #1e1e1e; padding: 15px; margin-top: 20px; border-radius: 6px; overflow-x: auto;"></pre>
+
+  <!-- Load Minified 42 Framework -->
+  <script src="./42.min.js"></script>
+  <script>
+    document.getElementById('runBtn').addEventListener('click', async () => {
+      const output = document.getElementById('output');
+      const token = document.getElementById('token').value.trim();
+
+      if (!token) {
+        output.textContent = 'Please enter a bearer token.';
+        return;
+      }
+
+      // Initialize the framework
+      const client = _42.createClient({ token: token });
+      const CAMPUS_PRAGUE = 51;
+
+      try {
+        output.textContent = 'Connecting to 42 API v2...\n';
+
+        // 1. Fetch Cluster Visiting Time & Presence
+        output.textContent += 'Fetching cluster presence stats...\n';
+        const presence = await client.getCampusPresence(CAMPUS_PRAGUE);
+        output.textContent += `Active Students: ${presence.totalActive}\n`;
+        output.textContent += `Time Buckets: ${JSON.stringify(presence.distribution, null, 2)}\n\n`;
+
+        // 2. Fetch Projects currently in progress
+        output.textContent += 'Analyzing active projects (rate limited)...\n';
+        const projectData = await client.getActiveCampusProjects(CAMPUS_PRAGUE, 5);
+        output.textContent += `Top Ongoing Projects:\n${JSON.stringify(projectData.leaderboard, null, 2)}\n`;
+
+      } catch (err) {
+        output.textContent += `\nExecution Error: ${err.message}`;
+      }
+    });
+  </script>
+</body>
+</html>
