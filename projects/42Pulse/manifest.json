@@ -1,0 +1,15 @@
+{
+  "name": "42 Intra Personal",
+  "short_name": "42Intra",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0e1117",
+  "theme_color": "#00babc",
+  "icons": [
+    {
+      "src": "https://profile.intra.42.fr/assets/42_logo-7dfc9110a5319a308863b96bda33cea2b2a03eed6a553d37807739867b43d1c6.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
