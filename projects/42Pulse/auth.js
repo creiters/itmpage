@@ -5,7 +5,6 @@ const IntraAuth = (() => {
   const OAUTH_AUTH_URL = 'https://api.intra.42.fr/oauth/authorize';
   const OAUTH_TOKEN_URL = 'https://api.intra.42.fr/oauth/token';
 
-  // Base64-URL encoder
   const base64UrlEncode = (buffer) => {
     return btoa(String.fromCharCode(...new Uint8Array(buffer)))
       .replace(/\+/g, '-')
@@ -13,7 +12,6 @@ const IntraAuth = (() => {
       .replace(/=+$/, '');
   };
 
-  // Generate high-entropy cryptographic random string
   const generateRandomString = (length = 64) => {
     const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
     const randomVals = new Uint8Array(length);
@@ -21,7 +19,6 @@ const IntraAuth = (() => {
     return Array.from(randomVals, (val) => charset[val % charset.length]).join('');
   };
 
-  // Calculate SHA-256 code challenge
   const generateCodeChallenge = async (verifier) => {
     const encoder = new TextEncoder();
     const data = encoder.encode(verifier);
@@ -42,14 +39,19 @@ const IntraAuth = (() => {
     clearToken: () => {
       localStorage.removeItem('intra_user_token');
       localStorage.removeItem('intra_refresh_token');
+      localStorage.removeItem('intra_code_verifier');
+      localStorage.removeItem('intra_client_id');
+      localStorage.removeItem('intra_redirect_uri');
     },
 
-    // Trigger Intra OAuth login redirect
+    // 1. Persist PKCE credentials in localStorage (survives origin/tab resets)
     async startLogin(clientId, redirectUri) {
       const verifier = generateRandomString(96);
-      sessionStorage.setItem('intra_code_verifier', verifier);
-      sessionStorage.setItem('intra_client_id', clientId);
-      sessionStorage.setItem('intra_redirect_uri', redirectUri);
+      
+      // Use localStorage instead of sessionStorage
+      localStorage.setItem('intra_code_verifier', verifier);
+      localStorage.setItem('intra_client_id', clientId);
+      localStorage.setItem('intra_redirect_uri', redirectUri);
 
       const challenge = await generateCodeChallenge(verifier);
       const params = new URLSearchParams({
@@ -64,18 +66,21 @@ const IntraAuth = (() => {
       window.location.href = `${OAUTH_AUTH_URL}?${params.toString()}`;
     },
 
-    // Intercept redirect code and exchange for personal Bearer token
+    // 2. Intercept callback code using localStorage
     async handleCallback() {
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
       if (!code) return null;
 
-      const verifier = sessionStorage.getItem('intra_code_verifier');
-      const clientId = sessionStorage.getItem('intra_client_id');
-      const redirectUri = sessionStorage.getItem('intra_redirect_uri');
+      // Retrieve state from localStorage
+      const verifier = localStorage.getItem('intra_code_verifier');
+      const clientId = localStorage.getItem('intra_client_id');
+      const redirectUri = localStorage.getItem('intra_redirect_uri');
 
       if (!verifier || !clientId || !redirectUri) {
-        throw new Error('PKCE state lost during redirect.');
+        throw new Error(
+          `PKCE state lost: verifier=${!!verifier}, client_id=${!!clientId}, redirect_uri=${!!redirectUri}`
+        );
       }
 
       const body = new URLSearchParams({
@@ -94,14 +99,17 @@ const IntraAuth = (() => {
 
       if (!response.ok) {
         const err = await response.text();
-        throw new Error(`Token exchange failed: ${err}`);
+        throw new Error(`Token exchange failed (${response.status}): ${err}`);
       }
 
       const tokenData = await response.json();
       this.saveToken(tokenData);
 
-      // Clean session and clean URL bar without reloading
-      sessionStorage.removeItem('intra_code_verifier');
+      // Clean up verifier state after successful exchange
+      localStorage.removeItem('intra_code_verifier');
+      localStorage.removeItem('intra_redirect_uri');
+
+      // Strip ?code= parameter from URL without reloading
       window.history.replaceState({}, document.title, window.location.pathname);
       return tokenData.access_token;
     },
