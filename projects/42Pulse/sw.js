@@ -1,17 +1,11 @@
 /**
- * sw.js - Cache App Shell for Complete Offline Execution
+ * sw.js - 100% Native JS Offline Cache
  */
-const CACHE_NAME = '42pulse-offline-v1';
-const STATIC_FILES = [
-  './',
-  './index.html',
-  './db.js',
-  './42pulse.js',
-  './manifest.json'
-];
+const CACHE = 'peerfinder-v1';
+const ASSETS = ['./index.html', './app.js', './manifest.json'];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_FILES)));
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
   self.skipWaiting();
 });
 
@@ -20,15 +14,9 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  // Never cache 42 API network requests inside the Service Worker cache;
-  // let 42pulse.js handle fallback through IndexedDB.
-  if (e.request.url.includes('api.intra.42.fr')) {
-    e.respondWith(fetch(e.request).catch(() => new Response(JSON.stringify({ offline: true }))));
+  if (e.request.url.includes('api.intra.42.fr') || e.request.url.includes('corsproxy.io')) {
+    e.respondWith(fetch(e.request).catch(() => new Response(JSON.stringify([]))));
     return;
   }
-
-  // App Shell Cache First
-  e.respondWith(
-    caches.match(e.request).then((res) => res || fetch(e.request))
-  );
+  e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request)));
 });
