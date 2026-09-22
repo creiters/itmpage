@@ -1,9 +1,9 @@
 {
-  "name": "42 Pulse Offline",
-  "short_name": "42Pulse",
+  "name": "PeerFinder Prague",
+  "short_name": "PeerFinder",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#090d13",
+  "background_color": "#0d1117",
   "theme_color": "#00babc",
   "icons": [
     {
