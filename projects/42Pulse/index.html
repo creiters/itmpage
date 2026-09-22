@@ -3,10 +3,427 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="manifest" href="manifest.json">
-  <title>PeerFinder 42 Prague</title>
+  <title>42 Prague — PeerFinder</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text-white: #ffffff;
+      --accent: #00babc;
+      --accent-dim: rgba(0, 186, 188, 0.15);
+      --blue: #58a6ff;
+      --red: #f85149;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 1.5rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      color: var(--text-white);
+    }
+
+    .badge {
+      background: var(--accent-dim);
+      color: var(--accent);
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      border: 1px solid var(--accent);
+    }
+
+    .auth-bar {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    input, select, button {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 0.6rem 0.8rem;
+      border-radius: 6px;
+      outline: none;
+      font-size: 0.9rem;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--accent);
+    }
+
+    button {
+      background: var(--accent);
+      color: #000;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .filter-bar {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-bar input, .filter-bar select {
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .peer-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+    }
+
+    .peer-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      object-fit: cover;
+    }
+
+    .meta {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      overflow: hidden;
+    }
+
+    .meta .login {
+      font-weight: bold;
+      color: var(--text-white);
+      font-size: 0.95rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .meta .host {
+      font-family: monospace;
+      font-size: 0.8rem;
+      color: var(--accent);
+    }
+
+    .meta .project {
+      font-size: 0.75rem;
+      color: var(--blue);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .meta .duration {
+      font-size: 0.75rem;
+      color: #8b949e;
+    }
+
+    .status-msg {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 3rem 0;
+      color: #8b949e;
+      font-size: 1rem;
+    }
+  </style>
 </head>
 <body>
-  <script src="app.js"></script>
+
+  <header>
+    <div class="brand">
+      <h1>42 Prague <span class="badge">PeerFinder</span></h1>
+      <span id="summary-count" style="color: #8b949e; font-size: 0.85rem;">Ready</span>
+    </div>
+    <div class="auth-bar">
+      <input type="password" id="token-input" placeholder="Bearer Token">
+      <button id="btn-fetch">Fetch Cluster</button>
+    </div>
+  </header>
+
+  <nav class="filter-bar">
+    <input type="text" id="filter-search" placeholder="Filter by login...">
+    <select id="filter-project">
+      <option value="ALL">All Projects</option>
+      <option value="libft">libft</option>
+      <option value="ft_printf">ft_printf</option>
+      <option value="get_next_line">get_next_line</option>
+      <option value="push_swap">push_swap</option>
+      <option value="minishell">minishell</option>
+      <option value="philosophers">philosophers</option>
+    </select>
+    <select id="filter-cluster">
+      <option value="ALL">All Clusters</option>
+      <option value="c1">Cluster 1 (c1)</option>
+      <option value="c2">Cluster 2 (c2)</option>
+    </select>
+  </nav>
+
+  <main>
+    <div id="grid-container" class="peer-grid">
+      <div class="status-msg">Enter your Bearer Token and click "Fetch Cluster".</div>
+    </div>
+  </main>
+
+  <script>
+    /**
+     * 100% Native ES8 Implementation
+     * Bypasses CORS via client-side proxy relay and saves data to IndexedDB
+     */
+    (function () {
+      'use strict';
+
+      const PRAGUE_CAMPUS_ID = 51;
+      const API_BASE = 'https://api.intra.42.fr/v2';
+      const CORS_RELAY = 'https://corsproxy.io/?url=';
+      const DB_NAME = '42PeerFinderDB';
+      const DB_VERSION = 1;
+
+      let peersStore = [];
+
+      // --- IndexedDB Cache Engine ---
+      const openDB = () => {
+        return new Promise((resolve, reject) => {
+          const req = indexedDB.open(DB_NAME, DB_VERSION);
+          req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains('peers')) {
+              db.createObjectStore('peers', { keyPath: 'login' });
+            }
+          };
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        });
+      };
+
+      const cacheSave = async (peers) => {
+        try {
+          const db = await openDB();
+          const tx = db.transaction('peers', 'readwrite');
+          const store = tx.objectStore('peers');
+          store.clear();
+          peers.forEach((p) => store.put(p));
+        } catch (_) {}
+      };
+
+      const cacheLoad = async () => {
+        try {
+          const db = await openDB();
+          return new Promise((resolve) => {
+            const tx = db.transaction('peers', 'readonly');
+            const req = tx.objectStore('peers').getAll();
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => resolve([]);
+          });
+        } catch (_) {
+          return [];
+        }
+      };
+
+      // --- Rate Limit & Fetch Engine ---
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+      const apiFetch = async (endpoint, token) => {
+        const rawUrl = `${API_BASE}${endpoint}`;
+        const target = `${CORS_RELAY}${encodeURIComponent(rawUrl)}`;
+
+        const res = await fetch(target, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
+        });
+
+        if (res.status === 429) {
+          const delay = (parseInt(res.headers.get('Retry-After'), 10) || 2) * 1000;
+          await sleep(delay);
+          return apiFetch(endpoint, token);
+        }
+
+        if (!res.ok) {
+          let errText = res.statusText;
+          try {
+            const json = await res.json();
+            errText = json.message || json.error || errText;
+          } catch (_) {}
+          throw new Error(`API Error [${res.status}]: ${errText}`);
+        }
+
+        return res.json();
+      };
+
+      const computeDuration = (beginAt) => {
+        const diffHours = Math.max(0, (Date.now() - new Date(beginAt).getTime()) / 36e5);
+        if (diffHours < 1) {
+          return `${Math.round(diffHours * 60)}m logged`;
+        }
+        return `${diffHours.toFixed(1)}h logged`;
+      };
+
+      // --- DOM Elements ---
+      const tokenInput = document.getElementById('token-input');
+      const btnFetch = document.getElementById('btn-fetch');
+      const gridContainer = document.getElementById('grid-container');
+      const summaryCount = document.getElementById('summary-count');
+      const filterSearch = document.getElementById('filter-search');
+      const filterProject = document.getElementById('filter-project');
+      const filterCluster = document.getElementById('filter-cluster');
+
+      // --- Render View ---
+      const render = () => {
+        const qSearch = filterSearch.value.toLowerCase().trim();
+        const qProj = filterProject.value.toLowerCase();
+        const qClust = filterCluster.value.toLowerCase();
+
+        const matches = peersStore.filter((peer) => {
+          const mSearch = peer.login.toLowerCase().includes(qSearch);
+          const mProj = qProj === 'all' || peer.project.toLowerCase().includes(qProj);
+          const mClust = qClust === 'all' || peer.host.toLowerCase().startsWith(qClust);
+          return mSearch && mProj && mClust;
+        });
+
+        summaryCount.textContent = `${matches.length} peers shown`;
+
+        if (matches.length === 0) {
+          gridContainer.innerHTML = '<div class="status-msg">No peers found matching current filters.</div>';
+          return;
+        }
+
+        gridContainer.innerHTML = matches.map((peer) => `
+          <div class="peer-card">
+            <img class="avatar" src="${peer.avatar}" alt="${peer.login}" 
+                 onerror="this.src='https://profile.intra.42.fr/assets/42_logo-7dfc9110a5319a308863b96bda33cea2b2a03eed6a553d37807739867b43d1c6.png'">
+            <div class="meta">
+              <span class="login">${peer.login}</span>
+              <span class="host">${peer.host}</span>
+              <span class="project">🔨 ${peer.project}</span>
+              <span class="duration">⏱ ${peer.duration}</span>
+            </div>
+          </div>
+        `).join('');
+      };
+
+      // --- Sync Routine ---
+      const executeSync = async () => {
+        const token = tokenInput.value.trim();
+        if (!token) {
+          alert('Please enter a valid Bearer token.');
+          return;
+        }
+        localStorage.setItem('peerfinder_token', token);
+
+        gridContainer.innerHTML = '<div class="status-msg">Fetching active Prague workstations...</div>';
+
+        try {
+          const locations = await apiFetch(
+            `/campus/${PRAGUE_CAMPUS_ID}/locations?filter[active]=true&page[size]=100`,
+            token
+          );
+
+          peersStore = [];
+          const targetSlice = locations.slice(0, 20);
+
+          for (let i = 0; i < targetSlice.length; i++) {
+            const loc = targetSlice[i];
+            if (!loc.user || !loc.user.login) continue;
+
+            const login = loc.user.login;
+            let currentProj = 'Common Core';
+
+            try {
+              await sleep(550); // Respect 2 req/sec rate limit
+              const projects = await apiFetch(
+                `/users/${login}/projects_users?filter[status]=in_progress`,
+                token
+              );
+              if (Array.isArray(projects) && projects.length > 0) {
+                currentProj = projects[0].project.name;
+              }
+            } catch (_) {}
+
+            peersStore.push({
+              login: login,
+              host: loc.host,
+              project: currentProj,
+              duration: computeDuration(loc.begin_at),
+              avatar: loc.user.image?.versions?.small || loc.user.image?.link || '',
+            });
+
+            summaryCount.textContent = `Syncing: ${i + 1}/${targetSlice.length}...`;
+            render();
+          }
+
+          await cacheSave(peersStore);
+        } catch (err) {
+          gridContainer.innerHTML = `<div class="status-msg" style="color:var(--red);">Error: ${err.message}. Loading cached data...</div>`;
+          peersStore = await cacheLoad();
+          render();
+        }
+      };
+
+      // --- Event Listeners ---
+      document.addEventListener('DOMContentLoaded', async () => {
+        tokenInput.value = localStorage.getItem('peerfinder_token') || '';
+
+        btnFetch.addEventListener('click', executeSync);
+        filterSearch.addEventListener('input', render);
+        filterProject.addEventListener('change', render);
+        filterCluster.addEventListener('change', render);
+
+        // Load offline cache on launch
+        peersStore = await cacheLoad();
+        if (peersStore.length > 0) {
+          summaryCount.textContent = `${peersStore.length} cached peers`;
+          render();
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
