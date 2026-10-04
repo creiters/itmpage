@@ -1,0 +1,17 @@
+{
+	"name": "SSHAnet // Cyberpear 2026 Industrial DePIN",
+	"short_name": "SSHAnet",
+	"description": "Architected by Team CreITers | Sector: Industrial DePIN.",
+	"start_url": "./index.html",
+	"display": "standalone",
+	"background_color": "#030707",
+	"theme_color": "#030707",
+	"icons": [
+		{
+			"src": "cucamelon.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "any maskable"
+		}
+	]
+}
