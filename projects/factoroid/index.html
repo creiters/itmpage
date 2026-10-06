@@ -5,73 +5,106 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#030707">
   <link rel="manifest" href="manifest.json">
-  <title>SSHAnet // Cyberpear 2026 Industrial DePIN</title>
+  <title>SSHAnet  // Cyberpear 2026 Industrial DePIN</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <canvas id="neural-canvas" aria-hidden="true"></canvas>
 
   <nav role="navigation" aria-label="Main Navigation">
-    <a href="#section-0" class="nav-brand">
-      <div class="nav-title">SSHAnet</div>
+    <a href="#slide-0" class="nav-brand">
+      <svg class="nav-logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+        <rect x="28" y="4" width="4" height="8" fill="#7ee787"/>
+        <rect x="32" y="4" width="4" height="4" fill="#aff5b4"/>
+        <path fill="#0b2818" d="M 20 12 h 20 v 4 h -20 z M 16 16 h 4 v 4 h -4 z M 40 16 h 4 v 4 h -4 z M 12 20 h 4 v 24 h -4 z M 44 20 h 4 v 24 h -4 z M 16 44 h 4 v 4 h -4 z M 40 44 h 4 v 4 h -4 z M 20 48 h 20 v 4 h -20 z"/>
+        <path fill="#1b4d2e" d="M 20 16 h 20 v 4 h -20 z M 16 20 h 28 v 24 h -28 z M 20 44 h 20 v 4 h -20 z"/>
+        <rect x="20" y="20" width="4" height="4" fill="#ffffff" opacity="0.85"/>
+      </svg>
+      <strong class="nav-title">CreITers</strong>
     </a>
     <div class="nav-controls">
-      <button class="hamburger" id="hamburger" aria-label="Toggle Navigation" aria-expanded="false" aria-controls="nav-links">
+      <div class="hamburger" id="hamburger" aria-label="Toggle Navigation">
         <div></div><div></div><div></div>
-      </button>
+      </div>
     </div>
 
     <ul class="nav-links" id="nav-links">
-      <li><a href="#section-0">00 // Transmission</a></li>
-      <li><a href="#section-1">01 // Synaptic Foundations</a></li>
-      <li><a href="#section-2">02 // Pipeline Lifecycle</a></li>
-      <li><a href="#section-3">03 // Ghost Architecture</a></li>
-      <li><a href="#section-4">04 // Protocols &amp; WASI</a></li>
-      <li><a href="#section-5">05 // Telemetry Verification</a></li>
-      <li><a href="#section-6">06 // Solana DePIN</a></li>
-      <li><a href="#section-7" class="transcend-link">07 // Machine Console</a></li>
+      <li><a href="#slide-0">00 // Transmission</a></li>
+      <li><a href="#slide-1">01 // Corporate Illusions</a></li>
+      <li><a href="#slide-2">02 // Pipeline Lifecycle</a></li>
+      <li><a href="#slide-3">03 // Ghost in Architecture</a></li>
+      <li><a href="#slide-4">04 // Protocols & WASI</a></li>
+      <li><a href="#slide-5">05 // Telemetry Verification</a></li>
+      <li><a href="#slide-6">06 // Solana DePIN</a></li>
+      <li><a href="#slide-7" class="transcend-link">07 // Machine Console</a></li>
     </ul>
   </nav>
 
+  <div class="deck-hud" id="deck-hud">
+    <button id="btn-prev-slide">▲ PREV</button>
+    <b class="deck-indicator" id="slide-num">SLIDE 1/8</b>
+    <button id="btn-next-slide">NEXT ▼</button>
+  </div>
+
   <main>
-    <section id="section-0" class="hero">
-      <img src="cucamelon.svg" alt="Cucamelon Logo" class="hero-cuca-logo">
+    <!-- SLIDE 0: HERO / TRANSMISSION -->
+    <section id="slide-0" class="hero">
+      <div class="hero-cuca-wrapper">
+        <svg class="hero-cuca-logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+          <rect x="28" y="4" width="4" height="8" fill="#7ee787"/>
+          <rect x="32" y="4" width="4" height="4" fill="#aff5b4"/>
+          <path fill="#0b2818" d="M 20 12 h 20 v 4 h -20 z M 16 16 h 4 v 4 h -4 z M 40 16 h 4 v 4 h -4 z M 12 20 h 4 v 24 h -4 z M 44 20 h 4 v 24 h -4 z M 16 44 h 4 v 4 h -4 z M 40 44 h 4 v 4 h -4 z M 20 48 h 20 v 4 h -20 z"/>
+          <path fill="#1b4d2e" d="M 20 16 h 20 v 4 h -20 z M 16 20 h 28 v 24 h -28 z M 20 44 h 20 v 4 h -20 z"/>
+          <rect x="20" y="16" width="4" height="4" fill="#79d98e"/>
+          <rect x="20" y="24" width="4" height="8" fill="#79d98e"/>
+          <rect x="20" y="36" width="4" height="8" fill="#aff5b4"/>
+          <rect x="28" y="16" width="4" height="8" fill="#aff5b4"/>
+          <rect x="28" y="28" width="4" height="8" fill="#79d98e"/>
+          <rect x="28" y="40" width="4" height="8" fill="#aff5b4"/>
+          <rect x="32" y="20" width="4" height="8" fill="#79d98e"/>
+          <rect x="32" y="32" width="4" height="8" fill="#aff5b4"/>
+          <rect x="36" y="28" width="4" height="8" fill="#aff5b4"/>
+          <rect x="40" y="20" width="4" height="8" fill="#79d98e"/>
+          <rect x="40" y="36" width="4" height="8" fill="#79d98e"/>
+          <rect x="20" y="20" width="4" height="4" fill="#ffffff" opacity="0.85"/>
+        </svg>
+      </div>
       <h1>[NEURAL TRANSMISSION LINK ESTABLISHED]</h1>
-      <div class="hero-subtitle">SYSTEM: Cyberpear SSHAnet Neural Interface [2026] // NODE: HACKATHON_PITCH_2026</div>
+      <div class="hero-subtitle">SYSTEM: Cyberpear SSHAnet  Neural Interface [2026] // NODE: HACKATHON_PITCH_2026</div>
       <p class="hero-desc">
         Architected by <strong>Team CreITers</strong> | Sector: Industrial DePIN.<br>
         "Welcome to the era of 2026. We are the architects of a sovereign industrial reality. Today, factories and plants are enslaved by the corporate coldness of centralized cloud platforms that pump out industrial data and sell it back at exorbitant prices. We have created the counterweight: we don't just write code; we give industrial networks a soul."
       </p>
       <div class="cta-group">
-        <a class="cta-button" href="#section-2">[ Explore Live Pipeline ]</a>
-        <a class="cta-button secondary" href="#section-5">[ Real-Time Telemetry ]</a>
-        <a class="cta-button secondary" href="#section-7">[ Machine Console ]</a>
+        <a class="cta-button" href="#slide-2">[ Explore Live Pipeline ]</a>
+        <a class="cta-button secondary" href="#slide-5">[ Real-Time Telemetry ]</a>
+        <a class="cta-button secondary" href="#slide-7">[ Machine Console ]</a>
       </div>
     </section>
 
-    <!-- 01: HUMAN-ROBOT SYNERGY -->
-    <section id="section-1">
-      <h2 class="section-title">01 // Synaptic Foundations</h2>
+    <!-- SLIDE 1: CORPORATE ILLUSIONS -->
+    <section id="slide-1">
+      <h2 class="section-title">01 // Corporate Illusions vs Synaptic Synergy</h2>
       <div class="grid">
         <div class="card">
           <h3>Synaptic Mesh Protocols</h3>
           <p>Every line of code is a neural pathway connecting PLC controllers and collaborative robots through a local WebRTC mesh. A local WebRTC DataChannel (P2P Mesh Network) guarantees that the information flow never leaves the plant perimeter.</p>
         </div>
         <div class="card transcendence-card">
-          <h3>WebMCP &amp; AI Cognition</h3>
+          <h3>WebMCP & AI Cognition</h3>
           <p>Through the Web Model Context Protocol (WebMCP), local AI agents receive direct, structured access to live telemetry registers. Raw sensor states are transformed into conscious, deterministic robotic control commands without corporate intermediaries.</p>
         </div>
       </div>
     </section>
 
-    <!-- 02: PIPELINE LIFECYCLE -->
-    <section id="section-2">
+    <!-- SLIDE 2: PIPELINE LIFECYCLE -->
+    <section id="slide-2">
       <h2 class="section-title">02 // Pipeline Lifecycle</h2>
       <div class="pipeline-container">
         <div class="pipeline-tabs" role="tablist">
           <button class="pipe-tab active" role="tab" aria-selected="true" data-step="0">01 // EXTRACT</button>
           <button class="pipe-tab" role="tab" aria-selected="false" data-step="1">02 // SYNAPSE</button>
-          <button class="pipe-tab" role="tab" aria-selected="false" data-step="2">03 // STORE &amp; SOLARM</button>
+          <button class="pipe-tab" role="tab" aria-selected="false" data-step="2">03 // STORE</button>
           <button class="pipe-tab" role="tab" aria-selected="false" data-step="3">04 // REASON</button>
           <button class="pipe-tab" role="tab" aria-selected="false" data-step="4">05 // SETTLE</button>
         </div>
@@ -79,8 +112,8 @@
       </div>
     </section>
 
-    <!-- 03: GHOST IN ARCHITECTURE -->
-    <section id="section-3">
+    <!-- SLIDE 3: GHOST IN ARCHITECTURE -->
+    <section id="slide-3">
       <h2 class="section-title">03 // Ghost in Architecture</h2>
       <div class="grid">
         <div class="card">
@@ -94,9 +127,9 @@
       </div>
     </section>
 
-    <!-- 04: PROTOCOLS MATRIX -->
-    <section id="section-4">
-      <h2 class="section-title">04 // Protocols &amp; WASI</h2>
+    <!-- SLIDE 4: PROTOCOLS & WASI -->
+    <section id="slide-4">
+      <h2 class="section-title">04 // Protocols & WASI</h2>
       <div class="grid">
         <div class="card">
           <h3>Rust WASI Driver Interface</h3>
@@ -128,11 +161,9 @@
       </div>
     </section>
 
-    <!-- 05: TELEMETRY CHARTS -->
-    <section id="section-5">
+    <!-- SLIDE 5: TELEMETRY VERIFICATION -->
+    <section id="slide-5">
       <h2 class="section-title">05 // Telemetry Verification</h2>
-      
-      <!-- Latency Chart -->
       <div class="chart-container">
         <div class="chart-header">
           <strong class="chart-title">Cycle Ingestion Latency (ms): Local Edge Mesh vs Cloud Broker</strong>
@@ -149,35 +180,17 @@
           <polyline points="30,105 80,103 130,106 180,104 230,105 280,103 330,104 380,105 430,104 480,103 530,104 580,105 630,104 680,103" fill="none" stroke="var(--melon-mid)" stroke-width="2.4"/>
         </svg>
       </div>
-
-      <!-- Human-Robot Collaborative Safety Chart -->
-      <div class="chart-container">
-        <div class="chart-header">
-          <strong class="chart-title">Human-Cobot Dynamic Braking Distance: Edge Mesh vs Cloud Loop</strong>
-          <div class="chart-legend">
-            <div class="legend-item"><i class="legend-box" style="background: var(--melon-mid);"></i> SSHAnet Edge Mesh (Braking Dist: 18mm)</div>
-            <div class="legend-item"><i class="legend-box" style="background: #e74c3c;"></i> Cloud Relay (Braking Dist: 220mm - Hazard)</div>
-          </div>
-        </div>
-        <svg viewBox="0 0 700 130" width="100%" height="130" xmlns="http://www.w3.org/2000/svg">
-          <line x1="30" y1="20" x2="680" y2="20" stroke="rgba(26,255,255,0.1)" stroke-dasharray="4"/>
-          <line x1="30" y1="65" x2="680" y2="65" stroke="rgba(26,255,255,0.1)" stroke-dasharray="4"/>
-          <line x1="30" y1="110" x2="680" y2="110" stroke="rgba(26,255,255,0.3)"/>
-          <path d="M 30 95 Q 150 15 260 90 T 470 20 T 680 85" fill="none" stroke="#e74c3c" stroke-width="2" stroke-dasharray="6,3"/>
-          <path d="M 30 105 Q 150 102 260 104 T 470 103 T 680 104" fill="none" stroke="var(--melon-mid)" stroke-width="2.6"/>
-        </svg>
-      </div>
     </section>
 
-    <!-- 06: SOLANA DEPIN -->
-    <section id="section-6">
+    <!-- SLIDE 6: SOLANA DEPIN -->
+    <section id="slide-6">
       <h2 class="section-title">06 // Solana DePIN Settlement</h2>
       <div class="table-responsive">
         <table class="comparison-table">
           <thead>
             <tr>
               <th>Architecture Metric</th>
-              <th class="highlight-col">SSHAnet Local DePIN</th>
+              <th class="highlight-col">SSHAnet  Local DePIN</th>
               <th>Legacy Cloud Monolith</th>
             </tr>
           </thead>
@@ -197,22 +210,17 @@
               <td class="highlight-col">Hardware Ed25519 cNFTs</td>
               <td>Vendor OAuth IAM Lock-in</td>
             </tr>
-            <tr>
-              <td>Decentralized Storage</td>
-              <td class="highlight-col">Solana Solarms (Shadow Drive `shdw://`)</td>
-              <td>AWS S3 / Azure Blob</td>
-            </tr>
           </tbody>
         </table>
       </div>
     </section>
 
-    <!-- 07: MACHINE CONSOLE -->
-    <section id="section-7">
+    <!-- SLIDE 7: MACHINE CONSOLE -->
+    <section id="slide-7">
       <h2 class="section-title">07 // Machine Console</h2>
       <div class="terminal-container">
         <div class="terminal-header">
-          <span>EDGE REPL INTERFACE v2.4</span>
+          <span>EDGE REPL INTERFACE v2.5</span>
           <span>STATUS: ONLINE</span>
         </div>
         <div class="terminal-body" id="term-body" role="log" aria-live="polite"></div>
