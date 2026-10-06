@@ -1,4 +1,3 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -24,13 +23,13 @@
 
     <ul class="nav-links" id="nav-links">
       <li><a href="#section-0">00 // Transmission</a></li>
-      <li><a href="#section-1">01 // Synaptic Synergy</a></li>
+      <li><a href="#section-1">01 // Corporate Illusions</a></li>
       <li><a href="#section-2">02 // Pipeline Lifecycle</a></li>
       <li><a href="#section-3">03 // Ghost Architecture</a></li>
       <li><a href="#section-4">04 // Protocols &amp; WASI</a></li>
-      <li><a href="#section-5">05 // Telemetry Charts</a></li>
+      <li><a href="#section-5">05 // Telemetry</a></li>
       <li><a href="#section-6">06 // Solana DePIN</a></li>
-      <li><a href="#section-7" class="transcend-link">07 // Machine Console</a></li>
+      <li><a href="#section-7" class="transcend-link">07 // Console</a></li>
     </ul>
   </nav>
 
@@ -50,54 +49,70 @@
       </div>
     </section>
 
-    <!-- 01: HUMAN-ROBOT SYNERGY & SYNAPTIC FOUNDATIONS -->
+    <!-- 01: CORPORATE ILLUSIONS (NEW) -->
     <section id="section-1">
-      <h2 class="section-title">01 // Synaptic Foundations & Synergy</h2>
+      <h2 class="section-title">01 // Corporate Illusions (The Problem)</h2>
       <div class="grid">
         <div class="card">
-          <h3>Synaptic Mesh Protocols</h3>
-          <p>Every line of code is a neural pathway connecting PLC controllers and collaborative robots through a local WebRTC mesh. A local WebRTC DataChannel (P2P Mesh Network) guarantees that the information flow never leaves the plant perimeter[span_5](start_span)[span_5](end_span).</p>
+          <h3>Monopolistic Cloud Extraction</h3>
+          <p>Corporate coldness has monopolized production data. Traditional MES systems and proprietary SCADA stacks are closed, vulnerable, and completely incapable of cognitive synergy.</p>
+        </div>
+        <div class="card">
+          <h3>Centralized Cloud Failure</h3>
+          <p>Kinematic cobot intervention loops and safety circuits cannot tolerate round-trip latency through external WAN cloud brokers. Centralized clouds are an architectural dead end in the evolution of Industry 5.0.</p>
         </div>
         <div class="card transcendence-card">
-          <h3>Human-Robot Synergy & AI Cognition</h3>
-          <p>Operators directly interface with KUKA and UR cobots locally via WebMCP. This prevents intervention lag, eliminates external cloud dependency, and drastically improves real-time safety, allowing humans and machines to collaboratively execute kinematic tasks with deterministic precision[span_6](start_span)[span_6](end_span).</p>
+          <h3>Immanent Edge Autonomy</h3>
+          <p><strong>Thesis:</strong> Power returns directly to the operators. Telemetry is extracted on the fly by sub-100KB WASI micro-runtimes running on peripheral edge nodes with zero external framework overhead.</p>
         </div>
       </div>
     </section>
 
-    <!-- 02: PIPELINE LIFECYCLE -->
     <section id="section-2">
       <h2 class="section-title">02 // Pipeline Lifecycle</h2>
       <div class="pipeline-container">
         <div class="pipeline-tabs" role="tablist">
-          <button class="pipe-tab active" role="tab" aria-selected="true" data-step="0">01 // EXTRACT</button>
-          <button class="pipe-tab" role="tab" aria-selected="false" data-step="1">02 // SYNAPSE</button>
-          <button class="pipe-tab" role="tab" aria-selected="false" data-step="2">03 // STORE</button>
-          <button class="pipe-tab" role="tab" aria-selected="false" data-step="3">04 // REASON</button>
-          <button class="pipe-tab" role="tab" aria-selected="false" data-step="4">05 // SETTLE</button>
+          <button class="pipe-tab active" role="tab" aria-selected="true" data-step="0">1. Bare-Metal WASI</button>
+          <button class="pipe-tab" role="tab" aria-selected="false" data-step="1">2. WebRTC DataMesh</button>
+          <button class="pipe-tab" role="tab" aria-selected="false" data-step="2">3. IndexedDB NoSQL</button>
+          <button class="pipe-tab" role="tab" aria-selected="false" data-step="3">4. WebMCP Cognition</button>
+          <button class="pipe-tab" role="tab" aria-selected="false" data-step="4">5. Solana DePIN</button>
         </div>
         <div class="pipe-display" id="pipe-display" role="tabpanel"></div>
       </div>
     </section>
 
-    <!-- 03: GHOST IN ARCHITECTURE -->
+    <!-- 03: GHOST IN ARCHITECTURE (UPDATED WITH SVG) -->
     <section id="section-3">
-      <h2 class="section-title">03 // Ghost in Architecture</h2>
+      <h2 class="section-title">03 // Ghost in the Architecture (The Network)</h2>
+      <svg class="section-svg-banner" viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
+        <rect width="300" height="200" rx="8" fill="#040909" stroke="#D4AF37" stroke-width="1.5"></rect>
+        <g class="cog-spin" transform="translate(100, 80)">
+          <circle cx="0" cy="0" r="28" fill="none" stroke="#1AFFFF" stroke-width="2.5" stroke-dasharray="8,5"></circle>
+          <circle cx="0" cy="0" r="12" fill="none" stroke="#1AFFFF" stroke-width="1.5"></circle>
+        </g>
+        <g class="cog-reverse" transform="translate(170, 110)">
+          <circle cx="0" cy="0" r="22" fill="none" stroke="#D4AF37" stroke-width="2.5" stroke-dasharray="6,4"></circle>
+          <circle cx="0" cy="0" r="7" fill="#D4AF37"></circle>
+        </g>
+        <path d="M 40 140 Q 100 80 170 110 T 260 40" fill="none" stroke="#ff1a75" stroke-width="2" class="pulse-line"></path>
+        <text x="150" y="180" font-family="monospace" font-size="10" fill="#1AFFFF" text-anchor="middle">INDUSTRY_5.0 // COGNITIVE_HUMAN_SYNERGY</text>
+      </svg>
       <div class="grid">
         <div class="card">
-          <h3>Zero-Trust Perimeter</h3>
-          <p>Local POSIX execution isolations via WASI ensure that hostile binary compromises do not propagate to the field bus[span_7](start_span)[span_7](end_span).</p>
+          <h3>Synaptic Mesh Protocols</h3>
+          <p>Every line of code is a neural pathway connecting PLC controllers and collaborative robots through a local WebRTC mesh. A local WebRTC DataChannel (P2P Mesh Network) guarantees that the information flow never leaves the plant perimeter.</p>
         </div>
-        <div class="card">
-          <h3>Air-Gapped Telemetry</h3>
-          <p>Data streams are retained locally in persistent temporal indexed stores with cryptographically proven offline integrity[span_8](start_span)[span_8](end_span).</p>
+        <div class="card transcendence-card">
+          <h3>WebMCP &amp; AI Cognition</h3>
+          <p>Through the Web Model Context Protocol (WebMCP), local AI agents receive direct, structured access to live telemetry registers. Raw sensor states are transformed into conscious, deterministic robotic control commands without corporate intermediaries.</p>
         </div>
       </div>
     </section>
 
-    <!-- 04: PROTOCOLS & WASI -->
+    <!-- 04: PROTOCOLS & WASI (UPDATED WITH TABLE) -->
     <section id="section-4">
-      <h2 class="section-title">04 // Protocols &amp; WASI</h2>
+      <h2 class="section-title">04 // Protocols & Zero-Framework Driver</h2>
       <div class="table-responsive">
         <table class="comparison-table">
           <thead>
@@ -119,9 +134,14 @@
               <td class="highlight-col">P2P DataChannels, zero WAN egress</td>
             </tr>
             <tr>
+              <td><strong>MQTT v5.0</strong></td>
+              <td>Local machine telemetry pub/sub</td>
+              <td class="highlight-col">Sub-100KB wasm32 serializer</td>
+            </tr>
+            <tr>
               <td><strong>IndexedDB NoSQL</strong></td>
               <td>Temporal telemetry storage</td>
-              <td class="highlight-col">Browser transactional engine with indices</td>
+              <td class="highlight-col">Browser transactional engine with indices (`ts`, `protocol`)</td>
             </tr>
           </tbody>
         </table>
@@ -158,10 +178,31 @@
       </div>
     </section>
 
-    <!-- 05: TELEMETRY CHARTS -->
+    <!-- 05: TELEMETRY (NEW CHARTS ADDED) -->
     <section id="section-5">
       <h2 class="section-title">05 // Telemetry Verification Visualizers</h2>
       
+      <!-- KUKA Robotics Chart -->
+      <div class="chart-container">
+        <div class="chart-header">
+          <strong class="chart-title">Robotic Arm 6-Axis Joint Torque & Velocity (KUKA KR-100)</strong>
+          <div class="chart-legend">
+            <div class="legend-item"><i class="legend-box" style="background: var(--cyan-neon);"></i> Axis 1</div>
+            <div class="legend-item"><i class="legend-box" style="background: var(--pink-neon);"></i> Axis 2</div>
+            <div class="legend-item"><i class="legend-box" style="background: var(--gold-transcend);"></i> Axis 3</div>
+          </div>
+        </div>
+        <svg viewBox="0 0 700 160" width="100%" height="160" xmlns="http://www.w3.org/2000/svg">
+          <line x1="30" y1="20" x2="680" y2="20" stroke="rgba(26,255,255,0.1)" stroke-dasharray="4"/>
+          <line x1="30" y1="60" x2="680" y2="60" stroke="rgba(26,255,255,0.1)" stroke-dasharray="4"/>
+          <line x1="30" y1="100" x2="680" y2="100" stroke="rgba(26,255,255,0.1)" stroke-dasharray="4"/>
+          <line x1="30" y1="140" x2="680" y2="140" stroke="rgba(26,255,255,0.3)"/>
+          <path d="M 30 120 Q 110 30 190 80 T 350 50 T 510 110 T 680 60" fill="none" stroke="var(--cyan-neon)" stroke-width="2.2" class="pulse-line"/>
+          <path d="M 30 90 Q 130 130 230 60 T 390 110 T 530 40 T 680 90" fill="none" stroke="var(--pink-neon)" stroke-width="1.8" class="pulse-line" style="animation-delay: -1.2s;"/>
+          <path d="M 30 70 Q 90 90 170 110 T 310 70 T 470 90 T 680 30" fill="none" stroke="var(--gold-transcend)" stroke-width="1.8" stroke-dasharray="5,3" class="pulse-line" style="animation-delay: -2.4s;"/>
+        </svg>
+      </div>
+
       <!-- Latency Chart -->
       <div class="chart-container">
         <div class="chart-header">
@@ -179,71 +220,49 @@
           <polyline points="30,105 80,103 130,106 180,104 230,105 280,103 330,104 380,105 430,104 480,103 530,104 580,105 630,104 680,103" fill="none" stroke="var(--melon-mid)" stroke-width="2.4"/>
         </svg>
       </div>
-
-      <!-- Human-Robot Collaborative Safety Chart -->
-      <div class="chart-container">
-        <div class="chart-header">
-          <strong class="chart-title">Human-Cobot Dynamic Braking Distance: Edge Mesh vs Cloud Loop</strong>
-          <div class="chart-legend">
-            <div class="legend-item"><i class="legend-box" style="background: var(--melon-mid);"></i> SSHAnet Edge Mesh (Braking Dist: 18mm)</div>
-            <div class="legend-item"><i class="legend-box" style="background: #e74c3c;"></i> Cloud Relay (Braking Dist: 220mm - Hazard)</div>
-          </div>
-        </div>
-        <svg viewBox="0 0 700 130" width="100%" height="130" xmlns="http://www.w3.org/2000/svg">
-          <line x1="30" y1="20" x2="680" y2="20" stroke="rgba(26,255,255,0.1)" stroke-dasharray="4"/>
-          <line x1="30" y1="65" x2="680" y2="65" stroke="rgba(26,255,255,0.1)" stroke-dasharray="4"/>
-          <line x1="30" y1="110" x2="680" y2="110" stroke="rgba(26,255,255,0.3)"/>
-          <path d="M 30 95 Q 150 15 260 90 T 470 20 T 680 85" fill="none" stroke="#e74c3c" stroke-width="2" stroke-dasharray="6,3"/>
-          <path d="M 30 105 Q 150 102 260 104 T 470 103 T 680 104" fill="none" stroke="var(--melon-mid)" stroke-width="2.6"/>
-        </svg>
-      </div>
     </section>
 
-    <!-- 06: SOLANA DEPIN -->
+    <!-- 06: SOLANA DEPIN (UPDATED CARDS) -->
     <section id="section-6">
-      <h2 class="section-title">06 // Solana DePIN Settlement</h2>
-      <div class="table-responsive">
-        <table class="comparison-table">
-          <thead>
-            <tr>
-              <th>Architecture Metric</th>
-              <th class="highlight-col">SSHAnet Local DePIN</th>
-              <th>Legacy Cloud Monolith</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Perimeter Settlement Cost</td>
-              <td class="highlight-col">~$0.0005 / 1k readings</td>
-              <td>$0.08 / request + Bandwidth Egress</td>
-            </tr>
-            <tr>
-              <td>Air-Gap Resiliency</td>
-              <td class="highlight-col">Fully Autonomous Local P2P</td>
-              <td>Zero Offline Continuity</td>
-            </tr>
-            <tr>
-              <td>Identity Root</td>
-              <td class="highlight-col">Hardware Ed25519 cNFTs</td>
-              <td>Vendor OAuth IAM Lock-in</td>
-            </tr>
-          </tbody>
-        </table>
+      <h2 class="section-title">06 // Transcendence Layer: Solana DePIN (SSHAnet)</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Hardware Licenses (cNFTs) & Settlement</h3>
+          <ul>
+            <li><strong>Portable cNFT Identities:</strong> Every physical device is a living node whose hardware license is represented as a compressed NFT (cNFT).</li>
+            <li><strong>Native Ed25519 Program:</strong> Telemetry is aggregated into Merkle trees, signed with hardware Ed25519 keys, and posted directly to Solana.</li>
+            <li><strong>Sub-Cent Microtransactions:</strong> Transaction batch anchoring executes at ~$0.0005 per settlement batch.</li>
+          </ul>
+        </div>
+        <div class="card transcendence-card">
+          <h3>Burn-and-Mint Equilibrium (BME)</h3>
+          <ul>
+            <li><strong>Proof of Telemetry:</strong> Factory operators receive protocol token emissions for sustaining node uptime and clean data streams.</li>
+            <li><strong>AI Demand Sinks:</strong> Real demand from external enterprise AI developers burns protocol tokens to query high-precision machine feeds.</li>
+            <li><strong>Value Recapture:</strong> Value is generated by the physical infrastructure itself rather than extracted by hyperscalers.</li>
+          </ul>
+        </div>
       </div>
     </section>
 
-    <!-- 07: MACHINE CONSOLE -->
+    <!-- 07: MACHINE CONSOLE (UPDATED LOGS) -->
     <section id="section-7">
       <h2 class="section-title">07 // Command Console & Live Engine</h2>
       <div class="terminal-container">
         <div class="terminal-header">
-          <span>EDGE REPL INTERFACE v2.4</span>
-          <span>STATUS: ONLINE</span>
+          <span>SSHAnet_OS // v2026.5.6 [100B Neurons]</span>
+          <span>STATUS: OPERATIONAL</span>
         </div>
-        <div class="terminal-body" id="term-body" role="log" aria-live="polite"></div>
+        <div class="terminal-body" id="term-body" role="log" aria-live="polite">
+          <div class="terminal-log"><strong>SYSTEM:</strong> Cucamelon SSHAnet Neural Interface initialized.</div>
+          <div class="terminal-log"><strong>DATABASE:</strong> IndexedDB schema mounted ('telemetry_store'). Ready for offline persistence.</div>
+          <div class="terminal-log"><em>DEPIN:</em> Solana cluster link nominal (~400ms finality). cNFT registry validated.</div>
+          <div class="terminal-log"><b>INDUSTRY_5.0 // COGNITIVE_HUMAN_SYNERGY</b></div>
+          <div class="terminal-log">Type <b>help</b> to list available inspection commands.</div>
+        </div>
         <div class="terminal-input-row">
-          <span>&gt;</span>
-          <input type="text" id="term-input" autocomplete="off" spellcheck="false" placeholder="Type 'help' or command..." aria-label="Terminal input">
+          <span><em>creiters@sshanet-2026:~$</em></span>
+          <input type="text" id="term-input" autocomplete="off" spellcheck="false" placeholder="Type mqtt, nosql, robot, modbus, ping, mine, clear..." aria-label="Terminal input">
         </div>
       </div>
     </section>
@@ -251,9 +270,10 @@
 
   <footer>
     <div class="status-bar">
-      <span>NODE: ACTIVE</span>
-      <span>RUNTIME: WASM-WASIP1</span>
-      <span>DEPIN SETTLEMENT: SOLANA MAINNET-BETA</span>
+      <span>NODE: IMMANENT_EDGE_01</span>
+      <span>STATUS: TRANSCENDENCE 99.8%</span>
+      <span>FRAMEWORKS: 0</span>
+      <span>FINALITY: ~400ms</span>
     </div>
   </footer>
 
