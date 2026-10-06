@@ -1,6 +1,5 @@
-// app.js
 /**
- * CyberPear // SSHAnet Industry 5.0 Core - Repaired & Complete
+ * CyberPear // SSHAnet Industry 5.0 Core
  * Pure Vanilla ES Module (Strict Mode)
  */
 "use strict";
@@ -62,6 +61,39 @@ class NoSQLEngine {
       req.onerror = () => resolve(0);
     });
   }
+
+  /* --- Pure Solana Solarm Settlement --- */
+  async settleSolarmOnSolana() {
+    if (!this.#db) return null;
+    return new Promise((resolve, reject) => {
+      const tx = this.#db.transaction([STORE_NAME], "readonly");
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.getAll();
+      
+      req.onsuccess = async () => {
+        const records = req.result;
+        if (!records.length) return resolve(null);
+
+        // 1. Shard telemetry to Solana-native storage
+        const rawPayload = JSON.stringify(records);
+        const chunkHash = await SecurityPrimitives.sha256Hex(rawPayload);
+        const shdwUri = `shdw://${chunkHash}`; 
+
+        // 2. Formulate Solana Merkle leaf for Solarms AI Agent coordination
+        const merkleLeaf = `${shdwUri}::${records.length}::${Date.now()}`;
+        const solanaMerkleRoot = await SecurityPrimitives.sha256Hex(merkleLeaf);
+        const syntheticSig = SecurityPrimitives.randomHex(32);
+
+        resolve({
+          count: records.length,
+          shdwUri,
+          merkleRoot: solanaMerkleRoot,
+          txSignature: syntheticSig
+        });
+      };
+      req.onerror = () => reject(new Error("Failed reading records for Solana Solarm settlement."));
+    });
+  }
 }
 
 class SecurityPrimitives {
@@ -79,13 +111,72 @@ class SecurityPrimitives {
   }
 }
 
+/* --- Solana Solarms Local Edge Agent Engine --- */
+class LocalSolarmAgentEngine {
+  #db;
+
+  constructor(dbEngine) {
+    this.#db = dbEngine;
+  }
+
+  async runLocalInference(operatorDistanceMeters = 1.2) {
+    if (!this.#db) return null;
+
+    const startTime = performance.now();
+    const isClamped = operatorDistanceMeters < 1.5;
+    const maxSafeVelocityMmSec = isClamped ? 250 : 1000;
+    const inferenceLatencyMs = (performance.now() - startTime).toFixed(2);
+
+    const inferenceDecision = {
+      model: "SSHA-Kinematic-v2.local",
+      inferenceDevice: "EDGE_NEURAL_COPROCESSOR",
+      latencyMs: inferenceLatencyMs,
+      safetyStatus: isClamped ? "CLAMPED_250MM_S" : "FULL_NOMINAL",
+      maxVelocity: maxSafeVelocityMmSec,
+      ts: Date.now()
+    };
+
+    const decisionPayload = JSON.stringify(inferenceDecision);
+    const leafHash = await SecurityPrimitives.sha256Hex(decisionPayload);
+    const hardwareSig = SecurityPrimitives.randomHex(32);
+
+    await this.#db.put("SOLANA_SOLARMS_AGENT", {
+      merkleRoot: leafHash,
+      hardwareSig: hardwareSig,
+      inferenceDecision: inferenceDecision
+    });
+
+    return { decision: inferenceDecision, leafHash: leafHash, hardwareSig: hardwareSig, costUsd: 0.0005 };
+  }
+}
+
 /* --- Pipeline Flow Controller --- */
 const PIPELINE_DATA = Object.freeze([
-  { tag: "STAGE 01 // EXTRACTION", title: "Bare-Metal WASI Modules", desc: "Lightweight POSIX C/Rust modules (<100KB) running under Wasmtime poll Modbus TCP and PLCs directly without middleware." },
-  { tag: "STAGE 02 // SYNAPTIC MESH", title: "WebRTC DataChannel P2P Mesh", desc: "Air-gapped WebRTC DataChannels stream high-frequency kinematic frames locally with zero external WAN exposure." },
-  { tag: "STAGE 03 // CLIENT NOSQL", title: "IndexedDB Transactional Engine", desc: "Incoming JSON machine objects are cached client-side in IndexedDB for deterministic, offline-first analysis." },
-  { tag: "STAGE 04 // WEBMCP COGNITION", title: "Structured Contracts for AI Agents", desc: "The Web Model Context Protocol exposes registers directly to AI models, transforming telemetry into cobot trajectories." },
-  { tag: "STAGE 05 // SOLANA SETTLEMENT", title: "SSHAnet Batch Verification & cNFTs", desc: "Batches of 1,000 telemetry readings compress into Merkle trees signed with hardware Ed25519 keys at ~$0.0005 per batch." }
+  {
+    tag: "STAGE 01 // EXTRACTION",
+    title: "Bare-Metal WASI Modules",
+    desc: "Lightweight POSIX C/Rust modules (<100KB) running under Wasmtime autonomously poll Modbus TCP (Port 502) and industrial PLCs directly without middleware."
+  },
+  {
+    tag: "STAGE 02 // SYNAPTIC MESH & SOLIUM",
+    title: "WebRTC P2P & Solium LoRaWAN",
+    desc: "A transcendent connection across an air-gapped WebRTC DataChannel forms a local P2P Mesh Network, while outdoor perimeter IoT sensors backhaul over the Solium network."
+  },
+  {
+    tag: "STAGE 03 // NOSQL & SOLARM",
+    title: "IndexedDB & Solana Storage",
+    desc: "Incoming telemetry is cached client-side in IndexedDB for deterministic, offline-first analysis, later archiving deep history to Solana Shadow Drive."
+  },
+  {
+    tag: "STAGE 04 // WEBMCP COGNITION",
+    title: "Structured Contracts for AI Agents",
+    desc: "The Web Model Context Protocol (WebMCP) exposes live telemetry states directly to local AI agents via structured tool contracts without cloud API roundtrips."
+  },
+  {
+    tag: "STAGE 05 // SOLANA SETTLEMENT",
+    title: "SSHAnet Batch Verification & cNFTs",
+    desc: "Batches of telemetry readings are compressed into Merkle trees, signed with Ed25519 hardware keys, and settled onto Solana at ~$0.0005 per batch."
+  }
 ]);
 
 function initPipelineUI() {
@@ -103,7 +194,7 @@ function initPipelineUI() {
     display.innerHTML = `
       <div class="pipe-card">
         <span class="pipe-tag">${item.tag}</span>
-        <h3 style="color: var(--yellow-glow); margin: 6px 0;">${item.title}</h3>
+        <h3 style="color: var(--yellow-glow, #D4AF37); margin: 6px 0;">${item.title}</h3>
         <p style="font-size: 0.85rem; line-height: 1.6;">${item.desc}</p>
       </div>`;
   };
@@ -189,7 +280,7 @@ class TerminalConsole {
     const row = document.createElement("div");
     row.className = "terminal-log";
     const prompt = document.createElement("em");
-    prompt.textContent = "creiters@cyberpear-2026:~$ ";
+    prompt.textContent = "creiters@sshanet-2026:~$ ";
     const txt = document.createElement("code");
     txt.textContent = cmd;
     row.appendChild(prompt);
@@ -211,24 +302,59 @@ class TerminalConsole {
         row.innerHTML = `<mark>[SYSTEM INIT]:</mark> CyberPear P2P protocol booted. Local Vectorization Engine running.`;
         break;
       case "help":
-        row.innerHTML = `<b>COMMANDS:</b> awaken, mqtt, nosql, robot, synergy, modbus, ping, mine, clear`;
+        row.innerHTML = `<b>COMMANDS:</b> awaken, solium, solarm, webrtc, webmcp, nosql, robot, synergy, modbus, ping, mine, clear`;
         break;
-      case "mqtt": {
-        const doc = { topic: "factory/assembly/cell_02", rpm: 1420, temp: 48.2 };
-        const id = await this.#db.put("MQTT_V5", doc);
-        row.innerHTML = `<strong>[MQTT PUB]:</strong> Document committed to local NoSQL Store (ID: ${id ?? "LOCAL"})`;
+      case "solium":
+        const packet = { hotspot_cNFT: "8xHT...cNFT", network: "Solana IOT SubDAO", rssi: -68, snr: 9.4, payload: { devEUI: "A84041F11D", temp: 24.8 } };
+        const id = await this.#db.put("SOLIUM_SOLANA", packet);
+        row.innerHTML = `
+          <strong>[SOLIUM &times; SOLANA]:</strong> LoRaWAN backhaul packet ingested.<br>
+          &bull; Hotspot Identity: Verified cNFT <code>${packet.hotspot_cNFT}</code><br>
+          &bull; Settlement: Burned <b>1 Data Credit</b> via Solana SPL<br>
+          &bull; Local Persistence: Committed to NoSQL (Doc #${id ?? "LOCAL"})
+        `;
         break;
-      }
-      case "nosql": {
+      case "solarm":
+        const result = await this.#db.settleSolarmOnSolana();
+        if (!result) {
+          row.innerHTML = `<strong>[SOLANA SOLARM]:</strong> Telemetry store is empty. Ingest packets via <code>mqtt</code> first.`;
+        } else {
+          row.innerHTML = `
+            <strong>[SOLANA SOLARMS AI &times; STORAGE]:</strong><br>
+            &bull; Archived <b>${result.count}</b> records to Solana Storage: <code>${result.shdwUri}</code><br>
+            &bull; Anchored Agent Root to Solana: <code>${result.merkleRoot}</code><br>
+            &bull; Hardware Ed25519 Sig: <code>${result.txSignature.slice(0, 16)}...</code> (~$0.0005)
+          `;
+        }
+        break;
+      case "webmcp":
+        row.innerHTML = `
+          <strong>[WEBMCP TOOL CONTRACTS]:</strong><br>
+          &bull; <code>read_plc_registers(port: 502, reg: 40001)</code> &rarr; WASI Direct Socket<br>
+          &bull; <code>eval_safety_proximity(distance_m)</code> &rarr; Sub-15ms Dynamic Braking<br>
+          &bull; <code>anchor_solarm_consensus(merkle_leaf)</code> &rarr; Solana cNFT Batch Settlement
+        `;
+        break;
+      case "synergy":
+        const agent = new LocalSolarmAgentEngine(this.#db);
+        const res = await agent.runLocalInference(1.1);
+        row.innerHTML = `
+          <strong>[SOLANA SOLARMS // LOCAL INFERENCE]:</strong><br>
+          &bull; Inference Engine: <code>${res.decision.model}</code> on <b>${res.decision.inferenceDevice}</b><br>
+          &bull; Execution Latency: <b>${res.decision.latencyMs}ms</b> (SIL-3 Deterministic)<br>
+          &bull; Policy Action: Velocity clamped to <b>${res.decision.maxVelocity} mm/s</b> [Operator at 1.1m]<br>
+          &bull; Hardware Ed25519 Sig: <code>${res.hardwareSig.slice(0, 16)}...</code> (Anchored: ~$${res.costUsd})
+        `;
+        break;
+      case "webrtc":
+        row.innerHTML = `<strong>[WEBRTC MESH]:</strong> Air-gapped DataChannel active. Connected Peers: 4 Cobots | 0 External Cloud Egress.`;
+        break;
+      case "nosql":
         const c = await this.#db.count();
         row.innerHTML = `<strong>[INDEXEDDB NOSQL]:</strong> Target 'telemetry_store' holds <b>${c}</b> active documents.`;
         break;
-      }
       case "robot":
-        row.innerHTML = `<strong>UR-10 COBOT:</strong> J1: 42.18° | J2: -12.45° | J3: 88.02° | SIL-3 Safety: NORMAL`;
-        break;
-      case "synergy":
-        row.innerHTML = `<strong>[SYNERGY LOOP]:</strong> Operator proximity detected (1.1m). Cobot speed clamped to 250 mm/s. Handoff compliance: ACTIVE.`;
+        row.innerHTML = `<strong>KUKA KR-100:</strong> J1: 42.18° | J2: -12.45° | J3: 88.02° | SIL-3 Safety: NORMAL`;
         break;
       case "modbus":
         row.innerHTML = `<strong>MODBUS TCP (192.168.1.120:502):</strong> Reg 40001 (Temp): 48.2°C | Cycle: 1.84ms`;
@@ -236,12 +362,11 @@ class TerminalConsole {
       case "ping":
         row.innerHTML = `<em>SOLANA SSHAnet:</em> Pong received in <b>${Math.floor(Math.random() * 40 + 360)}ms</b>. Batch cost: <b>$0.0005</b>.`;
         break;
-      case "mine": {
+      case "mine":
         const root = SecurityPrimitives.randomHex(16);
         await this.#db.put("SOLANA_DEPIN", { merkleRoot: root, records: 1000 });
         row.innerHTML = `<mark>[PROOF OF TELEMETRY]:</mark> Merkle root: <b>${root}</b> signed with hardware Ed25519 key.`;
         break;
-      }
       case "clear":
         while (this.#body.firstChild) this.#body.removeChild(this.#body.firstChild);
         return;
