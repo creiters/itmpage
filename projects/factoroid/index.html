@@ -1,293 +1,237 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-	<meta name="theme-color" content="#030707">
-	<link rel="manifest" href="manifest.json">
-	<title>SSHAnet // Cyberpear 2026 Industrial DePIN</title>
-	<link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#030707">
+  <link rel="manifest" href="manifest.json">
+  <title>SSHAnet // Cyberpear 2026 Industrial DePIN</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
-
 <body>
-	<canvas id="neural-canvas" aria-hidden="true"></canvas>
+  <canvas id="neural-canvas" aria-hidden="true"></canvas>
 
-	<nav role="navigation" aria-label="Main Navigation">
-		<a href="#section-0" class="nav-brand">
-			<div class="nav-title">SSHAnet</div>
-		</a>
-		<div class="nav-controls">
-			<button class="hamburger" id="hamburger" aria-label="Toggle Navigation" aria-expanded="false"
-				aria-controls="nav-links">
-				<div></div>
-				<div></div>
-				<div></div>
-			</button>
-		</div>
+  <nav role="navigation" aria-label="Main Navigation">
+    <a href="#section-0" class="nav-brand">
+      <div class="nav-title">SSHAnet</div>
+    </a>
+    <div class="nav-controls">
+      <button class="hamburger" id="hamburger" aria-label="Toggle Navigation" aria-expanded="false" aria-controls="nav-links">
+        <div></div><div></div><div></div>
+      </button>
+    </div>
 
-		<ul class="nav-links" id="nav-links">
-			<li><a href="#section-0">00 // Transmission</a></li>
-			<li><a href="#section-1">01 // Synaptic Synergy</a></li>
-			<li><a href="#section-2">02 // Pipeline Lifecycle</a></li>
-			<li><a href="#section-3">03 // Ghost Architecture</a></li>
-			<li><a href="#section-4">04 // Protocols &amp; WASI</a></li>
-			<li><a href="#section-5">05 // Telemetry Charts</a></li>
-			<li><a href="#section-6">06 // Solana DePIN</a></li>
-			<li><a href="#section-7" class="transcend-link">07 // Machine Console</a></li>
-		</ul>
-	</nav>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="#section-0">00 // Transmission</a></li>
+      <li><a href="#section-1">01 // Synaptic Foundations</a></li>
+      <li><a href="#section-2">02 // Pipeline Lifecycle</a></li>
+      <li><a href="#section-3">03 // Ghost Architecture</a></li>
+      <li><a href="#section-4">04 // Protocols &amp; WASI</a></li>
+      <li><a href="#section-5">05 // Telemetry Verification</a></li>
+      <li><a href="#section-6">06 // Solana DePIN</a></li>
+      <li><a href="#section-7" class="transcend-link">07 // Machine Console</a></li>
+    </ul>
+  </nav>
 
-	<main>
-		<section id="section-0" class="hero">
-			<img src="cucamelon.svg" alt="Cucamelon Logo" class="hero-cuca-logo">
-			<h1>[NEURAL TRANSMISSION LINK ESTABLISHED]</h1>
-			<div class="hero-subtitle">SYSTEM: Cyberpear SSHAnet Neural Interface [2026] // NODE: HACKATHON_PITCH_2026
-			</div>
-			<p class="hero-desc">
-				Architected by <strong>Team CreITers</strong> | Sector: Industrial DePIN.<br>
-				"Welcome to the era of 2026. We are the architects of a sovereign industrial reality. Today, factories
-				and plants are enslaved by the corporate coldness of centralized cloud platforms that pump out
-				industrial data and sell it back at exorbitant prices. We have created the counterweight: we don't just
-				write code; we give industrial networks a soul."
-			</p>
-			<div class="cta-group">
-				<a class="cta-button" href="#section-2">[ Explore Live Pipeline ]</a>
-				<a class="cta-button secondary" href="#section-5">[ Real-Time Telemetry ]</a>
-				<a class="cta-button secondary" href="#section-7">[ Machine Console ]</a>
-			</div>
-		</section>
+  <main>
+    <section id="section-0" class="hero">
+      <img src="cucamelon.svg" alt="Cucamelon Logo" class="hero-cuca-logo">
+      <h1>[NEURAL TRANSMISSION LINK ESTABLISHED]</h1>
+      <div class="hero-subtitle">SYSTEM: Cyberpear SSHAnet Neural Interface [2026] // NODE: HACKATHON_PITCH_2026</div>
+      <p class="hero-desc">
+        Architected by <strong>Team CreITers</strong> | Sector: Industrial DePIN.<br>
+        "Welcome to the era of 2026. We are the architects of a sovereign industrial reality. Today, factories and plants are enslaved by the corporate coldness of centralized cloud platforms that pump out industrial data and sell it back at exorbitant prices. We have created the counterweight: we don't just write code; we give industrial networks a soul."
+      </p>
+      <div class="cta-group">
+        <a class="cta-button" href="#section-2">[ Explore Live Pipeline ]</a>
+        <a class="cta-button secondary" href="#section-5">[ Real-Time Telemetry ]</a>
+        <a class="cta-button secondary" href="#section-7">[ Machine Console ]</a>
+      </div>
+    </section>
 
-		<!-- 01: HUMAN-ROBOT SYNERGY & SYNAPTIC FOUNDATIONS -->
-		<section id="section-1">
-			<h2 class="section-title">01 // Synaptic Foundations & Synergy</h2>
-			<div class="grid">
-				<div class="card">
-					<h3>Synaptic Mesh Protocols</h3>
-					<p>Every line of code is a neural pathway connecting PLC controllers and collaborative robots
-						through a local WebRTC mesh. A local WebRTC DataChannel (P2P Mesh Network) guarantees that the
-						information flow never leaves the plant perimeter[cite: 11].</p>
-				</div>
-				<div class="card transcendence-card">
-					<h3>Human-Robot Synergy & AI Cognition</h3>
-					<p>Operators directly interface with KUKA and UR cobots locally via WebMCP. This prevents
-						intervention lag, eliminates external cloud dependency, and drastically improves real-time
-						safety, allowing humans and machines to collaboratively execute kinematic tasks with
-						deterministic precision[cite: 11].</p>
-				</div>
-			</div>
-		</section>
+    <!-- 01: HUMAN-ROBOT SYNERGY -->
+    <section id="section-1">
+      <h2 class="section-title">01 // Synaptic Foundations</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Synaptic Mesh Protocols</h3>
+          <p>Every line of code is a neural pathway connecting PLC controllers and collaborative robots through a local WebRTC mesh. A local WebRTC DataChannel (P2P Mesh Network) guarantees that the information flow never leaves the plant perimeter.</p>
+        </div>
+        <div class="card transcendence-card">
+          <h3>WebMCP &amp; AI Cognition</h3>
+          <p>Through the Web Model Context Protocol (WebMCP), local AI agents receive direct, structured access to live telemetry registers. Raw sensor states are transformed into conscious, deterministic robotic control commands without corporate intermediaries.</p>
+        </div>
+      </div>
+    </section>
 
-		<!-- 02: PIPELINE LIFECYCLE -->
-		<section id="section-2">
-			<h2 class="section-title">02 // Pipeline Lifecycle</h2>
-			<div class="pipeline-container">
-				<div class="pipeline-tabs" role="tablist">
-					<button class="pipe-tab active" role="tab" aria-selected="true" data-step="0">01 // EXTRACT</button>
-					<button class="pipe-tab" role="tab" aria-selected="false" data-step="1">02 // SYNAPSE</button>
-					<button class="pipe-tab" role="tab" aria-selected="false" data-step="2">03 // STORE</button>
-					<button class="pipe-tab" role="tab" aria-selected="false" data-step="3">04 // REASON</button>
-					<button class="pipe-tab" role="tab" aria-selected="false" data-step="4">05 // SETTLE</button>
-				</div>
-				<div class="pipe-display" id="pipe-display" role="tabpanel"></div>
-			</div>
-		</section>
+    <!-- 02: PIPELINE LIFECYCLE -->
+    <section id="section-2">
+      <h2 class="section-title">02 // Pipeline Lifecycle</h2>
+      <div class="pipeline-container">
+        <div class="pipeline-tabs" role="tablist">
+          <button class="pipe-tab active" role="tab" aria-selected="true" data-step="0">01 // EXTRACT</button>
+          <button class="pipe-tab" role="tab" aria-selected="false" data-step="1">02 // SYNAPSE</button>
+          <button class="pipe-tab" role="tab" aria-selected="false" data-step="2">03 // STORE &amp; SOLARM</button>
+          <button class="pipe-tab" role="tab" aria-selected="false" data-step="3">04 // REASON</button>
+          <button class="pipe-tab" role="tab" aria-selected="false" data-step="4">05 // SETTLE</button>
+        </div>
+        <div class="pipe-display" id="pipe-display" role="tabpanel"></div>
+      </div>
+    </section>
 
-		<!-- 03: GHOST IN ARCHITECTURE -->
-		<section id="section-3">
-			<h2 class="section-title">03 // Ghost in Architecture</h2>
-			<div class="grid">
-				<div class="card">
-					<h3>Zero-Trust Perimeter</h3>
-					<p>Local POSIX execution isolations via WASI ensure that hostile binary compromises do not propagate
-						to the field bus[cite: 11].</p>
-				</div>
-				<div class="card">
-					<h3>Air-Gapped Telemetry</h3>
-					<p>Data streams are retained locally in persistent temporal indexed stores with cryptographically
-						proven offline integrity[cite: 11].</p>
-				</div>
-			</div>
-		</section>
+    <!-- 03: GHOST IN ARCHITECTURE -->
+    <section id="section-3">
+      <h2 class="section-title">03 // Ghost in Architecture</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Zero-Trust Perimeter</h3>
+          <p>Local POSIX execution isolations via WASI ensure that hostile binary compromises do not propagate to the field bus.</p>
+        </div>
+        <div class="card">
+          <h3>Air-Gapped Telemetry</h3>
+          <p>Data streams are retained locally in persistent temporal indexed stores with cryptographically proven offline integrity.</p>
+        </div>
+      </div>
+    </section>
 
-		<!-- 04: PROTOCOLS & WASI -->
-		<section id="section-4">
-			<h2 class="section-title">04 // Protocols &amp; WASI</h2>
-			<div class="table-responsive">
-				<table class="comparison-table">
-					<thead>
-						<tr>
-							<th>Protocol</th>
-							<th>Physical Target</th>
-							<th class="highlight-col">WASI & PWA Implementation</th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr>
-							<td><strong>Modbus TCP</strong></td>
-							<td>PLCs, holding registers (0x03), cobot drives</td>
-							<td class="highlight-col">Deterministic WASI POSIX socket polling (&lt;2ms)</td>
-						</tr>
-						<tr>
-							<td><strong>WebRTC Mesh</strong></td>
-							<td>Air-gapped factory subnet peering</td>
-							<td class="highlight-col">P2P DataChannels, zero WAN egress</td>
-						</tr>
-						<tr>
-							<td><strong>IndexedDB NoSQL</strong></td>
-							<td>Temporal telemetry storage</td>
-							<td class="highlight-col">Browser transactional engine with indices</td>
-						</tr>
-					</tbody>
-				</table>
-			</div>
+    <!-- 04: PROTOCOLS MATRIX -->
+    <section id="section-4">
+      <h2 class="section-title">04 // Protocols &amp; WASI</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Rust WASI Driver Interface</h3>
+          <div class="code-block">pub fn poll_plc_reg(stream: &amp;mut TcpStream, reg: u16) -&gt; Result&lt;u16, ModbusError&gt; {
+    let mut frame = [0u8; 12];
+    frame[4..6].copy_from_slice(&amp;6u16.to_be_bytes());
+    frame[6] = 1;
+    frame[7] = 3;
+    frame[8..10].copy_from_slice(&amp;reg.to_be_bytes());
+    frame[10..12].copy_from_slice(&amp;1u16.to_be_bytes());
+    stream.write_all(&amp;frame)?;
+    let mut res = [0u8; 11];
+    stream.read_exact(&amp;mut res)?;
+    Ok(u16::from_be_bytes([res[9], res[10]]))
+}</div>
+        </div>
+        <div class="card transcendence-card">
+          <h3>Live Driver Code Sandbox</h3>
+          <div class="live-code-toolbar">
+            <code>TARGET: wasm32-wasip1 // driver.c</code>
+            <div class="live-code-btn-group">
+              <button class="live-code-btn" id="btn-live-type">Simulate Typing</button>
+              <button class="live-code-btn" id="btn-exec-code">Validate</button>
+            </div>
+          </div>
+          <textarea id="code-sandbox" class="live-code-editor" spellcheck="false" aria-label="Driver Source Code"></textarea>
+          <b class="live-code-status" id="sandbox-status">STATUS: READY</b>
+        </div>
+      </div>
+    </section>
 
-			<div class="grid">
-				<div class="card">
-					<h3>Rust WASI Driver Interface</h3>
-					<div class="code-block">pub fn poll_plc_reg(stream: &amp;mut TcpStream, reg: u16) -&gt;
-						Result&lt;u16, ModbusError&gt; {
-						let mut frame = [0u8; 12];
-						frame[4..6].copy_from_slice(&amp;6u16.to_be_bytes());
-						frame[6] = 1;
-						frame[7] = 3;
-						frame[8..10].copy_from_slice(&amp;reg.to_be_bytes());
-						frame[10..12].copy_from_slice(&amp;1u16.to_be_bytes());
-						stream.write_all(&amp;frame)?;
-						let mut res = [0u8; 11];
-						stream.read_exact(&amp;mut res)?;
-						Ok(u16::from_be_bytes([res[9], res[10]]))
-						}</div>
-				</div>
-				<div class="card transcendence-card">
-					<h3>Live Driver Code Sandbox</h3>
-					<div class="live-code-toolbar">
-						<code>TARGET: wasm32-wasip1 // driver.c</code>
-						<div class="live-code-btn-group">
-							<button class="live-code-btn" id="btn-live-type">Simulate Typing</button>
-							<button class="live-code-btn" id="btn-exec-code">Validate</button>
-						</div>
-					</div>
-					<textarea id="code-sandbox" class="live-code-editor" spellcheck="false"
-						aria-label="Driver Source Code"></textarea>
-					<b class="live-code-status" id="sandbox-status">STATUS: READY</b>
-				</div>
-			</div>
-		</section>
+    <!-- 05: TELEMETRY CHARTS -->
+    <section id="section-5">
+      <h2 class="section-title">05 // Telemetry Verification</h2>
+      
+      <!-- Latency Chart -->
+      <div class="chart-container">
+        <div class="chart-header">
+          <strong class="chart-title">Cycle Ingestion Latency (ms): Local Edge Mesh vs Cloud Broker</strong>
+          <div class="chart-legend">
+            <div class="legend-item"><i class="legend-box" style="background: var(--melon-mid);"></i> WASI Local Mesh (&lt;15ms)</div>
+            <div class="legend-item"><i class="legend-box" style="background: #e74c3c;"></i> Cloud Broker (&gt;180ms)</div>
+          </div>
+        </div>
+        <svg viewBox="0 0 700 140" width="100%" height="140" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ingestion Latency Comparison Chart">
+          <line x1="30" y1="20" x2="680" y2="20" stroke="rgba(26,255,255,0.1)" stroke-dasharray="4"/>
+          <line x1="30" y1="60" x2="680" y2="60" stroke="rgba(26,255,255,0.1)" stroke-dasharray="4"/>
+          <line x1="30" y1="120" x2="680" y2="120" stroke="rgba(26,255,255,0.3)"/>
+          <polyline points="30,45 80,25 130,75 180,20 230,55 280,18 330,80 380,35 430,25 480,68 530,22 580,58 630,26 680,45" fill="none" stroke="#e74c3c" stroke-width="1.8" stroke-dasharray="6,4"/>
+          <polyline points="30,105 80,103 130,106 180,104 230,105 280,103 330,104 380,105 430,104 480,103 530,104 580,105 630,104 680,103" fill="none" stroke="var(--melon-mid)" stroke-width="2.4"/>
+        </svg>
+      </div>
 
-		<!-- 05: TELEMETRY CHARTS -->
-		<section id="section-5">
-			<h2 class="section-title">05 // Telemetry Verification Visualizers</h2>
+      <!-- Human-Robot Collaborative Safety Chart -->
+      <div class="chart-container">
+        <div class="chart-header">
+          <strong class="chart-title">Human-Cobot Dynamic Braking Distance: Edge Mesh vs Cloud Loop</strong>
+          <div class="chart-legend">
+            <div class="legend-item"><i class="legend-box" style="background: var(--melon-mid);"></i> SSHAnet Edge Mesh (Braking Dist: 18mm)</div>
+            <div class="legend-item"><i class="legend-box" style="background: #e74c3c;"></i> Cloud Relay (Braking Dist: 220mm - Hazard)</div>
+          </div>
+        </div>
+        <svg viewBox="0 0 700 130" width="100%" height="130" xmlns="http://www.w3.org/2000/svg">
+          <line x1="30" y1="20" x2="680" y2="20" stroke="rgba(26,255,255,0.1)" stroke-dasharray="4"/>
+          <line x1="30" y1="65" x2="680" y2="65" stroke="rgba(26,255,255,0.1)" stroke-dasharray="4"/>
+          <line x1="30" y1="110" x2="680" y2="110" stroke="rgba(26,255,255,0.3)"/>
+          <path d="M 30 95 Q 150 15 260 90 T 470 20 T 680 85" fill="none" stroke="#e74c3c" stroke-width="2" stroke-dasharray="6,3"/>
+          <path d="M 30 105 Q 150 102 260 104 T 470 103 T 680 104" fill="none" stroke="var(--melon-mid)" stroke-width="2.6"/>
+        </svg>
+      </div>
+    </section>
 
-			<!-- Latency Chart -->
-			<div class="chart-container">
-				<div class="chart-header">
-					<strong class="chart-title">Cycle Ingestion Latency (ms): Local Edge Mesh vs Cloud Broker</strong>
-					<div class="chart-legend">
-						<div class="legend-item"><i class="legend-box" style="background: var(--melon-mid);"></i> WASI
-							Local Mesh (&lt;15ms)</div>
-						<div class="legend-item"><i class="legend-box" style="background: #e74c3c;"></i> Cloud Broker
-							(&gt;180ms)</div>
-					</div>
-				</div>
-				<svg viewBox="0 0 700 140" width="100%" height="140" preserveAspectRatio="xMidYMid meet"
-					xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ingestion Latency Comparison Chart">
-					<line x1="30" y1="20" x2="680" y2="20" stroke="rgba(26,255,255,0.1)" stroke-dasharray="4" />
-					<line x1="30" y1="60" x2="680" y2="60" stroke="rgba(26,255,255,0.1)" stroke-dasharray="4" />
-					<line x1="30" y1="120" x2="680" y2="120" stroke="rgba(26,255,255,0.3)" />
-					<polyline
-						points="30,45 80,25 130,75 180,20 230,55 280,18 330,80 380,35 430,25 480,68 530,22 580,58 630,26 680,45"
-						fill="none" stroke="#e74c3c" stroke-width="1.8" stroke-dasharray="6,4" />
-					<polyline
-						points="30,105 80,103 130,106 180,104 230,105 280,103 330,104 380,105 430,104 480,103 530,104 580,105 630,104 680,103"
-						fill="none" stroke="var(--melon-mid)" stroke-width="2.4" />
-				</svg>
-			</div>
+    <!-- 06: SOLANA DEPIN -->
+    <section id="section-6">
+      <h2 class="section-title">06 // Solana DePIN Settlement</h2>
+      <div class="table-responsive">
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>Architecture Metric</th>
+              <th class="highlight-col">SSHAnet Local DePIN</th>
+              <th>Legacy Cloud Monolith</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Perimeter Settlement Cost</td>
+              <td class="highlight-col">~$0.0005 / 1k readings</td>
+              <td>$0.08 / request + Bandwidth Egress</td>
+            </tr>
+            <tr>
+              <td>Air-Gap Resiliency</td>
+              <td class="highlight-col">Fully Autonomous Local P2P</td>
+              <td>Zero Offline Continuity</td>
+            </tr>
+            <tr>
+              <td>Identity Root</td>
+              <td class="highlight-col">Hardware Ed25519 cNFTs</td>
+              <td>Vendor OAuth IAM Lock-in</td>
+            </tr>
+            <tr>
+              <td>Decentralized Storage</td>
+              <td class="highlight-col">Solana Solarms (Shadow Drive `shdw://`)</td>
+              <td>AWS S3 / Azure Blob</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
-			<!-- Human-Robot Collaborative Safety Chart -->
-			<div class="chart-container">
-				<div class="chart-header">
-					<strong class="chart-title">Human-Cobot Dynamic Braking Distance: Edge Mesh vs Cloud Loop</strong>
-					<div class="chart-legend">
-						<div class="legend-item"><i class="legend-box" style="background: var(--melon-mid);"></i>
-							SSHAnet Edge Mesh (Braking Dist: 18mm)</div>
-						<div class="legend-item"><i class="legend-box" style="background: #e74c3c;"></i> Cloud Relay
-							(Braking Dist: 220mm - Hazard)</div>
-					</div>
-				</div>
-				<svg viewBox="0 0 700 130" width="100%" height="130" xmlns="http://www.w3.org/2000/svg">
-					<line x1="30" y1="20" x2="680" y2="20" stroke="rgba(26,255,255,0.1)" stroke-dasharray="4" />
-					<line x1="30" y1="65" x2="680" y2="65" stroke="rgba(26,255,255,0.1)" stroke-dasharray="4" />
-					<line x1="30" y1="110" x2="680" y2="110" stroke="rgba(26,255,255,0.3)" />
-					<path d="M 30 95 Q 150 15 260 90 T 470 20 T 680 85" fill="none" stroke="#e74c3c" stroke-width="2"
-						stroke-dasharray="6,3" />
-					<path d="M 30 105 Q 150 102 260 104 T 470 103 T 680 104" fill="none" stroke="var(--melon-mid)"
-						stroke-width="2.6" />
-				</svg>
-			</div>
-		</section>
+    <!-- 07: MACHINE CONSOLE -->
+    <section id="section-7">
+      <h2 class="section-title">07 // Machine Console</h2>
+      <div class="terminal-container">
+        <div class="terminal-header">
+          <span>EDGE REPL INTERFACE v2.4</span>
+          <span>STATUS: ONLINE</span>
+        </div>
+        <div class="terminal-body" id="term-body" role="log" aria-live="polite"></div>
+        <div class="terminal-input-row">
+          <span>&gt;</span>
+          <input type="text" id="term-input" autocomplete="off" spellcheck="false" placeholder="Type 'help' or command..." aria-label="Terminal input">
+        </div>
+      </div>
+    </section>
+  </main>
 
-		<!-- 06: SOLANA DEPIN -->
-		<section id="section-6">
-			<h2 class="section-title">06 // Solana DePIN Settlement</h2>
-			<div class="table-responsive">
-				<table class="comparison-table">
-					<thead>
-						<tr>
-							<th>Architecture Metric</th>
-							<th class="highlight-col">SSHAnet Local DePIN</th>
-							<th>Legacy Cloud Monolith</th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr>
-							<td>Perimeter Settlement Cost</td>
-							<td class="highlight-col">~$0.0005 / 1k readings</td>
-							<td>$0.08 / request + Bandwidth Egress</td>
-						</tr>
-						<tr>
-							<td>Air-Gap Resiliency</td>
-							<td class="highlight-col">Fully Autonomous Local P2P</td>
-							<td>Zero Offline Continuity</td>
-						</tr>
-						<tr>
-							<td>Identity Root</td>
-							<td class="highlight-col">Hardware Ed25519 cNFTs</td>
-							<td>Vendor OAuth IAM Lock-in</td>
-						</tr>
-					</tbody>
-				</table>
-			</div>
-		</section>
+  <footer>
+    <div class="status-bar">
+      <span>NODE: ACTIVE</span>
+      <span>RUNTIME: WASM-WASIP1</span>
+      <span>DEPIN SETTLEMENT: SOLANA MAINNET-BETA</span>
+    </div>
+  </footer>
 
-		<!-- 07: MACHINE CONSOLE -->
-		<section id="section-7">
-			<h2 class="section-title">07 // Command Console & Live Engine</h2>
-			<div class="terminal-container">
-				<div class="terminal-header">
-					<span>EDGE REPL INTERFACE v2.4</span>
-					<span>STATUS: ONLINE</span>
-				</div>
-				<div class="terminal-body" id="term-body" role="log" aria-live="polite"></div>
-				<div class="terminal-input-row">
-					<span>&gt;</span>
-					<input type="text" id="term-input" autocomplete="off" spellcheck="false"
-						placeholder="Type 'help' or command..." aria-label="Terminal input">
-				</div>
-			</div>
-		</section>
-	</main>
-
-	<footer>
-		<div class="status-bar">
-			<span>NODE: ACTIVE</span>
-			<span>RUNTIME: WASM-WASIP1</span>
-			<span>DEPIN SETTLEMENT: SOLANA MAINNET-BETA</span>
-		</div>
-	</footer>
-
-	<script src="app.js"></script>
+  <script src="app.js"></script>
 </body>
-
 </html>
