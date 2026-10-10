@@ -1,10 +1,16 @@
 export class HuggingFaceDownloader {
   static MODEL_MAP = {
-    'smollm2-360m': {
-      title: 'SmolLM2-360M (~271 MB, ~271 Chunks)',
-      repo: 'bartowski/SmolLM2-360M-Instruct-GGUF',
-      filename: 'SmolLM2-360M-Instruct-Q4_K_M.gguf',
-      approxBytes: 271000000
+    'smollm2-360m-itlwas': {
+      title: 'SmolLM2-360M (itlwas) (~229 MB, ~229 Chunks)',
+      repo: 'itlwas/SmolLM2-360M-Q4_K_M-GGUF',
+      filename: 'smollm2-360m-q4_k_m.gguf',
+      approxBytes: 229388000
+    },
+    'smollm-135m': {
+      title: 'SmolLM-135M (~94 MB, ~94 Chunks) - Ultra Fast',
+      repo: 'Muqiann/SmolLM-135M-Q4_K_M-GGUF',
+      filename: 'smollm-135m-q4_k_m.gguf',
+      approxBytes: 94000000
     },
     'llama-3.2-1b': {
       title: 'Llama-3.2-1B (~780 MB, ~780 Chunks)',
@@ -17,12 +23,6 @@ export class HuggingFaceDownloader {
       repo: 'bartowski/Qwen2.5-1.5B-Instruct-GGUF',
       filename: 'Qwen2.5-1.5B-Instruct-Q4_K_M.gguf',
       approxBytes: 990000000
-    },
-    'smollm2-1.7b': {
-      title: 'SmolLM2-1.7B (~1.06 GB, ~1060 Chunks)',
-      repo: 'bartowski/SmolLM2-1.7B-Instruct-GGUF',
-      filename: 'SmolLM2-1.7B-Instruct-Q4_K_M.gguf',
-      approxBytes: 1060000000
     },
     'phi-3.5-mini': {
       title: 'Phi-3.5-Mini (~2.39 GB, ~2390 Chunks)',
@@ -50,7 +50,6 @@ export class HuggingFaceDownloader {
       throw new Error(`HTTP ${response.status} (${response.statusText}): Could not retrieve ${config.filename}`);
     }
 
-    // Handle Content-Length when stripped across CDN redirects
     const headerLen = response.headers.get('Content-Length');
     const totalExpected = (headerLen && !isNaN(+headerLen) && +headerLen > 0) 
       ? +headerLen 
