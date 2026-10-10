@@ -116,4 +116,21 @@ export class StorageService {
       req.onerror = () => reject(req.error);
     });
   }
+  // Add this inside the StorageService class in storage.js
+  async clearAll() {
+    return new Promise((resolve, reject) => {
+      const storeNames = ['chat_history', 'model_chunks', 'system_state'];
+      const tx = this.db.transaction(storeNames, 'readwrite');
+
+      storeNames.forEach((name) => {
+        if (this.db.objectStoreNames.contains(name)) {
+          tx.objectStore(name).clear();
+        }
+      });
+
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
 }
