@@ -3,10 +3,83 @@ import { ChunkManager } from './chunker.js';
 import { HuggingFaceDownloader } from './downloader.js';
 import { MeshCoordinator } from './mesh.js';
 
-// 1. Service Worker Registration for Offline-First PWA
+// Service Worker Registration and Update Handlers
+let newWorkerWaiting = null;
+let refreshing = false;
+
+const updateToast = document.getElementById('update-toast');
+const btnApplyUpdate = document.getElementById('btn-apply-update');
+const btnDismissUpdate = document.getElementById('btn-dismiss-update');
+const btnCheckUpdate = document.getElementById('btn-check-update');
+const updateStatusLabel = document.getElementById('update-status-label');
+
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(console.error);
+  navigator.serviceWorker.register('./sw.js').then((reg) => {
+    // 1. Check if a service worker is already waiting (e.g., from a previous page load)
+    if (reg.waiting) {
+      newWorkerWaiting = reg.waiting;
+      showUpdateBanner();
+    }
+
+    // 2. Listen for new service worker installation events
+    reg.addEventListener('updatefound', () => {
+      const installingWorker = reg.installing;
+      installingWorker.addEventListener('statechange', () => {
+        if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          newWorkerWaiting = installingWorker;
+          showUpdateBanner();
+        }
+      });
+    });
+
+    // 3. Manual update checking button
+    if (btnCheckUpdate) {
+      btnCheckUpdate.addEventListener('click', async () => {
+        btnCheckUpdate.disabled = true;
+        updateStatusLabel.textContent = 'Checking server for revisions...';
+        try {
+          await reg.update();
+          setTimeout(() => {
+            if (!newWorkerWaiting) {
+              updateStatusLabel.textContent = 'No updates found. Running latest version.';
+            }
+            btnCheckUpdate.disabled = false;
+          }, 800);
+        } catch (err) {
+          updateStatusLabel.textContent = 'Failed to check: ' + err.message;
+          btnCheckUpdate.disabled = false;
+        }
+      });
+    }
+  }).catch((err) => {
+    console.error('Service Worker registration error:', err);
+  });
+
+  // 4. Ensure page reloads cleanly once the new Service Worker assumes control
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing) {
+      refreshing = true;
+      window.location.reload();
+    }
+  });
 }
+
+function showUpdateBanner() {
+  updateToast.classList.add('show');
+}
+
+btnApplyUpdate.addEventListener('click', () => {
+  if (newWorkerWaiting) {
+    // Post message to Service Worker to trigger self.skipWaiting()
+    newWorkerWaiting.postMessage({ type: 'SKIP_WAITING' });
+  }
+});
+
+btnDismissUpdate.addEventListener('click', () => {
+  updateToast.classList.remove('show');
+});
+
+
 
 // 2. Identity Initialization
 const nodeId = 'Node_' + Math.random().toString(36).substring(2, 7);
