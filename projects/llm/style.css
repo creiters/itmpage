@@ -1,13 +1,17 @@
 :root {
   --bg-core: #090d16;
   --bg-panel: #111827;
+  --bg-card: #182234;
   --bg-input: #1f2937;
   --accent: #4f46e5;
   --accent-glow: #6366f1;
+  --accent-active: #4338ca;
   --border: #374151;
   --text-main: #f9fafb;
   --text-muted: #9ca3af;
   --status-ready: #10b981;
+  --status-err: #ef4444;
+  --nav-height: 64px;
 }
 
 * {
@@ -15,64 +19,94 @@
   margin: 0;
   padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-tap-highlight-color: transparent;
 }
 
-body {
+html, body {
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
   background-color: var(--bg-core);
   color: var(--text-main);
-  height: 100vh;
-  display: flex;
   overflow: hidden;
 }
 
 #layout {
   display: flex;
+  flex-direction: column;
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
+  position: relative;
 }
 
-#sidebar {
-  width: 350px;
-  background-color: var(--bg-panel);
-  border-right: 1px solid var(--border);
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  overflow-y: auto;
-}
-
-#chat-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-}
-
-header {
-  padding: 20px 28px;
+/* App Header */
+header.app-header {
+  padding: 12px 16px;
   background-color: var(--bg-panel);
   border-bottom: 1px solid var(--border);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
+  padding-top: max(12px, env(safe-area-inset-top));
+}
+
+.brand-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.badge {
+  font-size: 0.7rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background-color: var(--bg-core);
+  border: 1px solid var(--border);
+  font-weight: 500;
+}
+
+/* Tab View Switcher Container */
+.view-viewport {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+}
+
+.app-view {
+  display: none;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-view.active {
+  display: flex;
+}
+
+/* View 1: Chat */
+#view-chat {
+  height: 100%;
 }
 
 #chat-stream {
   flex: 1;
-  padding: 28px;
+  padding: 16px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .message {
-  max-width: 78%;
-  padding: 14px 18px;
-  border-radius: 12px;
+  max-width: 85%;
+  padding: 12px 16px;
+  border-radius: 16px;
   font-size: 0.95rem;
-  line-height: 1.5;
+  line-height: 1.45;
   word-break: break-word;
 }
 
@@ -80,56 +114,115 @@ header {
   align-self: flex-end;
   background-color: var(--accent);
   color: #fff;
+  border-bottom-right-radius: 4px;
 }
 
 .message.assistant {
   align-self: flex-start;
-  background-color: var(--bg-input);
+  background-color: var(--bg-panel);
   border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
 }
 
-footer {
-  padding: 20px 28px;
+.chat-input-bar {
+  padding: 10px 14px;
   background-color: var(--bg-panel);
   border-top: 1px solid var(--border);
   display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.chat-input-bar input[type="text"] {
+  flex: 1;
+  background-color: var(--bg-core);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  padding: 12px 16px;
+  border-radius: 24px;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.chat-input-bar button {
+  padding: 12px 18px;
+  border-radius: 24px;
+  height: 44px;
+}
+
+/* Views 2 & 3: Settings/Downloads and Mesh Network */
+.settings-content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
+.settings-card h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.field-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* General Controls */
 input[type="text"], select, textarea {
   background-color: var(--bg-core);
   border: 1px solid var(--border);
   color: var(--text-main);
   padding: 12px;
   border-radius: 8px;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   outline: none;
-}
-
-input[type="text"]:focus, select:focus, textarea:focus {
-  border-color: var(--accent-glow);
+  width: 100%;
 }
 
 textarea.pin-box {
-  width: 100%;
-  height: 60px;
+  height: 70px;
   resize: none;
   font-family: monospace;
+  font-size: 0.75rem;
 }
 
 button {
   background-color: var(--accent);
   color: #fff;
   border: none;
-  padding: 12px 18px;
+  padding: 12px;
   border-radius: 8px;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
 }
 
-button:hover {
-  background-color: var(--accent-glow);
+button:active {
+  background-color: var(--accent-active);
+  transform: scale(0.98);
+}
+
+button.secondary-btn {
+  background-color: var(--bg-input);
+  border: 1px solid var(--border);
 }
 
 button:disabled {
@@ -137,24 +230,15 @@ button:disabled {
   cursor: not-allowed;
 }
 
-.badge {
-  font-size: 0.75rem;
-  padding: 4px 10px;
-  border-radius: 4px;
-  background-color: var(--bg-core);
-  border: 1px solid var(--border);
-}
-
 .graph-box {
   background-color: var(--bg-core);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 10px;
+  border-radius: 8px;
+  padding: 12px;
   font-size: 0.75rem;
   color: var(--text-muted);
-  line-height: 1.4;
-  height: 120px;
-  overflow-y: auto;
+  line-height: 1.5;
+  min-height: 90px;
 }
 
 .progress-track {
@@ -163,12 +247,51 @@ button:disabled {
   border-radius: 4px;
   height: 8px;
   overflow: hidden;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .progress-fill {
   background-color: var(--accent-glow);
   height: 100%;
   width: 0%;
-  transition: width 0.1s ease-in-out;
+  transition: width 0.1s linear;
+}
+
+/* Bottom Tab Navigation Bar */
+.bottom-nav {
+  height: var(--nav-height);
+  background-color: var(--bg-panel);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  flex-shrink: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.nav-tab {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-radius: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.nav-tab svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
+.nav-tab.active {
+  color: var(--accent-glow);
+  background: none;
 }
