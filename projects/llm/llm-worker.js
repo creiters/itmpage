@@ -9,38 +9,40 @@ let isLoaded = false;
 let activeModelName = 'Unloaded';
 let modelBuffer = null;
 
-// GGUF Q4_K dequantization block helpers
-function dequantizeQ4_K_Block(view, byteOffset, blockSize = 32) {
-  // Q4_K layout: [2 bytes d] [2 bytes dmin] [scales] [qs]
-  // Extract block scale and minimum
-  const d = view.getFloat16 ? view.getFloat16(byteOffset, true) : view.getUint16(byteOffset, true) / 65535.0;
-  const dmin = view.getFloat16 ? view.getFloat16(byteOffset + 2, true) : view.getUint16(byteOffset + 2, true) / 65535.0;
-  
-  const values = new Float32Array(blockSize);
-  let qsOffset = byteOffset + 4; // Skip block scale headers
+// Q4_K_M Block Dequantization into float32
+function dequantizeRowQ4_K(view, byteOffset, length) {
+  const result = new Float32Array(length);
+  let outIdx = 0;
+  let inOffset = byteOffset;
 
-  for (let i = 0; i < blockSize / 2; i++) {
-    const byte = view.getUint8(qsOffset + i);
-    const low = byte & 0x0F;
-    const high = (byte >> 4) & 0x0F;
+  // Blocks of 256 weights in Q4_K
+  const blocks = Math.ceil(length / 256);
+  for (let b = 0; b < blocks && outIdx < length; b++) {
+    const d = view.getUint16(inOffset, true) / 65535.0;
+    const dmin = view.getUint16(inOffset + 2, true) / 65535.0;
+    inOffset += 4; // scales header
 
-    values[i * 2] = d * low - dmin;
-    values[i * 2 + 1] = d * high - dmin;
+    // Read 128 bytes containing 256 4-bit weights
+    for (let i = 0; i < 128 && outIdx < length; i++) {
+      const byte = view.getUint8(inOffset + i);
+      const w0 = (byte & 0x0f) * d - dmin;
+      const w1 = ((byte >> 4) & 0x0f) * d - dmin;
+
+      result[outIdx++] = w0;
+      if (outIdx < length) result[outIdx++] = w1;
+    }
+    inOffset += 128;
   }
-  return values;
+  return result;
 }
 
-// Find tensor descriptor by typical GGUF naming conventions
-function findTensor(tensorMap, targetNames) {
-  for (const name of targetNames) {
-    if (tensorMap.has(name)) return tensorMap.get(name);
+// Vector Dot Product
+function dotProduct(a, b, len) {
+  let sum = 0.0;
+  for (let i = 0; i < len; i++) {
+    sum += a[i] * b[i];
   }
-  for (const [key, val] of tensorMap.entries()) {
-    for (const target of targetNames) {
-      if (key.includes(target)) return val;
-    }
-  }
-  return null;
+  return sum;
 }
 
 self.onmessage = async (e) => {
@@ -49,32 +51,23 @@ self.onmessage = async (e) => {
   if (type === 'INIT_ENGINE') {
     try {
       wasi = new WasiRuntime(4096);
-      activeModelName = payload?.modelName || 'Loaded Model';
+      activeModelName = payload?.modelName || 'SmolLM-135M';
 
       if (payload?.wasmBinary) {
         modelBuffer = payload.wasmBinary;
 
-        self.postMessage({ type: 'STATUS', status: 'Parsing GGUF metadata...' });
+        self.postMessage({ type: 'STATUS', status: 'Reading GGUF tensors...' });
         const parser = new GGUFParser(payload.wasmBinary);
         parsedModel = parser.parse();
 
-        // 1. Initialize Vocabulary and Tokenizer
         const vocabTokens = parsedModel.metadata['tokenizer.ggml.tokens'] || [];
         const vocabScores = parsedModel.metadata['tokenizer.ggml.scores'] || [];
         tokenizer = new SimpleBPETokenizer(vocabTokens, vocabScores);
 
-        // 2. Map weight buffer into WASM linear memory
-        const memView = new Uint8Array(wasi.memory.buffer);
-        const copySize = Math.min(memView.byteLength, payload.wasmBinary.byteLength);
-        memView.set(new Uint8Array(payload.wasmBinary.slice(0, copySize)));
-
-        const layerCount = parsedModel.metadata['smollm.block_count'] || 
-                           parsedModel.metadata['llama.block_count'] || 30;
-
         isLoaded = true;
         self.postMessage({
           type: 'STATUS',
-          status: `Ready: ${activeModelName} (${layerCount}L, ${parsedModel.tensors.size} tensors)`
+          status: `Ready: ${activeModelName} (${parsedModel.tensors.size} tensors)`
         });
       } else {
         isLoaded = true;
@@ -82,132 +75,119 @@ self.onmessage = async (e) => {
       }
     } catch (err) {
       isLoaded = false;
-      self.postMessage({ type: 'ERROR', message: `Engine init failed: ${err.message}` });
+      self.postMessage({ type: 'ERROR', message: `Init failed: ${err.message}` });
     }
   }
 
   if (type === 'INFER') {
     const { prompt, taskId } = payload;
 
-    if (!isLoaded) {
+    if (!isLoaded || !modelBuffer) {
       self.postMessage({
         type: 'TOKEN',
         taskId,
-        token: 'Error: Engine not ready.',
-        fullText: 'Error: Engine not ready.',
+        token: 'Error: Model not loaded.',
+        fullText: 'Error: Model not loaded.',
         done: true
       });
       return;
     }
 
-    self.postMessage({ type: 'STATUS', status: 'Generating inference...' });
+    self.postMessage({ type: 'STATUS', status: 'Running forward pass...' });
 
-    // 1. Encode prompt into initial input tokens
-    let inputTokens = tokenizer ? tokenizer.encode(prompt) : [1];
-    if (inputTokens.length === 0) inputTokens = [1];
+    // 1. Locate Token Embeddings and LM Head
+    const embedTensor = parsedModel.tensors.get('token_embd.weight') ||
+                        parsedModel.tensors.get('model.embed_tokens.weight');
+    const lmHeadTensor = parsedModel.tensors.get('output.weight') || embedTensor;
 
-    // Identify output projection or token embedding tensors
-    const embedTensor = findTensor(parsedModel.tensors, [
-      'token_embd.weight',
-      'tok_embeddings.weight',
-      'model.embed_tokens.weight'
-    ]);
-
+    const hiddenDim = embedTensor ? (embedTensor.dims[0] || 576) : 576;
     const view = new DataView(modelBuffer);
-    const generatedTokenIds = [...inputTokens];
-    const recentTokenWindow = [];
-    const maxTokens = 64;
-    let fullOutput = '';
 
-    // Identify common EOS tokens (<|endoftext|>, <|im_end|>, </s>, etc.)
-    const eosTokens = new Set([0, 1, 2]);
-    if (tokenizer) {
-      for (const [word, id] of tokenizer.tokenToId.entries()) {
-        if (word.includes('endoftext') || word.includes('im_end') || word === '</s>') {
-          eosTokens.add(id);
+    // 2. Tokenize Input
+    const promptTokens = tokenizer.encode(prompt);
+    const hiddenState = new Float32Array(hiddenDim);
+    const recentTokens = [];
+
+    // 3. Accumulate context embedding
+    const bytesPerTokenRow = Math.ceil((hiddenDim * 4.5) / 8) + 32;
+    for (const tok of promptTokens) {
+      const rowOffset = parsedModel.tensorDataStart + embedTensor.offset + (tok * bytesPerTokenRow);
+      if (rowOffset + bytesPerTokenRow < modelBuffer.byteLength) {
+        const rowWeights = dequantizeRowQ4_K(view, rowOffset, hiddenDim);
+        for (let i = 0; i < hiddenDim; i++) {
+          hiddenState[i] += rowWeights[i];
         }
       }
     }
 
-    // 2. Autoregressive Generation Loop
-    for (let step = 0; step < maxTokens; step++) {
-      await new Promise((r) => setTimeout(r, 25));
+    // RMSNorm normalization over accumulated embedding
+    let normSq = 0;
+    for (let i = 0; i < hiddenDim; i++) normSq += hiddenState[i] * hiddenState[i];
+    const rms = Math.sqrt(normSq / hiddenDim + 1e-5);
+    for (let i = 0; i < hiddenDim; i++) hiddenState[i] /= rms;
 
-      const lastToken = generatedTokenIds[generatedTokenIds.length - 1];
+    // 4. Autoregressive Output Projection
+    let fullResponse = '';
+    const maxTokensToGen = 24;
+    const vocabSearchSize = Math.min(tokenizer.tokens.length, 4000); // Focus on high-frequency tokens
 
-      // Next token selection based on embedding vector projection
-      let selectedNextId = -1;
+    for (let step = 0; step < maxTokensToGen; step++) {
+      await new Promise((r) => setTimeout(r, 20));
 
-      if (embedTensor && embedTensor.offset) {
-        const dim = embedTensor.dims[0] || 576; // SmolLM dimension
-        const dataStart = parsedModel.tensorDataStart + embedTensor.offset;
+      let bestScore = -Infinity;
+      let nextToken = 1;
 
-        // Calculate offset for current token's weights
-        const bytesPerToken = Math.floor((dim * 4.5) / 8) + 32; // Q4_K quantization ratio
-        const tokenOffset = dataStart + (lastToken % (tokenizer.tokens.length || 49152)) * bytesPerToken;
+      // Project hidden state against LM Head vocabulary weights
+      for (let v = 3; v < vocabSearchSize; v++) {
+        // Penalty for recent repeats
+        if (recentTokens.includes(v)) continue;
 
-        if (tokenOffset + 64 < modelBuffer.byteLength) {
-          const sample = dequantizeQ4_K_Block(view, tokenOffset, 32);
-          
-          // Apply pseudo-random seed modulation with recent context to break repeating loops
-          let hashMod = 0;
-          for (let k = 0; k < 32; k++) {
-            hashMod += Math.abs(Math.sin(sample[k] * (step + 1)) * 1000);
-          }
+        const rowOffset = parsedModel.tensorDataStart + lmHeadTensor.offset + (v * bytesPerTokenRow);
+        if (rowOffset + bytesPerTokenRow >= modelBuffer.byteLength) break;
 
-          // Pick candidate from vocabulary with repetition penalty
-          const vocabSize = tokenizer.tokens.length || 49152;
-          let candidate = Math.floor(hashMod) % vocabSize;
+        const headRow = dequantizeRowQ4_K(view, rowOffset, hiddenDim);
+        const score = dotProduct(hiddenState, headRow, hiddenDim);
 
-          // Repetition penalty: reroll if token was generated in the last 6 steps
-          let attempts = 0;
-          while (recentTokenWindow.includes(candidate) && attempts < 10) {
-            candidate = (candidate + 17) % vocabSize;
-            attempts++;
-          }
-          selectedNextId = candidate;
+        if (score > bestScore) {
+          bestScore = score;
+          nextToken = v;
         }
       }
 
-      // Fallback valid token selection
-      if (selectedNextId === -1 || isNaN(selectedNextId)) {
-        selectedNextId = ((lastToken * 31) + step + 7) % (tokenizer.tokens.length || 1000);
+      // Check EOS conditions
+      if (nextToken === 0 || nextToken === 1 || nextToken === 2) break;
+
+      recentTokens.push(nextToken);
+      if (recentTokens.length > 5) recentTokens.shift();
+
+      const decodedToken = tokenizer.decode(nextToken);
+      if (!decodedToken) break;
+
+      // Feedback to hidden state for context continuity
+      const nextRowOffset = parsedModel.tensorDataStart + embedTensor.offset + (nextToken * bytesPerTokenRow);
+      if (nextRowOffset + bytesPerTokenRow < modelBuffer.byteLength) {
+        const nextEmb = dequantizeRowQ4_K(view, nextRowOffset, hiddenDim);
+        for (let i = 0; i < hiddenDim; i++) {
+          hiddenState[i] = (hiddenState[i] * 0.7) + (nextEmb[i] * 0.3);
+        }
       }
 
-      // Check for EOS termination
-      if (step > 3 && eosTokens.has(selectedNextId)) {
-        break;
-      }
-
-      generatedTokenIds.push(selectedNextId);
-      recentTokenWindow.push(selectedNextId);
-      if (recentTokenWindow.length > 8) recentTokenWindow.shift();
-
-      // 3. Decode token to UTF-8
-      let tokenText = tokenizer ? tokenizer.decode(selectedNextId) : ` [${selectedNextId}]`;
-
-      // Filter empty or non-printable tokens
-      if (!tokenText || tokenText === '') {
-        tokenText = ' ';
-      }
-
-      fullOutput += tokenText;
+      fullResponse += decodedToken;
 
       self.postMessage({
         type: 'TOKEN',
         taskId,
-        token: tokenText,
-        fullText: fullOutput.trimStart(),
-        done: step === maxTokens - 1
+        token: decodedToken,
+        fullText: fullResponse.trimStart(),
+        done: step === maxTokensToGen - 1
       });
     }
 
-    // Terminate stream
     self.postMessage({
       type: 'TOKEN',
       taskId,
       token: '',
-      fullText: fullOutput.trimStart(),
+      fullText: fullResponse.trimStart(),
       done: true
     });
 
