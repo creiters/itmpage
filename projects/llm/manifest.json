@@ -1,0 +1,17 @@
+{
+  "name": "Shared Offline LLM",
+  "short_name": "SharedLLM",
+  "description": "Offline PWA LLM with 1MB contextual chunking, WASM/WASI, and WebRTC mesh compute",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a0d14",
+  "theme_color": "#121826",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'><rect width='128' height='128' rx='28' fill='%234f46e5'/><path d='M36 44h56M36 64h40M36 84h48' stroke='white' stroke-width='10' stroke-linecap='round'/></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
