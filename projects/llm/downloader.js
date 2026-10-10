@@ -1,10 +1,10 @@
 export class HuggingFaceDownloader {
   static MODEL_MAP = {
     'smollm2-360m': {
-      title: 'SmolLM2-360M (~245 MB, ~245 Chunks)',
-      repo: 'HuggingFaceTB/SmolLM2-360M-Instruct-GGUF',
-      filename: 'smollm2-360m-instruct-q4_k_m.gguf',
-      approxBytes: 245000000
+      title: 'SmolLM2-360M (~271 MB, ~271 Chunks)',
+      repo: 'bartowski/SmolLM2-360M-Instruct-GGUF',
+      filename: 'SmolLM2-360M-Instruct-Q4_K_M.gguf',
+      approxBytes: 271000000
     },
     'llama-3.2-1b': {
       title: 'Llama-3.2-1B (~780 MB, ~780 Chunks)',
@@ -13,19 +13,19 @@ export class HuggingFaceDownloader {
       approxBytes: 780000000
     },
     'qwen2.5-1.5b': {
-      title: 'Qwen2.5-1.5B (~980 MB, ~980 Chunks)',
-      repo: 'Qwen/Qwen2.5-1.5B-Instruct-GGUF',
-      filename: 'qwen2.5-1.5b-instruct-q4_k_m.gguf',
-      approxBytes: 980000000
+      title: 'Qwen2.5-1.5B (~990 MB, ~990 Chunks)',
+      repo: 'bartowski/Qwen2.5-1.5B-Instruct-GGUF',
+      filename: 'Qwen2.5-1.5B-Instruct-Q4_K_M.gguf',
+      approxBytes: 990000000
     },
     'smollm2-1.7b': {
-      title: 'SmolLM2-1.7B (~1.0 GB, ~1060 Chunks)',
-      repo: 'HuggingFaceTB/SmolLM2-1.7B-Instruct-GGUF',
-      filename: 'smollm2-1.7b-instruct-q4_k_m.gguf',
+      title: 'SmolLM2-1.7B (~1.06 GB, ~1060 Chunks)',
+      repo: 'bartowski/SmolLM2-1.7B-Instruct-GGUF',
+      filename: 'SmolLM2-1.7B-Instruct-Q4_K_M.gguf',
       approxBytes: 1060000000
     },
     'phi-3.5-mini': {
-      title: 'Phi-3.5-Mini (~2.3 GB, ~2390 Chunks)',
+      title: 'Phi-3.5-Mini (~2.39 GB, ~2390 Chunks)',
       repo: 'bartowski/Phi-3.5-mini-instruct-GGUF',
       filename: 'Phi-3.5-mini-instruct-Q4_K_M.gguf',
       approxBytes: 2390000000
@@ -36,14 +36,26 @@ export class HuggingFaceDownloader {
     const config = this.MODEL_MAP[modelKey];
     if (!config) throw new Error(`Model ${modelKey} is not registered.`);
 
+    // Hugging Face direct resolve endpoint
     const targetUrl = `https://huggingface.co/${config.repo}/resolve/main/${config.filename}`;
-    const response = await fetch(targetUrl);
+    
+    const response = await fetch(targetUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/octet-stream'
+      }
+    });
 
     if (!response.ok) {
-      throw new Error(`Failed HTTP ${response.status}: ${response.statusText}`);
+      throw new Error(`HTTP ${response.status} (${response.statusText}): Could not retrieve ${config.filename}`);
     }
 
-    const totalExpected = +(response.headers.get('Content-Length') || config.approxBytes);
+    // Handle Content-Length when stripped across CDN redirects
+    const headerLen = response.headers.get('Content-Length');
+    const totalExpected = (headerLen && !isNaN(+headerLen) && +headerLen > 0) 
+      ? +headerLen 
+      : config.approxBytes;
+
     const reader = response.body.getReader();
     let accumulated = 0;
     const slices = [];
@@ -51,6 +63,7 @@ export class HuggingFaceDownloader {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      
       slices.push(value);
       accumulated += value.length;
 
