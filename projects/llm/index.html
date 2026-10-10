@@ -2,76 +2,105 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shared Offline LLM</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Shared LLM</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="layout">
-    <aside id="sidebar">
-      <h2>Model Engine</h2>
+    <!-- Header -->
+    <header class="app-header">
       <div>
-        <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Hugging Face Repository</label>
-        <select id="select-model" style="width: 100%; margin-bottom: 8px;">
-  <option value="smollm2-360m-itlwas" selected>SmolLM2-360M (itlwas) (~229 MB, ~229 Chunks)</option>
-  <option value="smollm-135m">SmolLM-135M (~94 MB, ~94 Chunks) - Ultra Fast</option>
-  <option value="llama-3.2-1b">Llama-3.2-1B (~780 MB, ~780 Chunks)</option>
-  <option value="qwen2.5-1.5b">Qwen2.5-1.5B (~990 MB, ~990 Chunks)</option>
-  <option value="phi-3.5-mini">Phi-3.5-Mini (~2.39 GB, ~2390 Chunks)</option>
-</select>
-        <button id="btn-download-split" style="width: 100%;">Fetch & Slice (1MB)</button>
+        <div class="brand-title">Shared LLM</div>
+        <div id="node-label" style="font-size: 0.7rem; color: var(--text-muted);">Node: Initializing...</div>
       </div>
+      <div id="engine-status" class="badge">Engine: WASM Unloaded</div>
+    </header>
 
-      <div id="progress-container" style="display: none;">
-        <div class="progress-track">
-          <div id="progress-fill" class="progress-fill"></div>
+    <!-- Main Tab Viewport -->
+    <div class="view-viewport">
+      
+      <!-- View 1: Chat -->
+      <section id="view-chat" class="app-view active">
+        <div id="chat-stream"></div>
+        <div class="chat-input-bar">
+          <input type="text" id="input-prompt" placeholder="Message offline LLM...">
+          <button id="btn-send">Send</button>
         </div>
-        <span id="progress-text" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; display: block;">0%</span>
-      </div>
+      </section>
 
-      <hr style="border:0; border-top: 1px solid var(--border);">
+      <!-- View 2: Model & DAG Slice Manager -->
+      <section id="view-models" class="app-view">
+        <div class="settings-content">
+          <div class="settings-card">
+            <h3>Download Model</h3>
+            <span class="field-label">Repository & Architecture</span>
+            <select id="select-model">
+              <option value="smollm-135m" selected>SmolLM-135M (~94 MB, ~94 Chunks) - Fast</option>
+              <option value="smollm2-360m-itlwas">SmolLM2-360M (~229 MB, ~229 Chunks)</option>
+              <option value="llama-3.2-1b">Llama-3.2-1B (~780 MB, ~780 Chunks)</option>
+              <option value="qwen2.5-1.5b">Qwen2.5-1.5B (~990 MB, ~990 Chunks)</option>
+              <option value="phi-3.5-mini">Phi-3.5-Mini (~2.39 GB, ~2390 Chunks)</option>
+            </select>
+            <button id="btn-download-split">Fetch & Split to 1MB Slices</button>
 
-      <h3>DAG Context & Slices</h3>
-      <div id="graph-manifest" class="graph-box">No 1MB slices found in IndexedDB.</div>
-      <button id="btn-export-slice" style="width: 100%; background: var(--bg-input); border: 1px solid var(--border);">Download Slice Envelope</button>
+            <div id="progress-container" style="display: none;">
+              <div class="progress-track">
+                <div id="progress-fill" class="progress-fill"></div>
+              </div>
+              <span id="progress-text" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; display: block;">0%</span>
+            </div>
+          </div>
 
-      <hr style="border:0; border-top: 1px solid var(--border);">
-
-      <h3>WebRTC Mesh PIN Cluster</h3>
-      <div>
-        <button id="btn-host-pin" style="width: 100%; margin-bottom: 8px;">Create Host PIN</button>
-        <textarea id="host-token-out" class="pin-box" placeholder="Host SDP token..." readonly></textarea>
-      </div>
-
-      <div>
-        <textarea id="join-token-in" class="pin-box" placeholder="Paste peer signal here..."></textarea>
-        <button id="btn-connect-pin" style="width: 100%; margin-top: 8px;">Connect via Token</button>
-      </div>
-
-      <div style="margin-top: auto;">
-        <span class="badge" id="peer-status">0 Peers Connected</span>
-      </div>
-    </aside>
-
-    <main id="chat-panel">
-      <header>
-        <div>
-          <h1 style="font-size: 1.2rem;">Shared LLM Workspace</h1>
-          <span id="node-label" style="font-size: 0.75rem; color: var(--text-muted);">Node: Initializing...</span>
+          <div class="settings-card">
+            <h3>DAG Slices & Context</h3>
+            <div id="graph-manifest" class="graph-box">No 1MB slices found in IndexedDB.</div>
+            <button id="btn-export-slice" class="secondary-btn">Download 1MB Envelope</button>
+          </div>
         </div>
-        <div>
-          <span class="badge" id="engine-status">Engine: WASM Unloaded</span>
+      </section>
+
+      <!-- View 3: Mesh Network & WebRTC PIN Connection -->
+      <section id="view-mesh" class="app-view">
+        <div class="settings-content">
+          <div class="settings-card">
+            <h3>Host Peer Session</h3>
+            <button id="btn-host-pin">Generate Host PIN</button>
+            <textarea id="host-token-out" class="pin-box" placeholder="Your Host SDP Token..." readonly></textarea>
+          </div>
+
+          <div class="settings-card">
+            <h3>Join Peer Session</h3>
+            <textarea id="join-token-in" class="pin-box" placeholder="Paste Remote Token Here..."></textarea>
+            <button id="btn-connect-pin">Connect Peer</button>
+          </div>
+
+          <div class="settings-card" style="align-items: center;">
+            <span class="badge" id="peer-status">0 Peers Connected</span>
+          </div>
         </div>
-      </header>
+      </section>
 
-      <section id="chat-stream"></section>
+    </div>
 
-      <footer>
-        <input type="text" id="input-prompt" placeholder="Message offline LLM...">
-        <button id="btn-send">Send</button>
-      </footer>
-    </main>
+    <!-- Bottom Navigation Bar -->
+    <nav class="bottom-nav">
+      <button class="nav-tab active" data-target="view-chat">
+        <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+        <span>Chat</span>
+      </button>
+
+      <button class="nav-tab" data-target="view-models">
+        <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+        <span>Models</span>
+      </button>
+
+      <button class="nav-tab" data-target="view-mesh">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+        <span>Mesh PIN</span>
+      </button>
+    </nav>
   </div>
 
   <script type="module" src="app.js"></script>
