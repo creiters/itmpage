@@ -3,7 +3,7 @@ import { ChunkManager } from './chunker.js';
 import { HuggingFaceDownloader } from './downloader.js';
 import { MeshCoordinator } from './mesh.js';
 
-// 1. Service Worker Offline PWA Registration
+// 1. Service Worker Registration for Offline-First PWA
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(console.error);
 }
@@ -12,7 +12,7 @@ if ('serviceWorker' in navigator) {
 const nodeId = 'Node_' + Math.random().toString(36).substring(2, 7);
 document.getElementById('node-label').textContent = `Node ID: ${nodeId}`;
 
-// 3. UI Selectors
+// 3. UI Element References
 const chatStream = document.getElementById('chat-stream');
 const inputPrompt = document.getElementById('input-prompt');
 const btnSend = document.getElementById('btn-send');
@@ -30,7 +30,7 @@ const joinTokenIn = document.getElementById('join-token-in');
 const btnHostPin = document.getElementById('btn-host-pin');
 const btnConnectPin = document.getElementById('btn-connect-pin');
 
-// 4. Persistence & Workers
+// 4. Persistence & Worker Initialization
 const storage = new StorageService();
 await storage.init();
 
@@ -41,7 +41,7 @@ const worker = new Worker('./llm-worker.js', { type: 'module' });
 let currentChunks = [];
 let pendingMeshChunk = null;
 
-// 5. Model Loading from Existing IndexedDB Slices
+// 5. Cache Validation and Engine Bootstrap
 async function loadSlicesFromCache() {
   const modelKey = selectModel.value;
   currentChunks = await storage.getModelChunks(modelKey);
@@ -60,12 +60,21 @@ async function loadSlicesFromCache() {
       engineStatus.textContent = 'Assembly Failed: ' + err.message;
     }
   } else {
-    engineStatus.textContent = 'Engine: Slices Not Found';
+    engineStatus.textContent = 'Engine: No local slices. Initializing fallback mode...';
+    worker.postMessage({
+      type: 'INIT_ENGINE',
+      payload: { modelName: 'Standalone Engine' }
+    });
   }
 }
 await loadSlicesFromCache();
 
-// 6. Mesh Engine Integration
+// Reload cached slices when selecting a different model from the dropdown
+selectModel.addEventListener('change', async () => {
+  await loadSlicesFromCache();
+});
+
+// 6. WebRTC Mesh Protocol Integration
 const mesh = new MeshCoordinator(
   nodeId,
   async (msg, peerKey, channel) => {
@@ -78,7 +87,7 @@ const mesh = new MeshCoordinator(
         await loadSlicesFromCache();
       }
     } else if (msg.type === 'INFERENCE_REQUEST') {
-      // Execute delegated compute task for peer
+      // Execute delegated compute job for a peer node
       worker.postMessage({
         type: 'INFER',
         payload: { prompt: msg.prompt, taskId: msg.taskId }
@@ -105,7 +114,7 @@ const mesh = new MeshCoordinator(
   }
 );
 
-// 7. Download & 1MB Splitting Pipeline
+// 7. Hugging Face Stream Fetch & 1MB Splitting Pipeline
 btnDownloadSplit.addEventListener('click', async () => {
   const modelKey = selectModel.value;
   btnDownloadSplit.disabled = true;
@@ -131,7 +140,7 @@ btnDownloadSplit.addEventListener('click', async () => {
       }
     );
 
-    engineStatus.textContent = 'Writing slices to IndexedDB...';
+    engineStatus.textContent = 'Persisting slices to IndexedDB...';
     for (const chunk of currentChunks) {
       await storage.putChunk(chunk);
     }
@@ -145,7 +154,7 @@ btnDownloadSplit.addEventListener('click', async () => {
       payload: { wasmBinary: binary, modelName: modelKey }
     });
 
-    progressText.textContent = 'Ready for offline usage.';
+    progressText.textContent = 'Model loaded and ready for offline inference.';
   } catch (err) {
     engineStatus.textContent = 'Operation Error';
     progressText.textContent = err.message;
@@ -155,7 +164,10 @@ btnDownloadSplit.addEventListener('click', async () => {
 });
 
 function updateDAGManifest(chunks) {
-  if (!chunks.length) return;
+  if (!chunks.length) {
+    graphManifest.innerHTML = 'No 1MB slices found in IndexedDB.';
+    return;
+  }
   const first = chunks[0].metadata;
   const last = chunks[chunks.length - 1].metadata;
 
@@ -183,7 +195,7 @@ btnExportSlice.addEventListener('click', () => {
   URL.revokeObjectURL(blobUrl);
 });
 
-// 9. Inference Coordination & Stream UI
+// 9. Chat Stream Coordination
 let currentBubble = null;
 
 function renderMessage(role, text) {
@@ -205,7 +217,7 @@ function updateAssistantBubble(text) {
 }
 
 worker.onmessage = (e) => {
-  const { type, status, token, fullText, done, message } = e.data;
+  const { type, status, fullText, done, message } = e.data;
   if (type === 'STATUS') engineStatus.textContent = `Engine: ${status}`;
   if (type === 'ERROR') engineStatus.textContent = message;
   if (type === 'TOKEN') {
@@ -256,7 +268,7 @@ btnConnectPin.addEventListener('click', async () => {
     const raw = MeshCoordinator.decodePayload(input);
     if (raw.sdp.type === 'offer') {
       const answer = await mesh.acceptTokenAndCreateAnswer(input);
-      joinTokenIn.value = answer; // Copy back to host
+      joinTokenIn.value = answer;
     } else if (raw.sdp.type === 'answer') {
       await mesh.finalizeHostConnection(input);
     }
