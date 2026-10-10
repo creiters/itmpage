@@ -12,24 +12,33 @@ export class SimpleBPETokenizer {
   }
 
   encode(text) {
-    if (!text) return [];
+    if (!text) return [1];
+    const cleanText = text.trim();
     const tokenIds = [];
-    // Clean token splitting for sentence fragments
-    const parts = text.split(/(\s+|[^\w\s])/);
 
-    for (const p of parts) {
-      if (!p) continue;
-      const formatted = 'Ġ' + p; // BPE leading whitespace mark
-      if (this.tokenToId.has(formatted)) {
-        tokenIds.push(this.tokenToId.get(formatted));
-      } else if (this.tokenToId.has(p)) {
-        tokenIds.push(this.tokenToId.get(p));
+    // Check BOS
+    if (this.tokenToId.has('<|im_start|>')) {
+      tokenIds.push(this.tokenToId.get('<|im_start|>'));
+    }
+
+    // Split words preserving whitespace
+    const words = cleanText.split(/(\s+)/);
+    for (let word of words) {
+      if (!word) continue;
+      const bpeWord = word.startsWith(' ') ? 'Ġ' + word.trim() : word;
+
+      if (this.tokenToId.has(bpeWord)) {
+        tokenIds.push(this.tokenToId.get(bpeWord));
+      } else if (this.tokenToId.has(word)) {
+        tokenIds.push(this.tokenToId.get(word));
       } else {
-        const bytes = new TextEncoder().encode(p);
-        for (const b of bytes) {
-          const ch = String.fromCharCode(b);
+        // Character fallback
+        for (let i = 0; i < word.length; i++) {
+          const ch = word[i];
           if (this.tokenToId.has(ch)) {
             tokenIds.push(this.tokenToId.get(ch));
+          } else {
+            tokenIds.push(0); // unknown
           }
         }
       }
@@ -41,11 +50,11 @@ export class SimpleBPETokenizer {
     const raw = this.idToToken.get(tokenId);
     if (!raw) return '';
 
-    // Ignore special system control tokens
+    // Ignore special system control tags
     if (raw.startsWith('<|') && raw.endsWith('|>')) return '';
     if (raw === '<s>' || raw === '</s>') return '';
 
-    // Replace byte-pair whitespace markers with regular space
+    // Convert BPE space markers back to space
     return raw.replace(/Ġ/g, ' ').replace(/ /g, ' ');
   }
 }
