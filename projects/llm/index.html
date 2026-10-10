@@ -11,6 +11,17 @@
   <div id="layout">
     <!-- Header -->
     <header class="app-header">
+<!-- Inside #layout, right before <header class="app-header"> -->
+<div id="update-toast" role="alert">
+  <div class="update-toast-content">
+    <div class="update-toast-title">Update Available</div>
+    <div class="update-toast-desc">A new version of the app is ready.</div>
+  </div>
+  <div class="update-actions">
+    <button id="btn-apply-update" class="update-btn-refresh">Reload</button>
+    <button id="btn-dismiss-update" class="update-btn-dismiss">✕</button>
+  </div>
+</div>
       <div>
         <div class="brand-title">Shared LLM</div>
         <div id="node-label" style="font-size: 0.7rem; color: var(--text-muted);">Node: Initializing...</div>
@@ -33,6 +44,14 @@
       <!-- View 2: Model & DAG Slice Manager -->
       <section id="view-models" class="app-view">
         <div class="settings-content">
+<!-- Inside <section id="view-models"> inside .settings-content -->
+<div class="settings-card">
+  <h3>Application Maintenance</h3>
+  <span class="field-label">Check for updated application shell, WASM kernels, and UI</span>
+  <button id="btn-check-update" class="secondary-btn">Check for App Updates</button>
+  <span id="update-status-label" style="font-size: 0.75rem; color: var(--text-muted); text-align: center; display: block;">App is up to date</span>
+</div>
+
           <div class="settings-card">
             <h3>Download Model</h3>
             <span class="field-label">Repository & Architecture</span>
