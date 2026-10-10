@@ -41,6 +41,35 @@ const worker = new Worker('./llm-worker.js', { type: 'module' });
 let currentChunks = [];
 let pendingMeshChunk = null;
 
+// Bottom Navigation Tab Routing
+const navTabs = document.querySelectorAll('.nav-tab');
+const appViews = document.querySelectorAll('.app-view');
+
+navTabs.forEach((tab) => {
+  tab.addEventListener('click', () => {
+    const targetId = tab.getAttribute('data-target');
+
+    // Update active tab button style
+    navTabs.forEach((t) => t.classList.remove('active'));
+    tab.classList.add('active');
+
+    // Display targeted view container
+    appViews.forEach((view) => {
+      if (view.id === targetId) {
+        view.classList.add('active');
+      } else {
+        view.classList.remove('active');
+      }
+    });
+
+    // Auto-scroll chat to latest message on opening chat tab
+    if (targetId === 'view-chat') {
+      chatStream.scrollTop = chatStream.scrollHeight;
+    }
+  });
+});
+
+
 // 5. Cache Validation and Engine Bootstrap
 async function loadSlicesFromCache() {
   const modelKey = selectModel.value;
