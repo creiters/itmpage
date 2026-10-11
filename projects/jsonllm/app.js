@@ -122,17 +122,22 @@ llmWorker.onmessage = async (e) => {
     if (metricTPS) metricTPS.textContent = tps;
     if (metricTTFT) metricTTFT.textContent = `${ttft} ms`;
 
-    if (tokenTopKBars && topCandidates) {
-      tokenTopKBars.innerHTML = topCandidates.map((c) => `
-        <div class="topk-bar-row">
-          <span class="topk-label">${c.word}</span>
-          <div class="topk-track">
-            <div class="topk-fill" style="width: ${Math.max(10, Math.min(100, (parseFloat(c.logit) + 15) * 3))}%"></div>
-          </div>
-          <span style="font-size:0.65rem; color:var(--text-muted);">${c.logit}</span>
+    // Inside llmWorker.onmessage handler for type === 'TELEMETRY':
+if (tokenTopKBars && topCandidates) {
+  tokenTopKBars.innerHTML = topCandidates.map((c) => {
+    const fillWidth = Math.max(10, Math.min(100, (parseFloat(c.logit) + 15) * 3));
+    return `
+      <div class="topk-bar-row">
+        <span class="topk-label">${c.word}</span>
+        <div class="topk-track">
+          <div class="topk-fill" style="width: ${fillWidth}%;"></div>
         </div>
-      `).join('');
-    }
+        <span class="topk-score">${c.logit}</span>
+      </div>
+    `;
+  }).join('');
+}
+
   }
 
   if (type === 'TOKEN') {
