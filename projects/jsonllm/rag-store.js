@@ -1,8 +1,3 @@
-/**
- * rag-store.js
- * In-browser vector embedding store & cosine retrieval engine
- */
-
 export class LocalRAG {
   constructor(dim = 64) {
     this.dim = dim;
