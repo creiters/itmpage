@@ -1,14 +1,8 @@
-/**
- * webmcp-worker.js
- * On-Device Training & WebMCP Server Worker (Clean JSON)
- */
-
 import { NanoTransformer } from './nano-engine.js';
 import { StorageService } from './storage.js';
 import { LocalRAG } from './rag-store.js';
 import { JSONLLMCodec } from './jsonllm-codec.js';
 import { WebMCPServer } from './webmcp-server.js';
-import { DOMAIN_SPECS, DomainTokenizer } from './domain-specs.js';
 
 let engine = null;
 let storage = null;
@@ -16,16 +10,14 @@ let rag = null;
 let server = null;
 
 (async () => {
-  const spec = DOMAIN_SPECS.dialog;
-  const tokenizer = new DomainTokenizer(spec);
-  engine = new NanoTransformer({ ...spec, vocabSize: tokenizer.vocabSize });
-
   storage = new StorageService();
   await storage.init();
   rag = new LocalRAG(64);
   await rag.init(storage);
 
+  engine = new NanoTransformer({ dim: 64, layers: 2, heads: 2, vocabSize: 96, maxSeqLen: 48 });
   server = new WebMCPServer(engine, storage, rag, JSONLLMCodec);
+
   self.postMessage({ type: 'STATUS', status: 'WebMCP Ready' });
 })();
 
@@ -37,17 +29,16 @@ self.onmessage = async (e) => {
     self.postMessage({ type: 'WEBMCP_RESPONSE', payload: res });
   }
 
-  if (type === 'TRAIN_CORPUS') {
-    const { domain, text, epochs = 5, lr = 0.003 } = payload;
-    const spec = DOMAIN_SPECS[domain] || DOMAIN_SPECS.dialog;
-    const tok = new DomainTokenizer(spec);
-    engine.swapWeights(spec, engine.weights);
+  if (type === 'START_TRAIN') {
+    const { text, epochs = 5, lr = 0.003 } = payload;
+    const tokens = engine.tokenizer.encode(text);
 
-    const tokens = tok.encode(text);
+    self.postMessage({ type: 'LOG', category: 'TRAIN', text: `Training ${tokens.length} tokens for ${epochs} epochs...` });
+
     let loss = 0;
-
     for (let ep = 1; ep <= epochs; ep++) {
-      loss = engine.trainStep(tokens, lr);
+      loss = engine.trainSequence(tokens, lr);
+
       self.postMessage({
         type: 'TRAIN_PROGRESS',
         payload: {
@@ -61,47 +52,44 @@ self.onmessage = async (e) => {
       await new Promise((r) => setTimeout(r, 0));
     }
 
-    // Direct clean JSON export
-    const jsonStr = await JSONLLMCodec.exportToJSONLLM(spec, engine.weights);
-    await storage.putModel(spec.modelName, jsonStr);
-
     self.postMessage({
       type: 'TRAIN_DONE',
       loss: loss.toFixed(4),
-      ppl: Math.exp(Math.min(10, loss)).toFixed(2),
-      sizeKb: (jsonStr.length / 1024).toFixed(1)
+      ppl: Math.exp(Math.min(10, loss)).toFixed(2)
     });
   }
 
-  if (type === 'SAVE_JSON_MODEL') {
-    const { domain } = payload;
-    const spec = DOMAIN_SPECS[domain] || DOMAIN_SPECS.dialog;
-    const jsonStr = await JSONLLMCodec.exportToJSONLLM(spec, engine.weights);
-    await storage.putModel(spec.modelName, jsonStr);
+  if (type === 'GENERATE_JSONLLM') {
+    const modelName = payload?.modelName || 'agent-dialog';
+    const jsonString = await JSONLLMCodec.exportToJSONLLM(
+      { dim: engine.dim, layers: engine.layers, heads: engine.heads, vocabSize: engine.vocabSize, maxSeqLen: engine.maxSeqLen },
+      engine.tokenizer,
+      engine.weights
+    );
+
+    await storage.putModel(modelName, jsonString);
 
     self.postMessage({
-      type: 'SAVE_JSON_COMPLETE',
-      payload: { modelName: spec.modelName, sizeKb: (jsonStr.length / 1024).toFixed(1) }
-    });
-  }
-
-  if (type === 'EXPORT_JSONLLM') {
-    const { modelName } = payload;
-    const jsonString = await storage.getModel(modelName);
-    self.postMessage({
-      type: 'EXPORT_JSONLLM_COMPLETE',
-      payload: { modelName, jsonString }
+      type: 'GENERATE_JSONLLM_SUCCESS',
+      payload: {
+        modelName,
+        jsonString,
+        sizeKb: (jsonString.length / 1024).toFixed(1)
+      }
     });
   }
 
   if (type === 'IMPORT_JSONLLM') {
     const { jsonString, modelName } = payload;
-    const decoded = await JSONLLMCodec.importFromJSONLLM(jsonString);
+    const dec = await JSONLLMCodec.importFromJSONLLM(jsonString);
+    engine.dim = dec.config.dim;
+    engine.layers = dec.config.layers;
+    engine.weights = dec.weights;
     await storage.putModel(modelName, jsonString);
 
     self.postMessage({
-      type: 'IMPORT_JSONLLM_COMPLETE',
-      payload: { modelName, config: decoded.config }
+      type: 'IMPORT_JSONLLM_SUCCESS',
+      payload: { modelName, sizeKb: (jsonString.length / 1024).toFixed(1) }
     });
   }
 };
