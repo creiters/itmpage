@@ -1,8 +1,8 @@
 {
-  "$schema": "https://modelcontextprotocol.io/schema/2024-11-05/server.json",
+  "$schema": "https://modelcontextprotocol.io/schema/2024-11-05/schema.json",
   "name": "browser-jsonllm-server",
   "version": "2.0.0",
-  "description": "Clean browser-native Model Context Protocol server powered by JSON models",
+  "description": "Browser-native Model Context Protocol server generating and serving JSONLLM models",
   "capabilities": {
     "tools": { "listChanged": true },
     "resources": { "subscribe": false, "listChanged": true },
@@ -11,7 +11,7 @@
   "tools": [
     {
       "name": "train_model_step",
-      "description": "Train on-device weights with AdamW on arbitrary text",
+      "description": "Executes on-device backpropagation using AdamW on target text",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -22,18 +22,18 @@
       }
     },
     {
-      "name": "save_model_to_json",
-      "description": "Persist the trained model into IndexedDB as a clean JSON document",
+      "name": "generate_jsonllm",
+      "description": "Compacts current transformer weights into a 4-bit Deflate JSONLLM envelope and stores it in IndexedDB",
       "inputSchema": {
         "type": "object",
         "properties": {
-          "modelName": { "type": "string", "default": "agent-dialog" }
+          "modelName": { "type": "string", "default": "browser-nano-llm" }
         }
       }
     },
     {
-      "name": "rag_index_fact",
-      "description": "Store a text guideline into the local vector RAG database",
+      "name": "rag_index_document",
+      "description": "Indexes a text document into the local Vector RAG store",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -47,12 +47,12 @@
   "resources": [
     {
       "uri": "jsonllm://models/active",
-      "name": "Active In-Memory JSON Model",
+      "name": "Active In-Memory JSONLLM",
       "mimeType": "application/json"
     },
     {
-      "uri": "jsonllm://rag/index",
-      "name": "Vector RAG Index",
+      "uri": "jsonllm://rag/documents",
+      "name": "Vector RAG Semantic Index",
       "mimeType": "application/json"
     }
   ]
