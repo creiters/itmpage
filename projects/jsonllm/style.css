@@ -31,7 +31,7 @@ body {
 
 #layout {
   width: 100%;
-  max-width: 960px;
+  max-width: 900px;
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -228,6 +228,21 @@ button.danger-btn {
   color: var(--text-muted);
 }
 
+.progress-track {
+  width: 100%;
+  height: 6px;
+  background-color: var(--bg-input);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background-color: var(--accent-glow);
+  transition: width 0.15s ease-out;
+}
+
 .db-table {
   width: 100%;
   border-collapse: collapse;
@@ -260,17 +275,12 @@ button.danger-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  font-size: 0.68rem;
-  gap: 3px;
+  font-size: 0.7rem;
+  gap: 2px;
   cursor: pointer;
+  padding: 6px 0;
 }
 
 .nav-tab.active {
   color: var(--accent-glow);
-}
-
-.nav-tab svg {
-  width: 18px;
-  height: 18px;
-  fill: currentColor;
 }
