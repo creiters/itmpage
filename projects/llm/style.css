@@ -420,3 +420,59 @@ button:disabled {
 #update-toast.show {
   transform: translateX(-50%) translateY(0);
 }
+
+/* IndexedDB Table View */
+.table-container {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--bg-core);
+}
+
+.db-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  text-align: left;
+}
+
+.db-table th {
+  background-color: var(--bg-input);
+  padding: 8px 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.db-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(55, 65, 81, 0.5);
+  color: var(--text-main);
+  white-space: nowrap;
+  font-family: monospace;
+}
+
+.db-table tr:last-child td {
+  border-bottom: none;
+}
+
+.db-table tr:hover {
+  background-color: rgba(99, 102, 241, 0.05);
+}
+
+.log-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.log-tag.CHUNK_SEARCH { background-color: #0284c7; color: #fff; }
+.log-tag.INFERENCE { background-color: #4f46e5; color: #fff; }
+.log-tag.WASM { background-color: #10b981; color: #fff; }
+.log-tag.WEBRTC { background-color: #8b5cf6; color: #fff; }
+.log-tag.ERROR { background-color: #ef4444; color: #fff; }
+.log-tag.STORAGE { background-color: #f59e0b; color: #fff; }
