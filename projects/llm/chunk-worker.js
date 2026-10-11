@@ -1,9 +1,9 @@
-import { MerkleChunker } from './merkle-chunker.js';
+import { ChunkIndexer } from './chunk-indexer.js';
 import { StorageService } from './storage.js';
 
 let storage = null;
 let computeWorkerPort = null;
-let activeManifest = [];
+let activeManifest = null;
 let activeModelName = '';
 
 async function ensureStorage() {
@@ -20,11 +20,11 @@ self.onmessage = async (e) => {
     computeWorkerPort = e.ports[0];
     computeWorkerPort.onmessage = async (event) => {
       const req = event.data;
-      if (req.type === 'REQUEST_CHUNK_BY_INDEX') {
-        await handleComputeChunkRequest(req.index, req.modelName);
+      if (req.type === 'REQUEST_SEGMENT_FOR_LAYER') {
+        await handleLayerSegmentRequest(req.layerIndex, req.modelName);
       }
     };
-    self.postMessage({ type: 'LOG', category: 'STORAGE', text: 'Direct MessageChannel linked to Compute Worker.' });
+    self.postMessage({ type: 'LOG', category: 'STORAGE', text: 'Fast Segment Port bound to Compute Worker.' });
     return;
   }
 
@@ -35,52 +35,36 @@ self.onmessage = async (e) => {
     activeModelName = modelName;
 
     try {
-      const quota = await storage.getStorageQuota();
-      if (quota.quotaBytes > 0 && quota.usageBytes + modelBlob.size > quota.quotaBytes) {
-        throw new Error(`Insufficient storage: ${quota.usageMB}MB used of ${quota.quotaMB}MB quota.`);
-      }
+      self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Purging previous segments for ${modelName}...` });
+      await storage.deleteModelChunks(modelName);
 
-      self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Storage check passed. Quota used: ${quota.percentUsed}%.` });
-      self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Building 4MB Merkle tree for ${modelName}...` });
+      self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Generating Segment Interval Map & Murmur3 Checksums...` });
+      const t0 = performance.now();
 
-      const { rootHash, chunks } = await MerkleChunker.splitToMerkleChunks(
+      const { manifest, chunks } = await ChunkIndexer.splitAndIndex(
         modelBlob,
         modelName,
-        (progress) => {
-          self.postMessage({ type: 'CHUNK_PROGRESS', progress });
-        }
+        (progress) => self.postMessage({ type: 'CHUNK_PROGRESS', progress })
       );
 
-      await storage.setSystemKey(`${modelName}_merkle_root`, rootHash);
-
-      self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Writing ${chunks.length} 4MB chunks via batch transaction...` });
-      await storage.batchPutChunks(chunks, (completed, total) => {
-        if (completed % 5 === 0 || completed === total) {
-          self.postMessage({
-            type: 'LOG',
-            category: 'STORAGE',
-            text: `Batch commit: stored ${completed}/${total} chunks`
-          });
-        }
+      const indexElapsed = (performance.now() - t0).toFixed(1);
+      self.postMessage({
+        type: 'LOG',
+        category: 'STORAGE',
+        text: `Indexed ${chunks.length} segments in ${indexElapsed} ms (${(modelBlob.size / 1024 / 1024).toFixed(1)} MB).`
       });
 
-      activeManifest = chunks.map((c, i) => ({
-        chunkId: c.metadata.chunkId,
-        index: i,
-        layerRange: c.metadata.context.layerRange,
-        byteOffset: c.metadata.byteOffset,
-        byteLength: c.binary.byteLength,
-        hash: c.metadata.chunkHash
-      }));
+      await storage.saveManifest(manifest);
+      await storage.batchPutChunks(chunks);
 
-      const unifiedBinary = await MerkleChunker.reassemble(chunks, rootHash);
+      activeManifest = manifest;
+      const unifiedBinary = ChunkIndexer.reassemble(chunks, manifest);
 
       self.postMessage({
         type: 'SPLIT_COMPLETE',
         payload: {
           modelName,
-          rootHash,
-          manifest: activeManifest,
+          manifest,
           chunkCount: chunks.length
         }
       });
@@ -90,13 +74,13 @@ self.onmessage = async (e) => {
           type: 'LOAD_MODEL_PAYLOAD',
           payload: {
             modelName,
-            manifest: activeManifest,
+            manifest,
             modelBinary: unifiedBinary
           }
         }, [unifiedBinary]);
       }
     } catch (err) {
-      self.postMessage({ type: 'ERROR', message: `Chunk worker failure: ${err.message}` });
+      self.postMessage({ type: 'ERROR', message: `Segment indexing failed: ${err.message}` });
     }
   }
 
@@ -105,32 +89,37 @@ self.onmessage = async (e) => {
     activeModelName = modelName;
 
     try {
+      const manifest = await storage.getManifest(modelName);
       const chunks = await storage.getModelChunks(modelName);
-      if (chunks.length === 0) {
+
+      if (!manifest || chunks.length === 0) {
         self.postMessage({ type: 'CHUNKS_EMPTY', payload: { modelName } });
         return;
       }
 
-      const storedRoot = await storage.getSystemKey(`${modelName}_merkle_root`);
-      self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Validating Merkle DAG for ${chunks.length} cached chunks...` });
+      self.postMessage({
+        type: 'LOG',
+        category: 'STORAGE',
+        text: `Verifying ${chunks.length} segments via Fast Checksum Map...`
+      });
 
-      const unifiedBinary = await MerkleChunker.reassemble(chunks, storedRoot);
+      const t0 = performance.now();
+      const unifiedBinary = ChunkIndexer.reassemble(chunks, manifest);
+      const verifyTime = (performance.now() - t0).toFixed(1);
 
-      activeManifest = chunks.map((c, i) => ({
-        chunkId: c.metadata.chunkId,
-        index: i,
-        layerRange: c.metadata.context.layerRange,
-        byteOffset: c.metadata.byteOffset,
-        byteLength: c.binary.byteLength,
-        hash: c.metadata.chunkHash
-      }));
+      self.postMessage({
+        type: 'LOG',
+        category: 'STORAGE',
+        text: `All ${chunks.length} segments verified and reassembled in ${verifyTime} ms.`
+      });
+
+      activeManifest = manifest;
 
       self.postMessage({
         type: 'CHUNKS_READY',
         payload: {
           modelName,
-          rootHash: storedRoot,
-          manifest: activeManifest,
+          manifest,
           chunkCount: chunks.length
         }
       });
@@ -140,32 +129,33 @@ self.onmessage = async (e) => {
           type: 'LOAD_MODEL_PAYLOAD',
           payload: {
             modelName,
-            manifest: activeManifest,
+            manifest,
             modelBinary: unifiedBinary
           }
         }, [unifiedBinary]);
       }
     } catch (err) {
-      self.postMessage({ type: 'ERROR', message: `Cache load failed: ${err.message}` });
+      self.postMessage({ type: 'ERROR', message: `Segment verification failed: ${err.message}` });
     }
   }
 };
 
-async function handleComputeChunkRequest(index, modelName) {
-  try {
-    const chunkId = `${modelName}_chunk_4mb_${index}`;
-    const chunk = await storage.getChunk(chunkId);
-    if (!chunk || !computeWorkerPort) return;
+async function handleLayerSegmentRequest(layerIndex, modelName) {
+  if (!activeManifest || !computeWorkerPort) return;
+  const segmentIndices = ChunkIndexer.findSegmentsByLayer(activeManifest, layerIndex);
 
-    computeWorkerPort.postMessage({
-      type: 'DELIVER_PAGED_CHUNK',
-      payload: {
-        index,
-        metadata: chunk.metadata,
-        binary: chunk.binary
-      }
-    }, [chunk.binary]);
-  } catch (err) {
-    self.postMessage({ type: 'ERROR', message: `Paging failed for chunk #${index}: ${err.message}` });
+  for (const idx of segmentIndices) {
+    const chunkId = `${modelName}_seg_${idx}`;
+    const chunk = await storage.getChunk(chunkId);
+    if (chunk) {
+      computeWorkerPort.postMessage({
+        type: 'DELIVER_PAGED_CHUNK',
+        payload: {
+          index: idx,
+          metadata: chunk.metadata,
+          binary: chunk.binary
+        }
+      }, [chunk.binary]);
+    }
   }
 }
