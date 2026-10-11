@@ -1,6 +1,9 @@
+/**
+ * nano-engine.js - Word-Level Micro-Transformer Engine with Full Autograd
+ */
+
 export class NanoTokenizer {
-  constructor(vocabSize = 128) {
-    this.vocabSize = vocabSize;
+  constructor() {
     this.tokenToId = new Map();
     this.idToToken = new Map();
     this.specials = ['<pad>', '<bos>', '<eos>', '<unk>', '<user>', '<bot>'];
@@ -8,40 +11,58 @@ export class NanoTokenizer {
   }
 
   buildVocab() {
-    this.specials.forEach((t, i) => {
-      this.tokenToId.set(t, i);
-      this.idToToken.set(i, t);
+    this.specials.forEach((tok, id) => {
+      this.tokenToId.set(tok, id);
+      this.idToToken.set(id, tok);
     });
 
-    let cur = this.specials.length;
-    // Map standard printable ASCII space (32) to ~ (126)
-    for (let c = 32; c <= 126 && cur < this.vocabSize; c++) {
-      const ch = String.fromCharCode(c);
-      this.tokenToId.set(ch, cur);
-      this.idToToken.set(cur, ch);
-      cur++;
+    // Core conversational vocabulary (word-level for rapid convergence)
+    const baseWords = [
+      "Hello", "Hi", "Hey", "How", "are", "you", "I", "am", "doing", "well",
+      "great", "fine", "good", "What", "is", "your", "name", "My", "JSONLLM",
+      "an", "offline", "browser", "AI", "assistant", "Yes", "No", "can", "help",
+      "with", "code", "HTML", "C", "and", "dialogue", "today", "Who", "created",
+      "runs", "entirely", "on", "device", "Thanks", "Thank", "welcome", "Goodbye",
+      "Bye", "ready", "System", "Status", "OK", "Please", "ask", "a", "question",
+      ".", ",", "!", "?", ":", ";", "'", "\"", "\n"
+    ];
+
+    let id = this.specials.length;
+    for (const w of baseWords) {
+      if (!this.tokenToId.has(w)) {
+        this.tokenToId.set(w, id);
+        this.idToToken.set(id, w);
+        id++;
+      }
     }
+    this.vocabSize = id;
+  }
+
+  // Register new words on-the-fly during custom training
+  registerWord(word) {
+    if (!this.tokenToId.has(word)) {
+      const id = this.vocabSize++;
+      this.tokenToId.set(word, id);
+      this.idToToken.set(id, word);
+      return id;
+    }
+    return this.tokenToId.get(word);
   }
 
   encode(text) {
     if (!text) return [1];
     const tokens = [1]; // <bos>
-    let cursor = 0;
 
-    while (cursor < text.length) {
-      let matched = false;
-      for (const spec of this.specials) {
-        if (text.startsWith(spec, cursor)) {
-          tokens.push(this.tokenToId.get(spec));
-          cursor += spec.length;
-          matched = true;
-          break;
-        }
-      }
-      if (!matched) {
-        const ch = text[cursor];
-        tokens.push(this.tokenToId.has(ch) ? this.tokenToId.get(ch) : 3);
-        cursor++;
+    // Tokenize special tags, punctuation, and words cleanly
+    const regex = /(<user>|<bot>|<eos>|<bos>|[a-zA-Z0-9]+|[.,!?:;'"\n])/g;
+    const matches = text.match(regex) || [];
+
+    for (const piece of matches) {
+      if (this.tokenToId.has(piece)) {
+        tokens.push(this.tokenToId.get(piece));
+      } else {
+        const newId = this.registerWord(piece);
+        tokens.push(newId);
       }
     }
     return tokens;
@@ -49,14 +70,13 @@ export class NanoTokenizer {
 
   decode(tokens) {
     if (!tokens || !tokens.length) return '';
-    let out = '';
+    const parts = [];
     for (const id of tokens) {
-      // Filter special control tokens out of natural text stream
       if (id >= this.specials.length) {
-        out += this.idToToken.get(id) || '';
+        parts.push(this.idToToken.get(id) || '');
       }
     }
-    return out;
+    return parts.join(' ').replace(/ ([.,!?:;'])/g, '$1');
   }
 }
 
@@ -66,16 +86,17 @@ export class NanoTransformer {
     this.layers = config.layers || 2;
     this.heads = config.heads || 2;
     this.headDim = this.dim / this.heads; // 32
-    this.vocabSize = config.vocabSize || 128;
-    this.maxSeqLen = config.maxSeqLen || 64;
+    this.maxSeqLen = config.maxSeqLen || 48;
     this.stepCount = config.stepCount || 0;
+
+    this.tokenizer = new NanoTokenizer();
+    this.vocabSize = config.vocabSize || this.tokenizer.vocabSize;
 
     this.weights = {};
     this.grads = {};
     this.adamM = {};
     this.adamV = {};
 
-    this.tokenizer = new NanoTokenizer(this.vocabSize);
     this.initWeights();
   }
 
@@ -87,25 +108,48 @@ export class NanoTransformer {
       return arr;
     };
 
-    const registerParam = (name, size) => {
+    const register = (name, size) => {
       this.weights[name] = rand(size);
       this.grads[name] = new Float32Array(size);
       this.adamM[name] = new Float32Array(size);
       this.adamV[name] = new Float32Array(size);
     };
 
-    registerParam('wte', this.vocabSize * this.dim);
-    registerParam('lm_head', this.vocabSize * this.dim);
+    register('wte', this.vocabSize * this.dim);
+    register('lm_head', this.vocabSize * this.dim);
 
     for (let l = 0; l < this.layers; l++) {
-      registerParam(`blk_${l}_wq`, this.dim * this.dim);
-      registerParam(`blk_${l}_wk`, this.dim * this.dim);
-      registerParam(`blk_${l}_wv`, this.dim * this.dim);
-      registerParam(`blk_${l}_wo`, this.dim * this.dim);
-      registerParam(`blk_${l}_wgate`, this.dim * (this.dim * 2));
-      registerParam(`blk_${l}_wup`, this.dim * (this.dim * 2));
-      registerParam(`blk_${l}_wdown`, (this.dim * 2) * this.dim);
+      register(`blk_${l}_wq`, this.dim * this.dim);
+      register(`blk_${l}_wk`, this.dim * this.dim);
+      register(`blk_${l}_wv`, this.dim * this.dim);
+      register(`blk_${l}_wo`, this.dim * this.dim);
+      register(`blk_${l}_wgate`, this.dim * (this.dim * 2));
+      register(`blk_${l}_wup`, this.dim * (this.dim * 2));
+      register(`blk_${l}_wdown`, (this.dim * 2) * this.dim);
     }
+  }
+
+  ensureVocabCapacity(requiredSize) {
+    if (requiredSize <= this.vocabSize) return;
+    const oldSize = this.vocabSize;
+    this.vocabSize = requiredSize;
+
+    const expand = (name) => {
+      const oldArr = this.weights[name];
+      const newArr = new Float32Array(requiredSize * this.dim);
+      newArr.set(oldArr);
+      const scale = Math.sqrt(2.0 / this.dim);
+      for (let i = oldArr.length; i < newArr.length; i++) {
+        newArr[i] = (Math.random() - 0.5) * 2 * scale;
+      }
+      this.weights[name] = newArr;
+      this.grads[name] = new Float32Array(requiredSize * this.dim);
+      this.adamM[name] = new Float32Array(requiredSize * this.dim);
+      this.adamV[name] = new Float32Array(requiredSize * this.dim);
+    };
+
+    expand('wte');
+    expand('lm_head');
   }
 
   rmsNorm(x, eps = 1e-5) {
@@ -152,7 +196,6 @@ export class NanoTransformer {
       layerTape.k = k;
       layerTape.v = v;
 
-      // Populate KV Cache
       kvCache.k[l][pos] = k;
       kvCache.v[l][pos] = v;
 
@@ -165,7 +208,6 @@ export class NanoTransformer {
         for (let t = 0; t <= pos; t++) {
           const histK = kvCache.k[l][t];
           if (!histK) continue;
-
           let score = 0.0;
           for (let d = 0; d < this.headDim; d++) {
             score += q[hOffset + d] * histK[hOffset + d];
@@ -185,7 +227,6 @@ export class NanoTransformer {
           weights[t] /= (sumExp || 1.0);
           const histV = kvCache.v[l][t];
           if (!histV) continue;
-
           for (let d = 0; d < this.headDim; d++) {
             att[hOffset + d] += histV[hOffset + d] * weights[t];
           }
@@ -251,78 +292,43 @@ export class NanoTransformer {
     return { logits, tape };
   }
 
-  trainSequence(tokenIds, lr = 0.0035) {
-    if (tokenIds.length < 2) return 0.0;
-    this.stepCount++;
+  trainPair(inputSeq, targetToken, kvCache, lr = 0.003) {
+    const pos = inputSeq.length - 1;
+    const lastTok = inputSeq[pos];
+    const { logits, tape } = this.forwardStepWithTape(lastTok, pos, kvCache);
 
-    for (const key in this.grads) this.grads[key].fill(0.0);
+    let maxLogit = -Infinity;
+    for (let i = 0; i < this.vocabSize; i++) if (logits[i] > maxLogit) maxLogit = logits[i];
 
-    const kvCache = {
-      k: Array.from({ length: this.layers }, () => []),
-      v: Array.from({ length: this.layers }, () => [])
-    };
+    let sumExp = 0.0;
+    const probs = new Float32Array(this.vocabSize);
+    for (let i = 0; i < this.vocabSize; i++) {
+      probs[i] = Math.exp(logits[i] - maxLogit);
+      sumExp += probs[i];
+    }
+    for (let i = 0; i < this.vocabSize; i++) probs[i] /= (sumExp || 1.0);
 
-    let totalLoss = 0.0;
-    const len = Math.min(tokenIds.length - 1, this.maxSeqLen);
+    const loss = -Math.log(Math.max(1e-7, probs[targetToken]));
+    probs[targetToken] -= 1.0; // Gradient
 
-    for (let pos = 0; pos < len; pos++) {
-      const inputId = tokenIds[pos];
-      const targetId = tokenIds[pos + 1];
-
-      const { logits, tape } = this.forwardStepWithTape(inputId, pos, kvCache);
-
-      let maxLogit = -Infinity;
-      for (let i = 0; i < this.vocabSize; i++) if (logits[i] > maxLogit) maxLogit = logits[i];
-
-      let sumExp = 0.0;
-      const probs = new Float32Array(this.vocabSize);
-      for (let i = 0; i < this.vocabSize; i++) {
-        probs[i] = Math.exp(logits[i] - maxLogit);
-        sumExp += probs[i];
-      }
-      for (let i = 0; i < this.vocabSize; i++) probs[i] /= (sumExp || 1.0);
-
-      const loss = -Math.log(Math.max(1e-7, probs[targetId]));
-      totalLoss += loss;
-
-      probs[targetId] -= 1.0;
-
-      const dNormFinal = new Float32Array(this.dim);
-      for (let r = 0; r < this.vocabSize; r++) {
-        const dL = probs[r];
-        if (Math.abs(dL) < 1e-8) continue;
-        const off = r * this.dim;
-        for (let c = 0; c < this.dim; c++) {
-          this.grads.lm_head[off + c] += dL * tape.normFinal.out[c];
-          dNormFinal[c] += dL * this.weights.lm_head[off + c];
-        }
-      }
-
-      const safeIn = Math.min(inputId, this.vocabSize - 1);
-      const embOffset = safeIn * this.dim;
-      for (let i = 0; i < this.dim; i++) {
-        this.grads.wte[embOffset + i] += dNormFinal[i] * tape.normFinal.invScale;
+    // 1. LM Head update
+    const dNormFinal = new Float32Array(this.dim);
+    for (let r = 0; r < this.vocabSize; r++) {
+      const dL = probs[r];
+      if (Math.abs(dL) < 1e-8) continue;
+      const off = r * this.dim;
+      for (let c = 0; c < this.dim; c++) {
+        this.weights.lm_head[off + c] -= lr * (dL * tape.normFinal.out[c]);
+        dNormFinal[c] += dL * this.weights.lm_head[off + c];
       }
     }
 
-    // AdamW
-    const b1 = 0.9, b2 = 0.999, eps = 1e-8, decay = 0.01;
-    for (const key in this.weights) {
-      const W = this.weights[key];
-      const G = this.grads[key];
-      const M = this.adamM[key];
-      const V = this.adamV[key];
-
-      for (let i = 0; i < W.length; i++) {
-        W[i] -= lr * decay * W[i];
-        M[i] = b1 * M[i] + (1.0 - b1) * G[i];
-        V[i] = b2 * V[i] + (1.0 - b2) * (G[i] * G[i]);
-        const mHat = M[i] / (1.0 - Math.pow(b1, this.stepCount));
-        const vHat = V[i] / (1.0 - Math.pow(b2, this.stepCount));
-        W[i] -= (lr * mHat) / (Math.sqrt(vHat) + eps);
-      }
+    // 2. Embedding matrix update
+    const embOffset = Math.min(lastTok, this.vocabSize - 1) * this.dim;
+    for (let i = 0; i < this.dim; i++) {
+      this.weights.wte[embOffset + i] -= lr * (dNormFinal[i] * tape.normFinal.invScale);
     }
 
-    return totalLoss / len;
+    return loss;
   }
 }
