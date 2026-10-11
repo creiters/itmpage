@@ -9,12 +9,22 @@
 </head>
 <body>
   <div id="layout">
+    <!-- Clean Minimalist Studio Header -->
     <header class="app-header">
-      <div>
-        <div class="brand-title">vimtoLLM - all space inside! 10 on minus 84.</div>
-        <div id="node-label" class="node-label">Node: Initializing...</div>
+      <div class="brand-wrap">
+        <div class="brand-dot"></div>
+        <div>
+          <div class="brand-title">vimtoLLM</div>
+          <div class="brand-sub">all space inside! 10 on minus 84.</div>
+        </div>
       </div>
-      <div id="engine-status" class="badge ready">Engine: Standby</div>
+      <div>
+        <select id="select-active-agent" style="width: auto; padding: 6px 12px; font-size: 0.75rem;">
+          <option value="vimto-dialog" selected>Agent: vimto-dialog</option>
+          <option value="vimto-code">Agent: vimto-code</option>
+          <option value="vimto-reasoner">Agent: vimto-reasoner</option>
+        </select>
+      </div>
     </header>
 
     <div class="view-viewport">
@@ -23,36 +33,57 @@
       <section id="view-chat" class="app-view active">
         <div id="chat-stream"></div>
         <div class="chat-input-bar">
-          <input type="text" id="input-prompt" placeholder="Message vimtoLLM (RAG active)...">
+          <input type="text" id="input-prompt" placeholder="Message active vimtoLLM agent (RAG context enabled)...">
           <button id="btn-send">Send</button>
         </div>
       </section>
 
-      <!-- 2. Train & Dialogues Tab -->
+      <!-- 2. Train & Dialogues Tab (JSON format only) -->
       <section id="view-train" class="app-view">
         <div class="settings-content">
+          <!-- Training Studio Card -->
           <div class="settings-card">
-            <h3>vimtoLLM Training Studio (4M FP16/FP4)</h3>
-            <span class="field-label">Train model weights using analytical autograd & AdamW</span>
-            <textarea id="train-text-input" class="pin-box" placeholder="<user> Hi <bot> Hello! I am vimtoLLM. All space inside! <eos>"></textarea>
-
+            <div class="card-header-row">
+              <h3>Model Training Studio (Pure JSON Format)</h3>
+              <span class="badge" id="train-agent-badge">Target: vimto-dialog</span>
+            </div>
+            <span class="field-label">Target Agent Architecture for Training</span>
             <div class="grid-two-col">
               <div>
-                <span class="field-label">Quantization Mode</span>
-                <select id="select-quant-mode">
-                  <option value="fp4" selected>FP4 (E2M1 Microscaled) - Optimal</option>
-                  <option value="q4">Q4 (Q4_0 Block Uniform)</option>
+                <select id="select-train-target-agent">
+                  <option value="vimto-dialog" selected>vimto-dialog</option>
+                  <option value="vimto-code">vimto-code</option>
+                  <option value="vimto-reasoner">vimto-reasoner</option>
                 </select>
               </div>
               <div>
+                <select id="select-quant-mode">
+                  <option value="fp4" selected>FP4 (E2M1 Microscaled)</option>
+                  <option value="q4">Q4 (Q4_0 Block Uniform)</option>
+                </select>
+              </div>
+            </div>
+
+            <span class="field-label">Training Corpus (Strict JSON Array format)</span>
+            <textarea id="train-json-input" class="console-input" placeholder='[
+  {"u": "Hi", "b": "Hello! How can I assist you today?"},
+  {"u": "What is your name?", "b": "My name is vimtoLLM."}
+]'></textarea>
+
+            <div class="grid-two-col">
+              <div>
                 <span class="field-label">Epochs</span>
                 <input type="number" id="input-epochs" value="5" min="1" max="50">
+              </div>
+              <div>
+                <span class="field-label">Learning Rate</span>
+                <input type="number" id="input-lr" value="0.003" step="0.0005" min="0.0001">
               </div>
             </div>
 
             <div class="flex-btn-row">
               <button id="btn-start-training" class="flex-1">Start Model Training</button>
-              <button id="btn-generate-jsonllm" class="secondary-btn flex-1">Save vimtoLLM Package</button>
+              <button id="btn-generate-jsonllm" class="secondary-btn flex-1">Save Model to JSONLLM</button>
             </div>
 
             <div class="progress-track">
@@ -76,30 +107,43 @@
             </div>
           </div>
 
+          <!-- Dialogue Dataset Studio Card -->
           <div class="settings-card">
             <div class="card-header-row">
-              <h3>Dialogue Dataset Studio</h3>
-              <span class="badge">&lt; 2 KB Format</span>
+              <h3>Dialogue Dataset Studio (&lt; 2 KB Format)</h3>
+              <button id="btn-load-preset-dialogue" class="secondary-btn small-btn">Load Big Preset Dataset</button>
             </div>
-            <span class="field-label">Compress conversational turns into token-delta .dialog.jsonllm datasets</span>
-            
-            <input type="text" id="input-dataset-name" placeholder="Dataset Name" value="vimtollm-conversations">
+            <span class="field-label">Select Agent for this Dialogue Package</span>
+            <div class="grid-two-col">
+              <div>
+                <select id="select-dataset-agent">
+                  <option value="vimto-dialog" selected>For Agent: vimto-dialog</option>
+                  <option value="vimto-code">For Agent: vimto-code</option>
+                  <option value="vimto-reasoner">For Agent: vimto-reasoner</option>
+                </select>
+              </div>
+              <div>
+                <input type="text" id="input-dataset-name" placeholder="Dataset Name" value="vimto-master-dialogue">
+              </div>
+            </div>
+
+            <span class="field-label">Dataset JSON Payload</span>
             <textarea id="dialog-pairs-input" class="console-input" placeholder='[
   {"u": "Hi", "b": "Hello! I am vimtoLLM - all space inside! 10 on minus 84."},
-  {"u": "What is your name?", "b": "My name is vimtoLLM."}
+  {"u": "Who are you?", "b": "I am an autonomous 4M browser language model."}
 ]'></textarea>
 
             <div class="flex-btn-row">
               <button id="btn-save-dialog-dataset" class="flex-1">Compress & Save Dataset</button>
-              <button id="btn-load-into-training" class="secondary-btn flex-1">Load into Training Corpus</button>
-              <button id="btn-export-dialog-file" class="secondary-btn small-btn">Export File</button>
+              <button id="btn-load-into-training" class="secondary-btn flex-1">Copy to Training Editor</button>
+              <button id="btn-export-dialog-file" class="secondary-btn small-btn">Export .dialog.jsonllm</button>
             </div>
             <span id="dialog-save-status" class="status-label">Ready to serialize</span>
 
             <div class="table-container">
               <table class="db-table">
                 <thead>
-                  <tr><th>Dataset</th><th>Compressed Size</th><th>Format</th><th>Action</th></tr>
+                  <tr><th>Dataset</th><th>Target Agent</th><th>Size</th><th>Action</th></tr>
                 </thead>
                 <tbody id="db-dialogs-tbody">
                   <tr><td colspan="4" class="status-label">No datasets stored.</td></tr>
@@ -110,22 +154,51 @@
         </div>
       </section>
 
-      <!-- 3. DB & Vector RAG Tab -->
+      <!-- 3. DB & Vector RAG Tab (Agent-Scoped) -->
       <section id="view-db" class="app-view">
         <div class="settings-content">
+          <!-- Vector RAG Card -->
           <div class="settings-card">
-            <h3>Vector Knowledge Store (RAG)</h3>
-            <span class="field-label">Embed facts into FP16 unit vectors for real-time prompt augmentation</span>
-            <input type="text" id="rag-doc-id" placeholder="Document ID" value="vimto_spec_1">
-            <textarea id="rag-doc-text" class="pin-box" placeholder="vimtoLLM runs 4M parameters in pure FP16/FP4 across local browser workers."></textarea>
+            <div class="card-header-row">
+              <h3>Vector Knowledge Store (RAG)</h3>
+              <span class="badge">FP16 Hypersphere</span>
+            </div>
+            <span class="field-label">Associate Fact with Specific Agent Target</span>
+            <div class="grid-two-col">
+              <div>
+                <select id="select-rag-agent">
+                  <option value="vimto-dialog" selected>Target: vimto-dialog</option>
+                  <option value="vimto-code">Target: vimto-code</option>
+                  <option value="vimto-reasoner">Target: vimto-reasoner</option>
+                  <option value="all">Universal (All Agents)</option>
+                </select>
+              </div>
+              <div>
+                <input type="text" id="rag-doc-id" placeholder="Document ID" value="vimto_spec_1">
+              </div>
+            </div>
+
+            <textarea id="rag-doc-text" class="pin-box" placeholder="vimtoLLM executes 4M parameters in pure FP16/FP4 across local browser workers."></textarea>
             
             <div class="flex-btn-row">
               <button id="btn-index-rag" class="flex-1">Index Document</button>
-              <button id="btn-test-rag-search" class="secondary-btn flex-1">Test RAG Search</button>
+              <button id="btn-test-rag-search" class="secondary-btn flex-1">Test RAG Cosine Search</button>
             </div>
             <span class="status-label" id="rag-index-status">Store Ready</span>
+
+            <div class="table-container">
+              <table class="db-table">
+                <thead>
+                  <tr><th>Doc ID</th><th>Target Agent</th><th>Text Preview</th></tr>
+                </thead>
+                <tbody id="db-rag-tbody">
+                  <tr><td colspan="3" class="status-label">No facts indexed.</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
 
+          <!-- IndexedDB Models Card -->
           <div class="settings-card">
             <div class="card-header-row">
               <h3>IndexedDB Model Store</h3>
@@ -168,7 +241,7 @@
 
           <div class="settings-card">
             <h3>WebMCP JSON-RPC Hub</h3>
-            <span class="field-label">Execute Model Context Protocol tools and schemas locally</span>
+            <span class="field-label">Execute Model Context Protocol tools locally</span>
             <div class="flex-wrap-row">
               <button id="btn-mcp-init" class="secondary-btn small-btn">initialize</button>
               <button id="btn-mcp-tools" class="secondary-btn small-btn">tools/list</button>
@@ -181,12 +254,31 @@
         </div>
       </section>
 
-      <!-- 5. Telemetry & Complete Debug Logs Tab -->
+      <!-- 5. Logs & Node Status Tab -->
       <section id="view-diagnostics" class="app-view">
         <div class="settings-content">
+          <!-- Relocated Node & Engine Status Banner -->
           <div class="settings-card">
             <div class="card-header-row">
-              <h3>System Telemetry & Top Candidates</h3>
+              <h3>Runtime Status & Node Identity</h3>
+              <span id="engine-status" class="badge ready">Engine: Standby</span>
+            </div>
+            <div class="grid-two-col">
+              <div class="telemetry-item">
+                <span class="telemetry-val" id="node-label">Initializing...</span>
+                <span class="telemetry-lbl">Mesh Node ID</span>
+              </div>
+              <div class="telemetry-item">
+                <span class="telemetry-val" id="active-agent-status-label">vimto-dialog</span>
+                <span class="telemetry-lbl">Active Serving Agent</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Telemetry & Top Candidates -->
+          <div class="settings-card">
+            <div class="card-header-row">
+              <h3>Inference Telemetry</h3>
               <div class="flex-btn-row">
                 <button id="btn-filter-logs" class="secondary-btn small-btn">All Logs</button>
                 <button id="btn-clear-logs" class="secondary-btn small-btn">Clear Logs</button>
@@ -204,7 +296,7 @@
               </div>
               <div class="telemetry-item">
                 <span class="telemetry-val" id="metric-rag-hits">0</span>
-                <span class="telemetry-lbl">RAG Docs</span>
+                <span class="telemetry-lbl">RAG Ingested Docs</span>
               </div>
             </div>
 
@@ -220,7 +312,7 @@
       </section>
     </div>
 
-    <!-- Bottom Navigation Bar (5 Consolidated Tabs) -->
+    <!-- Bottom Navigation Bar (5 Consolidated Views) -->
     <nav class="bottom-nav">
       <button class="nav-tab active" data-target="view-chat"><span>Chat</span></button>
       <button class="nav-tab" data-target="view-train"><span>Train</span></button>
