@@ -1,4 +1,5 @@
 import { WebMCPServer } from './webmcp-server.js';
+import { ChunkIndexer } from './chunk-indexer.js';
 import { JSONLLMCodec } from './jsonllm-codec.js';
 
 let server = null;
@@ -10,7 +11,7 @@ self.onmessage = async (e) => {
   if (type === 'INIT_WEBMCP') {
     server = new WebMCPServer({ name: 'browser-native-llm', version: '1.0.0' });
     await server.init();
-    self.postMessage({ type: 'STATUS', status: 'WebMCP JSONLLM Server Ready' });
+    self.postMessage({ type: 'STATUS', status: 'WebMCP Server Ready' });
     return;
   }
 
@@ -37,7 +38,7 @@ self.onmessage = async (e) => {
     self.postMessage({
       type: 'LOG',
       category: 'TRAIN',
-      text: `Training started: ${datasetText.length} characters, ${epochs} epochs, lr=${lr}.`
+      text: `Starting dataset training: ${datasetText.length} characters, ${epochs} epochs, batch size ${batchSize}.`
     });
 
     const tokenizer = server.engine.tokenizer;
@@ -101,7 +102,7 @@ self.onmessage = async (e) => {
       self.postMessage({
         type: 'LOG',
         category: 'TRAIN',
-        text: `Epoch ${epoch}/${epochs} finished. Mean Loss: ${(epochLoss / sequences.length).toFixed(4)}`
+        text: `Epoch ${epoch}/${epochs} completed. Mean Loss: ${(epochLoss / sequences.length).toFixed(4)}`
       });
     }
 
@@ -118,11 +119,10 @@ self.onmessage = async (e) => {
 
   if (type === 'STOP_TRAINING') {
     isTrainingActive = false;
-    self.postMessage({ type: 'LOG', category: 'TRAIN', text: 'Training cancelled.' });
+    self.postMessage({ type: 'LOG', category: 'TRAIN', text: 'Training interrupted.' });
     return;
   }
 
-  // Export current engine to JSONLLM and partition to SI-Radix segments
   if (type === 'EXPORT_JSONLLM') {
     if (!server) return;
     const modelName = payload?.modelName || 'browser-nano-llm';
@@ -144,7 +144,6 @@ self.onmessage = async (e) => {
     return;
   }
 
-  // Import JSONLLM file and load into engine
   if (type === 'IMPORT_JSONLLM') {
     if (!server) return;
     try {
