@@ -26,8 +26,8 @@ export class StorageService {
           chunkStore.createIndex('by_checksum', 'metadata.checksum', { unique: false });
         }
 
-        if (!db.objectStoreNames.contains('segment_manifests')) {
-          db.createObjectStore('segment_manifests', { keyPath: 'modelName' });
+        if (!db.objectStoreNames.contains('si_radix_manifests')) {
+          db.createObjectStore('si_radix_manifests', { keyPath: 'modelName' });
         }
 
         if (!db.objectStoreNames.contains('system_state')) {
@@ -50,10 +50,45 @@ export class StorageService {
     });
   }
 
+  async requestPersistence() {
+    if (navigator.storage && navigator.storage.persist) {
+      return await navigator.storage.persist();
+    }
+    return false;
+  }
+
+  async isPersistenceGranted() {
+    if (navigator.storage && navigator.storage.persisted) {
+      return await navigator.storage.persisted();
+    }
+    return false;
+  }
+
+  async getStorageQuota() {
+    if (navigator.storage && navigator.storage.estimate) {
+      const { usage, quota } = await navigator.storage.estimate();
+      return {
+        usageBytes: usage || 0,
+        quotaBytes: quota || 0,
+        usageMB: ((usage || 0) / (1024 * 1024)).toFixed(1),
+        quotaMB: ((quota || 0) / (1024 * 1024)).toFixed(1),
+        percentUsed: quota ? ((usage / quota) * 100).toFixed(1) : '0'
+      };
+    }
+    return { usageBytes: 0, quotaBytes: 0, usageMB: '0', quotaMB: '0', percentUsed: '0' };
+  }
+
+  async withLock(lockName, fn) {
+    if (navigator.locks) {
+      return await navigator.locks.request(lockName, fn);
+    }
+    return await fn();
+  }
+
   async saveManifest(manifest) {
     return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('segment_manifests', 'readwrite');
-      const store = tx.objectStore('segment_manifests');
+      const tx = this.db.transaction('si_radix_manifests', 'readwrite');
+      const store = tx.objectStore('si_radix_manifests');
       const req = store.put(manifest);
       req.onsuccess = () => resolve(true);
       req.onerror = () => reject(req.error);
@@ -62,8 +97,8 @@ export class StorageService {
 
   async getManifest(modelName) {
     return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('segment_manifests', 'readonly');
-      const store = tx.objectStore('segment_manifests');
+      const tx = this.db.transaction('si_radix_manifests', 'readonly');
+      const store = tx.objectStore('si_radix_manifests');
       const req = store.get(modelName);
       req.onsuccess = () => resolve(req.result || null);
       req.onerror = () => reject(req.error);
@@ -71,36 +106,39 @@ export class StorageService {
   }
 
   async batchPutChunks(chunks, onProgress) {
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('model_chunks', 'readwrite');
-      const store = tx.objectStore('model_chunks');
-      let completed = 0;
+    return this.withLock('db-write-lock', async () => {
+      return new Promise((resolve, reject) => {
+        const tx = this.db.transaction('model_chunks', 'readwrite');
+        const store = tx.objectStore('model_chunks');
+        let completed = 0;
 
-      tx.oncomplete = () => {
-        if (this.broadcast) {
-          this.broadcast.postMessage({
-            type: 'CHUNKS_UPDATED',
-            count: chunks.length,
-            modelName: chunks[0]?.metadata?.modelName
-          });
-        }
-        resolve(true);
-      };
-
-      tx.onerror = () => reject(tx.error);
-
-      for (const chunk of chunks) {
-        const req = store.put({
-          chunkId: chunk.metadata.chunkId,
-          metadata: chunk.metadata,
-          binary: chunk.binary
-        });
-
-        req.onsuccess = () => {
-          completed++;
-          if (onProgress) onProgress(completed, chunks.length);
+        tx.oncomplete = () => {
+          if (this.broadcast) {
+            this.broadcast.postMessage({
+              type: 'SEGMENTS_UPDATED',
+              count: chunks.length,
+              modelName: chunks[0]?.metadata?.modelName
+            });
+          }
+          resolve(true);
         };
-      }
+
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(new Error('Batch segment write aborted.'));
+
+        for (const chunk of chunks) {
+          const req = store.put({
+            chunkId: chunk.metadata.chunkId,
+            metadata: chunk.metadata,
+            binary: chunk.binary
+          });
+
+          req.onsuccess = () => {
+            completed++;
+            if (onProgress) onProgress(completed, chunks.length);
+          };
+        }
+      });
     });
   }
 
@@ -108,12 +146,16 @@ export class StorageService {
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction('model_chunks', 'readonly');
       const store = tx.objectStore('model_chunks');
-      const index = store.index('by_model');
-      const req = index.getAll(modelName);
+      const req = store.getAll();
 
       req.onsuccess = () => {
-        const records = req.result || [];
-        records.sort((a, b) => (a.metadata.index || 0) - (b.metadata.index || 0));
+        const allRecords = req.result || [];
+        const records = allRecords.filter((r) => {
+          const m = r.metadata?.modelName || '';
+          return m === modelName || m.startsWith(modelName) || modelName.startsWith(m);
+        });
+
+        records.sort((a, b) => (a.metadata?.index || 0) - (b.metadata?.index || 0));
 
         const clean = records.map((r) => {
           let buf = r.binary;
@@ -136,6 +178,7 @@ export class StorageService {
       const tx = this.db.transaction('model_chunks', 'readonly');
       const store = tx.objectStore('model_chunks');
       const req = store.get(chunkId);
+
       req.onsuccess = () => {
         if (!req.result) return resolve(null);
         let buf = req.result.binary;
@@ -150,46 +193,56 @@ export class StorageService {
     });
   }
 
-  async deleteModelChunks(modelName) {
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction(['model_chunks', 'segment_manifests'], 'readwrite');
-      const store = tx.objectStore('model_chunks');
-      const manifestStore = tx.objectStore('segment_manifests');
-      manifestStore.delete(modelName);
-
-      const index = store.index('by_model');
-      const req = index.openKeyCursor(IDBKeyRange.only(modelName));
-
-      req.onsuccess = (e) => {
-        const cursor = e.target.result;
-        if (cursor) {
-          store.delete(cursor.primaryKey);
-          cursor.continue();
-        } else {
-          resolve(true);
-        }
-      };
-      req.onerror = () => reject(req.error);
-    });
+  async getChunkSummary(modelName) {
+    const chunks = await this.getModelChunks(modelName);
+    return chunks.map((c) => ({
+      chunkId: c.chunkId,
+      index: c.metadata.index,
+      sizeBytes: c.binary.byteLength,
+      checksum: c.metadata.checksum || c.metadata.chunkHash,
+      layerRange: c.metadata.layerRange || c.metadata.context?.layerRange || [0, 0],
+      nextChunkId: c.metadata.contextPointers?.next || c.metadata.nextChunkId
+    }));
   }
 
-  async getStorageQuota() {
-    if (navigator.storage && navigator.storage.estimate) {
-      const { usage, quota } = await navigator.storage.estimate();
-      return {
-        usageMB: ((usage || 0) / (1024 * 1024)).toFixed(1),
-        quotaMB: ((quota || 0) / (1024 * 1024)).toFixed(1),
-        percentUsed: quota ? ((usage / quota) * 100).toFixed(1) : '0'
-      };
-    }
-    return { usageMB: '0', quotaMB: '0', percentUsed: '0' };
+  async deleteModelChunks(modelName) {
+    return this.withLock('db-write-lock', async () => {
+      return new Promise((resolve, reject) => {
+        const tx = this.db.transaction(['model_chunks', 'si_radix_manifests'], 'readwrite');
+        const store = tx.objectStore('model_chunks');
+        const manifestStore = tx.objectStore('si_radix_manifests');
+        manifestStore.delete(modelName);
+
+        const index = store.index('by_model');
+        const req = index.openKeyCursor(IDBKeyRange.only(modelName));
+
+        req.onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (cursor) {
+            store.delete(cursor.primaryKey);
+            cursor.continue();
+          } else {
+            if (this.broadcast) {
+              this.broadcast.postMessage({ type: 'MODEL_PURGED', modelName });
+            }
+            resolve(true);
+          }
+        };
+        req.onerror = () => reject(req.error);
+      });
+    });
   }
 
   async logEvent(category, message, details = null) {
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction('event_logs', 'readwrite');
       const store = tx.objectStore('event_logs');
-      store.add({ timestamp: Date.now(), category, message, details: details ? JSON.stringify(details) : null });
+      store.add({
+        timestamp: Date.now(),
+        category,
+        message,
+        details: details ? JSON.stringify(details) : null
+      });
       tx.oncomplete = () => resolve(true);
       tx.onerror = () => reject(tx.error);
     });
@@ -200,6 +253,7 @@ export class StorageService {
       const tx = this.db.transaction('event_logs', 'readonly');
       const store = tx.objectStore('event_logs');
       const req = store.getAll();
+
       req.onsuccess = () => {
         const logs = req.result || [];
         logs.sort((a, b) => b.timestamp - a.timestamp);
@@ -236,13 +290,36 @@ export class StorageService {
     });
   }
 
-  async clearAll() {
+  async setSystemKey(key, value) {
     return new Promise((resolve, reject) => {
-      const storeNames = ['chat_history', 'model_chunks', 'segment_manifests', 'system_state', 'event_logs'];
-      const tx = this.db.transaction(storeNames, 'readwrite');
-      storeNames.forEach((name) => tx.objectStore(name).clear());
+      const tx = this.db.transaction('system_state', 'readwrite');
+      tx.objectStore('system_state').put({ key, value });
       tx.oncomplete = () => resolve(true);
       tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getSystemKey(key) {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('system_state', 'readonly');
+      const req = tx.objectStore('system_state').get(key);
+      req.onsuccess = () => resolve(req.result ? req.result.value : null);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async clearAll() {
+    return this.withLock('db-write-lock', async () => {
+      return new Promise((resolve, reject) => {
+        const storeNames = ['chat_history', 'model_chunks', 'si_radix_manifests', 'system_state', 'event_logs'];
+        const tx = this.db.transaction(storeNames, 'readwrite');
+        storeNames.forEach((name) => tx.objectStore(name).clear());
+        tx.oncomplete = () => {
+          if (this.broadcast) this.broadcast.postMessage({ type: 'ALL_STORAGE_CLEARED' });
+          resolve(true);
+        };
+        tx.onerror = () => reject(tx.error);
+      });
     });
   }
 }
