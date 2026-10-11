@@ -3,40 +3,49 @@ import { MeshCoordinator } from './mesh.js';
 
 let currentLogFilter = 'ALL';
 
+// Preset Big Dialogue Dataset (JSON format)
+const BIG_PRESET_DIALOGUE = [
+  { "u": "Hi", "b": "Hello! How can I assist you today?" },
+  { "u": "Hello", "b": "Hi there! I am vimtoLLM - all space inside! 10 on minus 84." },
+  { "u": "Who are you?", "b": "I am vimtoLLM, a local browser language model." },
+  { "u": "What is your architecture?", "b": "I am a 4M parameter transformer using pure FP16 with FP4 E2M1 quantization." },
+  { "u": "Where do you run?", "b": "I run completely offline inside your browser tab without servers." },
+  { "u": "What is your name?", "b": "My name is vimtoLLM." },
+  { "u": "How are weights stored?", b: "My weights are saved as single-document JSONLLM records in IndexedDB." },
+  { "u": "Are you online?", "b": "No, I operate completely offline on your device." },
+  { "u": "How does RAG work?", "b": "Vector RAG retrieves relevant facts before generating response tokens." },
+  { "u": "What is WebMCP?", "b": "WebMCP is the browser-native Model Context Protocol interface." },
+  { "u": "Can you code C?", "b": "Yes, I understand C syntax, pointers, and stdio functions." },
+  { "u": "Can you write HTML?", "b": "Yes, I can generate modern semantic HTML5 and CSS3." },
+  { "u": "Thank you", "b": "You are very welcome! Let me know if you need anything else." },
+  { "u": "Goodbye", "b": "Goodbye! Have a productive day." }
+];
+
 const storage = new StorageService();
 await storage.init();
 
 const nodeId = 'Node_' + Math.random().toString(36).substring(2, 7);
-document.getElementById('node-label').textContent = `Node ID: ${nodeId}`;
 
-const diagnosticsLog = document.getElementById('diagnostics-log');
-const btnClearLogs = document.getElementById('btn-clear-logs');
-const btnFilterLogs = document.getElementById('btn-filter-logs');
-
-async function appendLog(category, text) {
-  await storage.logEvent(category, text);
-  if (!diagnosticsLog) return;
-
-  if (currentLogFilter !== 'ALL' && currentLogFilter !== category) {
-    return;
-  }
-
-  const time = new Date().toLocaleTimeString();
-  const el = document.createElement('div');
-  el.className = 'log-entry';
-  el.innerHTML = `<span style="color:var(--text-muted); flex-shrink:0;">[${time}]</span> <span class="log-tag ${category}">${category}</span> <span>${text}</span>`;
-  diagnosticsLog.appendChild(el);
-  diagnosticsLog.scrollTop = diagnosticsLog.scrollHeight;
-}
-
+// DOM Handles
 const chatStream = document.getElementById('chat-stream');
 const inputPrompt = document.getElementById('input-prompt');
 const btnSend = document.getElementById('btn-send');
-const engineStatus = document.getElementById('engine-status');
+const selectActiveAgent = document.getElementById('select-active-agent');
 
-const trainTextInput = document.getElementById('train-text-input');
+// Relocated Banner Handles
+const nodeLabel = document.getElementById('node-label');
+const engineStatus = document.getElementById('engine-status');
+const activeAgentStatusLabel = document.getElementById('active-agent-status-label');
+
+nodeLabel.textContent = nodeId;
+
+// Training Handles
+const selectTrainTargetAgent = document.getElementById('select-train-target-agent');
+const trainAgentBadge = document.getElementById('train-agent-badge');
 const selectQuantMode = document.getElementById('select-quant-mode');
+const trainJsonInput = document.getElementById('train-json-input');
 const inputEpochs = document.getElementById('input-epochs');
+const inputLr = document.getElementById('input-lr');
 const btnStartTraining = document.getElementById('btn-start-training');
 const btnGenerateJsonllm = document.getElementById('btn-generate-jsonllm');
 const trainProgressFill = document.getElementById('train-progress-fill');
@@ -45,6 +54,9 @@ const metricTrainLoss = document.getElementById('metric-train-loss');
 const metricTrainPpl = document.getElementById('metric-train-ppl');
 const metricModelSize = document.getElementById('metric-model-size');
 
+// Dialogue Studio Handles
+const btnLoadPresetDialogue = document.getElementById('btn-load-preset-dialogue');
+const selectDatasetAgent = document.getElementById('select-dataset-agent');
 const inputDatasetName = document.getElementById('input-dataset-name');
 const dialogPairsInput = document.getElementById('dialog-pairs-input');
 const btnSaveDialogDataset = document.getElementById('btn-save-dialog-dataset');
@@ -53,16 +65,22 @@ const btnExportDialogFile = document.getElementById('btn-export-dialog-file');
 const dialogSaveStatus = document.getElementById('dialog-save-status');
 const dbDialogsTbody = document.getElementById('db-dialogs-tbody');
 
+// RAG Handles
+const selectRagAgent = document.getElementById('select-rag-agent');
 const ragDocId = document.getElementById('rag-doc-id');
 const ragDocText = document.getElementById('rag-doc-text');
 const btnIndexRAG = document.getElementById('btn-index-rag');
 const btnTestRagSearch = document.getElementById('btn-test-rag-search');
 const ragIndexStatus = document.getElementById('rag-index-status');
+const dbRagTbody = document.getElementById('db-rag-tbody');
 const metricRagHits = document.getElementById('metric-rag-hits');
+
+// DB Handles
 const dbModelsTbody = document.getElementById('db-models-tbody');
 const btnRefreshDb = document.getElementById('btn-refresh-db');
 const btnClearDb = document.getElementById('btn-clear-db');
 
+// Network Handles
 const btnHostPin = document.getElementById('btn-host-pin');
 const hostTokenOut = document.getElementById('host-token-out');
 const joinTokenIn = document.getElementById('join-token-in');
@@ -76,10 +94,15 @@ const btnMcpInit = document.getElementById('btn-mcp-init');
 const btnMcpTools = document.getElementById('btn-mcp-tools');
 const btnMcpResources = document.getElementById('btn-mcp-resources');
 
+// Telemetry & Logs Handles
 const metricTPS = document.getElementById('metric-tps');
 const metricTTFT = document.getElementById('metric-ttft');
 const tokenTopKBars = document.getElementById('token-topk-bars');
+const diagnosticsLog = document.getElementById('diagnostics-log');
+const btnClearLogs = document.getElementById('btn-clear-logs');
+const btnFilterLogs = document.getElementById('btn-filter-logs');
 
+// Tab Routing
 const navTabs = document.querySelectorAll('.nav-tab');
 const appViews = document.querySelectorAll('.app-view');
 
@@ -90,13 +113,31 @@ navTabs.forEach((tab) => {
     tab.classList.add('active');
 
     appViews.forEach((v) => v.classList.toggle('active', v.id === targetId));
-    appendLog('UI', `Navigated to tab: ${targetId}`);
+    appendLog('UI', `Navigated to view: ${targetId}`);
 
-    if (targetId === 'view-db') await renderDatabaseView();
+    if (targetId === 'view-db') {
+      await renderDatabaseView();
+      await renderRAGView();
+    }
     if (targetId === 'view-train') await renderDialogueListView();
   });
 });
 
+async function appendLog(category, text) {
+  await storage.logEvent(category, text);
+  if (!diagnosticsLog) return;
+
+  if (currentLogFilter !== 'ALL' && currentLogFilter !== category) return;
+
+  const time = new Date().toLocaleTimeString();
+  const el = document.createElement('div');
+  el.className = 'log-entry';
+  el.innerHTML = `<span style="color:var(--text-dim); flex-shrink:0;">[${time}]</span> <span class="log-tag ${category}">${category}</span> <span>${text}</span>`;
+  diagnosticsLog.appendChild(el);
+  diagnosticsLog.scrollTop = diagnosticsLog.scrollHeight;
+}
+
+// Background Workers
 const llmWorker = new Worker('./llm-worker.js', { type: 'module' });
 const webmcpWorker = new Worker('./webmcp-worker.js', { type: 'module' });
 
@@ -105,7 +146,7 @@ llmWorker.onmessage = async (e) => {
 
   if (type === 'STATUS') {
     engineStatus.textContent = status;
-    appendLog('STATUS', `LLM Worker status: ${status}`);
+    appendLog('STATUS', status);
   }
 
   if (type === 'LOG') {
@@ -147,11 +188,10 @@ llmWorker.onmessage = async (e) => {
 };
 
 webmcpWorker.onmessage = async (e) => {
-  const { type, status, payload, loss, ppl, category, text } = e.data;
+  const { type, status, payload, loss, ppl, category, text, targetAgent } = e.data;
 
   if (type === 'STATUS') {
-    engineStatus.textContent = status;
-    appendLog('STATUS', `WebMCP Worker status: ${status}`);
+    appendLog('STATUS', `WebMCP Worker: ${status}`);
   }
 
   if (type === 'LOG') {
@@ -160,7 +200,7 @@ webmcpWorker.onmessage = async (e) => {
 
   if (type === 'WEBMCP_RESPONSE' && mcpResponseJson) {
     mcpResponseJson.textContent = JSON.stringify(payload, null, 2);
-    appendLog('WEBMCP', `JSON-RPC response received for id=${payload.id}`);
+    appendLog('WEBMCP', `RPC response received: id=${payload.id}`);
   }
 
   if (type === 'TRAIN_PROGRESS') {
@@ -174,26 +214,39 @@ webmcpWorker.onmessage = async (e) => {
     metricTrainLoss.textContent = loss;
     metricTrainPpl.textContent = ppl;
     btnStartTraining.disabled = false;
-    trainProgressText.textContent = 'Training finished. Ready to generate JSONLLM.';
-    await appendLog('TRAIN', `Training converged successfully. Loss: ${loss}, PPL: ${ppl}`);
+    trainProgressText.textContent = `Training complete for ${targetAgent}! Ready to save.`;
+    await appendLog('TRAIN', `Training converged for ${targetAgent}. Loss: ${loss}, PPL: ${ppl}`);
   }
 
   if (type === 'GENERATE_JSONLLM_SUCCESS') {
     metricModelSize.textContent = `${payload.sizeKb} KB`;
     btnGenerateJsonllm.disabled = false;
-    alert(`Generated 4M ${payload.mode.toUpperCase()} Model (${payload.sizeKb} KB) and saved to IndexedDB!`);
-    await appendLog('STORAGE', `Saved 4M ${payload.mode.toUpperCase()} model: ${payload.modelName} (${payload.sizeKb} KB)`);
+    alert(`Generated model "${payload.modelName}" in ${payload.mode.toUpperCase()} (${payload.sizeKb} KB)!`);
+    await appendLog('STORAGE', `Model saved: ${payload.modelName} (${payload.sizeKb} KB)`);
     llmWorker.postMessage({ type: 'HOT_RELOAD', payload: { modelName: payload.modelName } });
     await renderDatabaseView();
   }
 
   if (type === 'SAVE_DIALOGUE_COMPLETE') {
-    dialogSaveStatus.textContent = `Saved ${payload.datasetName}: ${payload.pairCount} pairs in ${payload.sizeKb} KB!`;
-    await appendLog('STORAGE', `Compressed dialogue dataset "${payload.datasetName}" stored (${payload.sizeKb} KB)`);
+    dialogSaveStatus.textContent = `Saved ${payload.datasetName} for ${payload.agentId} (${payload.sizeKb} KB)!`;
+    await appendLog('STORAGE', `Dialogue package "${payload.datasetName}" saved for ${payload.agentId} (${payload.sizeKb} KB).`);
     await renderDialogueListView();
   }
 };
 
+// Agent Selection in Header
+selectActiveAgent.addEventListener('change', () => {
+  const agentId = selectActiveAgent.value;
+  activeAgentStatusLabel.textContent = agentId;
+  llmWorker.postMessage({ type: 'SWITCH_AGENT', payload: { agentId } });
+  appendLog('STATUS', `Active serving agent switched to: ${agentId}`);
+});
+
+selectTrainTargetAgent.addEventListener('change', () => {
+  trainAgentBadge.textContent = `Target: ${selectTrainTargetAgent.value}`;
+});
+
+// Chat Actions
 function executeChat() {
   const text = inputPrompt.value.trim();
   if (!text) return;
@@ -205,75 +258,94 @@ function executeChat() {
   inputPrompt.value = '';
   chatStream.scrollTop = chatStream.scrollHeight;
 
-  appendLog('INFER', `User dispatched prompt: "${text}"`);
+  const agentId = selectActiveAgent.value;
+  appendLog('INFER', `Prompt for [${agentId}]: "${text}"`);
 
   const delegated = mesh.dispatchCompute(text);
   if (delegated) {
-    appendLog('WEBRTC', `Compute delegated to connected peer: ${delegated.peerKey}`);
+    appendLog('WEBRTC', `Dispatched compute to peer: ${delegated.peerKey}`);
   } else {
-    llmWorker.postMessage({ type: 'INFER', payload: { prompt: text, maxTokens: 32 } });
+    llmWorker.postMessage({ type: 'INFER', payload: { prompt: text, agentId, maxTokens: 32 } });
   }
 }
 btnSend.addEventListener('click', executeChat);
 inputPrompt.addEventListener('keydown', (e) => { if (e.key === 'Enter') executeChat(); });
 
+// Training with Strict JSON Array
 btnStartTraining.addEventListener('click', () => {
-  const text = trainTextInput.value.trim();
-  if (!text) return alert('Enter training text.');
+  const jsonStr = trainJsonInput.value.trim();
+  if (!jsonStr) return alert('Enter training JSON dialogue array.');
+
+  let pairs;
+  try {
+    pairs = JSON.parse(jsonStr);
+    if (!Array.isArray(pairs)) throw new Error('Root must be an array of {"u": "...", "b": "..."} objects.');
+  } catch (err) {
+    return alert('Invalid JSON: ' + err.message);
+  }
+
+  const targetAgent = selectTrainTargetAgent.value;
   const epochs = parseInt(inputEpochs.value, 10) || 5;
+  const lr = parseFloat(inputLr.value) || 0.003;
 
   btnStartTraining.disabled = true;
   trainProgressFill.style.width = '0%';
-  trainProgressText.textContent = 'Training with FP16 autograd & AdamW...';
+  trainProgressText.textContent = `Training ${targetAgent} on ${pairs.length} JSON turns...`;
 
-  appendLog('TRAIN', `Dispatched training task: ${text.length} chars, ${epochs} epochs`);
+  appendLog('TRAIN', `Training task: ${targetAgent}, ${pairs.length} turns, ${epochs} epochs`);
   webmcpWorker.postMessage({
-    type: 'START_TRAIN',
-    payload: { text, epochs, lr: 0.003 }
+    type: 'START_TRAIN_JSON',
+    payload: { targetAgent, pairs, epochs, lr }
   });
 });
 
 btnGenerateJsonllm.addEventListener('click', () => {
   btnGenerateJsonllm.disabled = true;
-  appendLog('STORAGE', `Requested JSONLLM generation with mode: ${selectQuantMode.value}`);
+  const targetAgent = selectTrainTargetAgent.value;
+  const mode = selectQuantMode.value;
+  appendLog('STORAGE', `Saving ${targetAgent} in ${mode.toUpperCase()}...`);
   webmcpWorker.postMessage({
     type: 'GENERATE_JSONLLM',
-    payload: { modelName: 'vimtollm-4m', mode: selectQuantMode.value }
+    payload: { modelName: targetAgent, mode }
   });
+});
+
+// Dialogue Studio Actions
+btnLoadPresetDialogue.addEventListener('click', () => {
+  const formatted = JSON.stringify(BIG_PRESET_DIALOGUE, null, 2);
+  dialogPairsInput.value = formatted;
+  trainJsonInput.value = formatted;
+  appendLog('UI', `Loaded big dialogue dataset preset (${BIG_PRESET_DIALOGUE.length} turns).`);
 });
 
 btnSaveDialogDataset.addEventListener('click', () => {
   const name = inputDatasetName.value.trim() || 'dialogue_dataset';
+  const agentId = selectDatasetAgent.value;
+
   try {
     const pairs = JSON.parse(dialogPairsInput.value.trim());
     if (!Array.isArray(pairs)) throw new Error('Data must be an array of {"u": "...", "b": "..."} objects.');
     dialogSaveStatus.textContent = 'Compressing dialogue dataset...';
-    appendLog('STORAGE', `Compressing dialogue dataset "${name}" with ${pairs.length} pairs...`);
     webmcpWorker.postMessage({
       type: 'SAVE_COMPACT_DIALOGUE',
-      payload: { datasetName: name, pairs }
+      payload: { datasetName: name, agentId, pairs }
     });
   } catch (err) {
-    alert('Invalid JSON pairs: ' + err.message);
-    appendLog('ERROR', `Failed parsing dialogue JSON: ${err.message}`);
+    alert('Invalid JSON: ' + err.message);
   }
 });
 
 btnLoadIntoTraining.addEventListener('click', () => {
-  try {
-    const pairs = JSON.parse(dialogPairsInput.value.trim());
-    const formatted = pairs.map((p) => `<user> ${p.u} <bot> ${p.b} <eos>`).join('\n');
-    trainTextInput.value = formatted;
-    appendLog('UI', `Converted ${pairs.length} dialogue pairs into training text.`);
-  } catch (err) {
-    alert('Could not convert pairs: ' + err.message);
-  }
+  trainJsonInput.value = dialogPairsInput.value;
+  selectTrainTargetAgent.value = selectDatasetAgent.value;
+  trainAgentBadge.textContent = `Target: ${selectTrainTargetAgent.value}`;
+  appendLog('UI', 'Copied dialogue dataset directly into training editor.');
 });
 
 btnExportDialogFile.addEventListener('click', async () => {
   const name = inputDatasetName.value.trim() || 'dialogue_dataset';
   const rawJSON = await storage.getDialogueDataset(name);
-  if (!rawJSON) return alert(`Dataset "${name}" not found in IndexedDB.`);
+  if (!rawJSON) return alert(`Dataset "${name}" not found.`);
 
   const blob = new Blob([rawJSON], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -282,7 +354,7 @@ btnExportDialogFile.addEventListener('click', async () => {
   a.download = `${name}.dialog.jsonllm`;
   a.click();
   URL.revokeObjectURL(url);
-  appendLog('STORAGE', `Exported portable dataset file: ${name}.dialog.jsonllm`);
+  appendLog('STORAGE', `Exported: ${name}.dialog.jsonllm`);
 });
 
 async function renderDialogueListView() {
@@ -297,15 +369,15 @@ async function renderDialogueListView() {
   dbDialogsTbody.innerHTML = list.map((d) => `
     <tr>
       <td><strong>${d.datasetName}</strong></td>
+      <td><code>${d.agentId || 'vimto-dialog'}</code></td>
       <td>${(d.bytes / 1024).toFixed(2)} KB</td>
-      <td><code>token-delta</code></td>
-      <td><button class="secondary-btn small-btn" data-load-name="${d.datasetName}">Load</button></td>
+      <td><button class="secondary-btn small-btn" data-load-dialog="${d.datasetName}">Load</button></td>
     </tr>
   `).join('');
 
-  dbDialogsTbody.querySelectorAll('button[data-load-name]').forEach((btn) => {
+  dbDialogsTbody.querySelectorAll('button[data-load-dialog]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      const name = btn.getAttribute('data-load-name');
+      const name = btn.getAttribute('data-load-dialog');
       const rec = await storage.getDialogueDataset(name);
       if (rec) {
         dialogPairsInput.value = rec;
@@ -316,9 +388,11 @@ async function renderDialogueListView() {
   });
 }
 
+// Agent-Scoped Vector RAG Actions
 btnIndexRAG.addEventListener('click', async () => {
   const id = ragDocId.value.trim();
   const text = ragDocText.value.trim();
+  const agentId = selectRagAgent.value;
   if (!id || !text) return;
 
   webmcpWorker.postMessage({
@@ -331,19 +405,42 @@ btnIndexRAG.addEventListener('click', async () => {
     }
   });
 
-  ragIndexStatus.textContent = `Indexed document: ${id}`;
-  await appendLog('STORAGE', `Indexed document "${id}" into Vector RAG.`);
+  // Persist locally with agent association
+  await storage.putRAGDoc({ docId: id, agentId, text, vector: [] });
+
+  ragIndexStatus.textContent = `Indexed for ${agentId}: ${id}`;
+  await appendLog('RAG', `Indexed fact [${agentId}]: "${id}"`);
+  await renderRAGView();
+});
+
+btnTestRagSearch.addEventListener('click', () => {
+  const text = ragDocText.value.trim();
+  const agentId = selectRagAgent.value;
+  if (!text) return alert('Enter query text to test RAG similarity.');
+  appendLog('RAG', `Testing similarity for [${agentId}]: "${text}"`);
+  llmWorker.postMessage({ type: 'INFER', payload: { prompt: text, agentId, maxTokens: 1 } });
+});
+
+async function renderRAGView() {
   const docs = await storage.getAllRAGDocs();
   if (metricRagHits) metricRagHits.textContent = `${docs.length}`;
-});
+  if (!dbRagTbody) return;
 
-btnTestRagSearch.addEventListener('click', async () => {
-  const text = ragDocText.value.trim();
-  if (!text) return alert('Enter text to test RAG similarity.');
-  appendLog('RAG', `Executing test similarity query on: "${text}"`);
-  llmWorker.postMessage({ type: 'INFER', payload: { prompt: text, maxTokens: 1 } });
-});
+  if (!docs.length) {
+    dbRagTbody.innerHTML = '<tr><td colspan="3" class="status-label">No facts indexed.</td></tr>';
+    return;
+  }
 
+  dbRagTbody.innerHTML = docs.map((d) => `
+    <tr>
+      <td><strong>${d.docId}</strong></td>
+      <td><code>${d.agentId || 'all'}</code></td>
+      <td>${(d.text || '').slice(0, 48)}...</td>
+    </tr>
+  `).join('');
+}
+
+// Database Actions
 async function renderDatabaseView() {
   const models = await storage.getAllModels();
   if (!dbModelsTbody) return;
@@ -363,26 +460,31 @@ async function renderDatabaseView() {
   `).join('');
 }
 
-btnRefreshDb.addEventListener('click', renderDatabaseView);
+btnRefreshDb.addEventListener('click', async () => {
+  await renderDatabaseView();
+  await renderRAGView();
+});
+
 btnClearDb.addEventListener('click', async () => {
   if (!confirm('Clear all stored models, datasets, and IndexedDB caches?')) return;
   await storage.clearAll();
   chatStream.innerHTML = '';
-  appendLog('STORAGE', 'IndexedDB completely purged.');
+  appendLog('STORAGE', 'IndexedDB storage cleared.');
   window.location.reload();
 });
 
+// Network Actions (WebRTC PIN Mesh)
 const mesh = new MeshCoordinator(
   nodeId,
   (msg) => {
-    appendLog('WEBRTC', `Received P2P message: ${msg.type}`);
+    appendLog('WEBRTC', `Received message: ${msg.type}`);
     if (msg.type === 'MESH_INFER') {
       llmWorker.postMessage({ type: 'INFER', payload: { prompt: msg.prompt, maxTokens: 32 } });
     }
   },
   (count) => {
     peerStatus.textContent = `${count} Peers Connected`;
-    appendLog('WEBRTC', `Peer connection topology updated: ${count} active peer(s).`);
+    appendLog('WEBRTC', `Topology updated: ${count} peer(s).`);
   }
 );
 
@@ -390,7 +492,7 @@ btnHostPin.addEventListener('click', async () => {
   const pin = mesh.createPin();
   const token = await mesh.generateHostToken(pin);
   hostTokenOut.value = token;
-  await appendLog('WEBRTC', `Host PIN created: ${pin}`);
+  appendLog('WEBRTC', `Host PIN generated: ${pin}`);
 });
 
 btnConnectPin.addEventListener('click', async () => {
@@ -402,14 +504,14 @@ btnConnectPin.addEventListener('click', async () => {
     if (raw.sdp.type === 'offer') {
       const answer = await mesh.acceptTokenAndCreateAnswer(tok);
       joinTokenIn.value = answer;
-      appendLog('WEBRTC', 'Accepted remote offer; answer token generated.');
+      appendLog('WEBRTC', 'Accepted offer; answer token created.');
     } else if (raw.sdp.type === 'answer') {
       await mesh.finalizeHostConnection(tok);
-      appendLog('WEBRTC', 'Connected to peer host via PIN.');
+      appendLog('WEBRTC', 'Connected via PIN.');
     }
   } catch (err) {
     alert('Handshake error: ' + err.message);
-    appendLog('ERROR', `WebRTC handshake error: ${err.message}`);
+    appendLog('ERROR', `WebRTC error: ${err.message}`);
   }
 });
 
@@ -425,20 +527,20 @@ btnMcpResources.addEventListener('click', () => {
 btnSendMcp.addEventListener('click', () => {
   try {
     const parsed = JSON.parse(mcpRequestJson.value);
-    appendLog('WEBMCP', `Dispatched JSON-RPC method: ${parsed.method}`);
+    appendLog('WEBMCP', `Dispatched RPC method: ${parsed.method}`);
     webmcpWorker.postMessage({ type: 'WEBMCP_REQUEST', payload: parsed });
   } catch (err) {
     alert('Invalid JSON: ' + err.message);
-    appendLog('ERROR', `Invalid WebMCP JSON: ${err.message}`);
   }
 });
 
+// Logs Tab Actions
 btnClearLogs.addEventListener('click', async () => {
   await storage.clearLogs();
   diagnosticsLog.innerHTML = '';
 });
 
-const logFilters = ['ALL', 'INFER', 'TRAIN', 'STORAGE', 'RAG', 'WEBRTC', 'WEBMCP', 'ERROR'];
+const logFilters = ['ALL', 'INFER', 'TRAIN', 'STORAGE', 'RAG', 'WEBRTC', 'WEBMCP', 'STATUS', 'ERROR'];
 btnFilterLogs.addEventListener('click', () => {
   const curIdx = logFilters.indexOf(currentLogFilter);
   currentLogFilter = logFilters[(curIdx + 1) % logFilters.length];
@@ -448,20 +550,23 @@ btnFilterLogs.addEventListener('click', () => {
 });
 
 async function hydrateLogs() {
-  const previousLogs = await storage.getRecentLogs(60);
+  const previousLogs = await storage.getRecentLogs(80);
   previousLogs.forEach((log) => {
     if (currentLogFilter !== 'ALL' && currentLogFilter !== log.category) return;
     const time = new Date(log.timestamp).toLocaleTimeString();
     const el = document.createElement('div');
     el.className = 'log-entry';
-    el.innerHTML = `<span style="color:var(--text-muted); flex-shrink:0;">[${time}]</span> <span class="log-tag ${log.category}">${log.category}</span> <span>${log.message}</span>`;
+    el.innerHTML = `<span style="color:var(--text-dim); flex-shrink:0;">[${time}]</span> <span class="log-tag ${log.category}">${log.category}</span> <span>${log.message}</span>`;
     diagnosticsLog.appendChild(el);
   });
   diagnosticsLog.scrollTop = diagnosticsLog.scrollHeight;
 }
 
+// Initial Boot
+dialogPairsInput.value = JSON.stringify(BIG_PRESET_DIALOGUE.slice(0, 4), null, 2);
+trainJsonInput.value = JSON.stringify(BIG_PRESET_DIALOGUE.slice(0, 4), null, 2);
+
 await hydrateLogs();
 await renderDatabaseView();
 await renderDialogueListView();
-const initDocs = await storage.getAllRAGDocs();
-if (metricRagHits) metricRagHits.textContent = `${initDocs.length}`;
+await renderRAGView();
