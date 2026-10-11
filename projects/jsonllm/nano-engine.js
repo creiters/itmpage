@@ -1,397 +1,302 @@
 /**
- * nano-engine.js - 128M Parameter Transformer Runtime with Autograd & Scratchpad Buffers
+ * jsonllm-codec.js - Pure FP16 Codec Supporting Both FP4 (E2M1) and Q4 (Q4_0)
+ * Completely eliminates Float32Array across all allocation paths.
  */
 
-export class NanoTokenizer {
-  constructor(vocabSize = 4096) {
-    this.vocabSize = vocabSize;
-    this.tokenToId = new Map();
-    this.idToToken = new Map();
-    this.specials = ['<pad>', '<bos>', '<eos>', '<unk>', '<user>', '<bot>', '<context>'];
-    this.buildVocab();
-  }
-
-  buildVocab() {
-    this.specials.forEach((tok, id) => {
-      this.tokenToId.set(tok, id);
-      this.idToToken.set(id, tok);
-    });
-
-    const foundationalWords = [
-      "Hello", "Hi", "Hey", "How", "are", "you", "I", "am", "doing", "well",
-      "great", "fine", "good", "What", "is", "your", "name", "My", "JSONLLM",
-      "an", "offline", "browser", "AI", "assistant", "Yes", "No", "can", "help",
-      "with", "code", "HTML", "C", "and", "dialogue", "today", "Who", "created",
-      "runs", "entirely", "on", "device", "Thanks", "Thank", "welcome", "Goodbye",
-      "Bye", "ready", "System", "Status", "OK", "Please", "ask", "a", "question",
-      "nice", "to", "meet", "offline-first", "IndexedDB", "memory", "tokens",
-      "model", "parameter", "agent", "vector", "RAG", "knowledge", "fast",
-      ".", ",", "!", "?", ":", ";", "'", "\"", "\n", "-", "/", "(", ")"
-    ];
-
-    let id = this.specials.length;
-    for (const w of foundationalWords) {
-      if (!this.tokenToId.has(w)) {
-        this.tokenToId.set(w, id);
-        this.idToToken.set(id, w);
-        id++;
+// Native Float16Array with zero-dependency IEEE 754-2008 half-precision fallback
+export const HalfFloatArray = typeof Float16Array !== 'undefined'
+  ? Float16Array
+  : class HalfFloatArrayPolyfill extends Uint16Array {
+      constructor(lengthOrArray) {
+        if (typeof lengthOrArray === 'number') {
+          super(lengthOrArray);
+        } else {
+          super(lengthOrArray.length);
+          for (let i = 0; i < lengthOrArray.length; i++) {
+            this[i] = HalfFloatArrayPolyfill.toHalf(lengthOrArray[i]);
+          }
+        }
       }
-    }
-  }
 
-  registerWord(word) {
-    if (!this.tokenToId.has(word)) {
-      if (this.tokenToId.size >= this.vocabSize) return 3; // <unk>
-      const id = this.tokenToId.size;
-      this.tokenToId.set(word, id);
-      this.idToToken.set(id, word);
-      return id;
-    }
-    return this.tokenToId.get(word);
-  }
+      static toHalf(val) {
+        const buf = new ArrayBuffer(4);
+        new DataView(buf).setFloat32(0, val, true);
+        const u32 = new DataView(buf).getUint32(0, true);
+        const sign = (u32 >>> 31) & 0x1;
+        const exp = (u32 >>> 23) & 0xff;
+        const frac = u32 & 0x7fffff;
 
-  encode(text) {
-    if (!text) return [1];
-    const tokens = [1]; // <bos>
-    const regex = /(<user>|<bot>|<eos>|<bos>|<context>|[a-zA-Z0-9_-]+|[.,!?:;'"()\n])/g;
-    const matches = text.match(regex) || [];
-
-    for (const piece of matches) {
-      if (this.tokenToId.has(piece)) {
-        tokens.push(this.tokenToId.get(piece));
-      } else {
-        tokens.push(this.registerWord(piece));
+        if (exp === 0xff) return (sign << 15) | (frac ? 0x7e00 : 0x7c00);
+        if (exp === 0) return (sign << 15);
+        const newExp = exp - 127 + 15;
+        if (newExp >= 31) return (sign << 15) | 0x7c00;
+        if (newExp <= 0) return (sign << 15);
+        return (sign << 15) | (newExp << 10) | (frac >>> 13);
       }
-    }
-    return tokens;
-  }
 
-  decode(tokens) {
-    if (!tokens || !tokens.length) return '';
-    const parts = [];
-    for (const id of tokens) {
-      if (id >= this.specials.length) {
-        parts.push(this.idToToken.get(id) || '');
+      static toFloat(h) {
+        const sign = (h & 0x8000) ? -1 : 1;
+        const exp = (h >>> 10) & 0x1f;
+        const frac = h & 0x3ff;
+        if (exp === 0) return sign * Math.pow(2, -14) * (frac / 1024);
+        if (exp === 31) return frac ? NaN : sign * Infinity;
+        return sign * Math.pow(2, exp - 15) * (1 + frac / 1024);
       }
-    }
-    return parts.join(' ').replace(/ ([.,!?:;'")])/g, '$1');
-  }
+    };
+
+// Precomputed FP4 E2M1 Unpack Table (16 normalized grid points)
+const FP4_GRID = [
+  0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0,
+  -0.0, -0.5, -1.0, -1.5, -2.0, -3.0, -4.0, -6.0
+];
+
+// Precomputed 256-entry byte lookup table for double-nibble fast unpacking
+const FP4_BYTE_LUT_LOW = new HalfFloatArray(256);
+const FP4_BYTE_LUT_HIGH = new HalfFloatArray(256);
+for (let b = 0; b < 256; b++) {
+  FP4_BYTE_LUT_LOW[b] = FP4_GRID[b & 0x0f];
+  FP4_BYTE_LUT_HIGH[b] = FP4_GRID[(b >> 4) & 0x0f];
 }
 
-export class NanoTransformer {
-  constructor(config = {}) {
-    // 128M Architecture Hyperparameters
-    this.dim = config.dim || 768;
-    this.layers = config.layers || 16;
-    this.heads = config.heads || 12;
-    this.headDim = this.dim / this.heads; // 64
-    this.ffnDim = config.ffnDim || 2048;
-    this.maxSeqLen = config.maxSeqLen || 128;
-    this.vocabSize = config.vocabSize || 4096;
-    this.stepCount = config.stepCount || 0;
+export class JSONLLMCodec {
+  static BLOCK_SIZE = 32;
 
-    this.tokenizer = new NanoTokenizer(this.vocabSize);
-    this.weights = {};
-    this.grads = {};
-    this.adamM = {};
-    this.adamV = {};
+  // ==========================================
+  // 1. FP4 (E2M1) Quantization & Dequantization
+  // ==========================================
+  static quantizeFP4(halfArray) {
+    const totalBlocks = Math.ceil(halfArray.length / this.BLOCK_SIZE);
+    const scales = new HalfFloatArray(totalBlocks);
+    const packedBytes = new Uint8Array(totalBlocks * (this.BLOCK_SIZE / 2));
 
-    this.allocateScratchpads();
-    this.initWeights();
+    let byteIdx = 0;
+    for (let b = 0; b < totalBlocks; b++) {
+      const start = b * this.BLOCK_SIZE;
+      let maxAbs = 0.0;
+
+      for (let i = 0; i < this.BLOCK_SIZE; i++) {
+        const v = Math.abs(start + i < halfArray.length ? halfArray[start + i] : 0.0);
+        if (v > maxAbs) maxAbs = v;
+      }
+
+      const scale = maxAbs > 1e-6 ? maxAbs / 6.0 : 1.0;
+      scales[b] = scale;
+      const invScale = 1.0 / scale;
+
+      for (let i = 0; i < this.BLOCK_SIZE; i += 2) {
+        const v0 = (start + i < halfArray.length ? halfArray[start + i] : 0.0) * invScale;
+        const v1 = (start + i + 1 < halfArray.length ? halfArray[start + i + 1] : 0.0) * invScale;
+
+        const q0 = this._findClosestFP4(v0);
+        const q1 = this._findClosestFP4(v1);
+
+        packedBytes[byteIdx++] = (q1 << 4) | (q0 & 0x0f);
+      }
+    }
+
+    return { scales, packedBytes, len: halfArray.length, type: 'fp4_e2m1' };
   }
 
-  allocateScratchpads() {
-    this.x = new Float32Array(this.dim);
-    this.xb = new Float32Array(this.dim);
-    this.q = new Float32Array(this.dim);
-    this.k = new Float32Array(this.dim);
-    this.v = new Float32Array(this.dim);
-    this.att = new Float32Array(this.dim);
-    this.h1 = new Float32Array(this.ffnDim);
-    this.h2 = new Float32Array(this.ffnDim);
-    this.siluH1 = new Float32Array(this.ffnDim);
-    this.mlpAct = new Float32Array(this.ffnDim);
-    this.outFF = new Float32Array(this.dim);
-    this.logits = new Float32Array(this.vocabSize);
+  static _findClosestFP4(val) {
+    let bestIdx = 0;
+    let minDiff = Infinity;
+    for (let idx = 0; idx < 16; idx++) {
+      const diff = Math.abs(val - FP4_GRID[idx]);
+      if (diff < minDiff) {
+        minDiff = diff;
+        bestIdx = idx;
+      }
+    }
+    return bestIdx;
   }
 
-  initWeights() {
-    const scale = Math.sqrt(2.0 / this.dim);
-    const rand = (size) => {
-      const arr = new Float32Array(size);
-      for (let i = 0; i < size; i++) arr[i] = (Math.random() - 0.5) * 2 * scale;
-      return arr;
+  static dequantizeFP4(scales, packedBytes, originalLength) {
+    const out = new HalfFloatArray(originalLength);
+    const totalBlocks = scales.length;
+    let outIdx = 0;
+    let byteIdx = 0;
+
+    for (let b = 0; b < totalBlocks && outIdx < originalLength; b++) {
+      const scale = scales[b];
+      for (let i = 0; i < this.BLOCK_SIZE / 2 && outIdx < originalLength; i++) {
+        const byte = packedBytes[byteIdx++];
+        out[outIdx++] = FP4_BYTE_LUT_LOW[byte] * scale;
+        if (outIdx < originalLength) {
+          out[outIdx++] = FP4_BYTE_LUT_HIGH[byte] * scale;
+        }
+      }
+    }
+    return out;
+  }
+
+  // ==========================================
+  // 2. Q4 (Q4_0) Quantization & Dequantization
+  // ==========================================
+  static quantizeQ4(halfArray) {
+    const totalBlocks = Math.ceil(halfArray.length / this.BLOCK_SIZE);
+    const scales = new HalfFloatArray(totalBlocks);
+    const mins = new HalfFloatArray(totalBlocks);
+    const packedBytes = new Uint8Array(totalBlocks * (this.BLOCK_SIZE / 2));
+
+    let byteIdx = 0;
+    for (let b = 0; b < totalBlocks; b++) {
+      const start = b * this.BLOCK_SIZE;
+      let minVal = Infinity;
+      let maxVal = -Infinity;
+
+      for (let i = 0; i < this.BLOCK_SIZE; i++) {
+        const val = start + i < halfArray.length ? halfArray[start + i] : 0.0;
+        if (val < minVal) minVal = val;
+        if (val > maxVal) maxVal = val;
+      }
+
+      const scale = (maxVal - minVal) / 15.0 || 1.0;
+      scales[b] = scale;
+      mins[b] = minVal;
+
+      for (let i = 0; i < this.BLOCK_SIZE; i += 2) {
+        const v0 = start + i < halfArray.length ? halfArray[start + i] : minVal;
+        const v1 = start + i + 1 < halfArray.length ? halfArray[start + i + 1] : minVal;
+
+        const q0 = Math.max(0, Math.min(15, Math.round((v0 - minVal) / scale)));
+        const q1 = Math.max(0, Math.min(15, Math.round((v1 - minVal) / scale)));
+
+        packedBytes[byteIdx++] = (q1 << 4) | (q0 & 0x0f);
+      }
+    }
+
+    return { scales, mins, packedBytes, len: halfArray.length, type: 'q4_0' };
+  }
+
+  static dequantizeQ4(scales, mins, packedBytes, originalLength) {
+    const out = new HalfFloatArray(originalLength);
+    const totalBlocks = scales.length;
+    let outIdx = 0;
+    let byteIdx = 0;
+
+    for (let b = 0; b < totalBlocks && outIdx < originalLength; b++) {
+      const scale = scales[b];
+      const minVal = mins[b];
+
+      for (let i = 0; i < this.BLOCK_SIZE / 2 && outIdx < originalLength; i++) {
+        const byte = packedBytes[byteIdx++];
+        const q0 = byte & 0x0f;
+        const q1 = (byte >> 4) & 0x0f;
+
+        out[outIdx++] = q0 * scale + minVal;
+        if (outIdx < originalLength) {
+          out[outIdx++] = q1 * scale + minVal;
+        }
+      }
+    }
+    return out;
+  }
+
+  // ==========================================
+  // 3. Compression & JSON Packaging
+  // ==========================================
+  static async compress(buffer) {
+    if (typeof CompressionStream !== 'undefined') {
+      const cs = new CompressionStream('deflate');
+      const writer = cs.writable.getWriter();
+      writer.write(buffer);
+      writer.close();
+      return await new Response(cs.readable).arrayBuffer();
+    }
+    return buffer;
+  }
+
+  static async decompress(buffer) {
+    if (typeof DecompressionStream !== 'undefined') {
+      const ds = new DecompressionStream('deflate');
+      const writer = ds.writable.getWriter();
+      writer.write(buffer);
+      writer.close();
+      return await new Response(ds.readable).arrayBuffer();
+    }
+    return buffer;
+  }
+
+  static bytesToBase64(bytes) {
+    let binary = '';
+    const chunkSz = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSz) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSz));
+    }
+    return btoa(binary);
+  }
+
+  static base64ToBytes(base64) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  }
+
+  static async exportToJSONLLM(config, tokenizer, weights, mode = 'fp4') {
+    const tensors = {};
+
+    for (const [name, arr] of Object.entries(weights)) {
+      if (mode === 'fp4') {
+        const { scales, packedBytes, len } = this.quantizeFP4(arr);
+        const deflated = await this.compress(packedBytes.buffer);
+        tensors[name] = {
+          t: 'fp4',
+          l: len,
+          s: Array.from(scales).map((v) => Number(v.toFixed(4))),
+          d: this.bytesToBase64(new Uint8Array(deflated))
+        };
+      } else {
+        const { scales, mins, packedBytes, len } = this.quantizeQ4(arr);
+        const deflated = await this.compress(packedBytes.buffer);
+        tensors[name] = {
+          t: 'q4',
+          l: len,
+          s: Array.from(scales).map((v) => Number(v.toFixed(4))),
+          m: Array.from(mins).map((v) => Number(v.toFixed(4))),
+          d: this.bytesToBase64(new Uint8Array(deflated))
+        };
+      }
+    }
+
+    const payload = {
+      format: 'jsonllm/v2-pure16',
+      quantMode: mode,
+      createdAt: new Date().toISOString(),
+      config,
+      tokenizer: {
+        tokenToId: Object.fromEntries(tokenizer.tokenToId),
+        idToToken: Object.fromEntries(tokenizer.idToToken)
+      },
+      tensors
     };
 
-    const registerParam = (name, size) => {
-      this.weights[name] = rand(size);
-      this.grads[name] = new Float32Array(size);
-      this.adamM[name] = new Float32Array(size);
-      this.adamV[name] = new Float32Array(size);
+    return JSON.stringify(payload);
+  }
+
+  static async importFromJSONLLM(jsonString) {
+    const parsed = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
+    const weights = {};
+
+    for (const [name, meta] of Object.entries(parsed.tensors)) {
+      const deflated = this.base64ToBytes(meta.d);
+      const decompressed = await this.decompress(deflated.buffer);
+      const rawBytes = new Uint8Array(decompressed);
+
+      if (meta.t === 'fp4') {
+        weights[name] = this.dequantizeFP4(new HalfFloatArray(meta.s), rawBytes, meta.l);
+      } else {
+        weights[name] = this.dequantizeQ4(new HalfFloatArray(meta.s), new HalfFloatArray(meta.m), rawBytes, meta.l);
+      }
+    }
+
+    return {
+      config: parsed.config,
+      tokenizer: parsed.tokenizer,
+      quantMode: parsed.quantMode || 'fp4',
+      weights
     };
-
-    registerParam('wte', this.vocabSize * this.dim);
-    registerParam('wpe', this.maxSeqLen * this.dim);
-    registerParam('lm_head', this.vocabSize * this.dim);
-
-    for (let l = 0; l < this.layers; l++) {
-      registerParam(`blk_${l}_wq`, this.dim * this.dim);
-      registerParam(`blk_${l}_wk`, this.dim * this.dim);
-      registerParam(`blk_${l}_wv`, this.dim * this.dim);
-      registerParam(`blk_${l}_wo`, this.dim * this.dim);
-      registerParam(`blk_${l}_wgate`, this.dim * this.ffnDim);
-      registerParam(`blk_${l}_wup`, this.dim * this.ffnDim);
-      registerParam(`blk_${l}_wdown`, this.ffnDim * this.dim);
-    }
-  }
-
-  ensureVocabCapacity(requiredSize) {
-    if (requiredSize <= this.vocabSize) return;
-    const oldSize = this.vocabSize;
-    this.vocabSize = Math.min(requiredSize, 8192);
-
-    const expand = (name) => {
-      const oldArr = this.weights[name];
-      const newArr = new Float32Array(this.vocabSize * this.dim);
-      newArr.set(oldArr);
-      this.weights[name] = newArr;
-      this.grads[name] = new Float32Array(this.vocabSize * this.dim);
-      this.adamM[name] = new Float32Array(this.vocabSize * this.dim);
-      this.adamV[name] = new Float32Array(this.vocabSize * this.dim);
-    };
-
-    expand('wte');
-    expand('lm_head');
-    this.logits = new Float32Array(this.vocabSize);
-  }
-
-  zeroGrads() {
-    for (const key in this.grads) {
-      this.grads[key].fill(0.0);
-    }
-  }
-
-  rmsNorm(out, src, eps = 1e-5) {
-    let ss = 0.0;
-    for (let i = 0; i < src.length; i++) ss += src[i] * src[i];
-    const invScale = 1.0 / Math.sqrt(ss / src.length + eps);
-    for (let i = 0; i < src.length; i++) out[i] = src[i] * invScale;
-    return invScale;
-  }
-
-  forwardStepWithTape(tokenId, pos, historyContext = null) {
-    const tape = { pos, tokenId, layers: [] };
-    const safeTok = Math.max(0, Math.min(tokenId, this.vocabSize - 1));
-    const embOffset = safeTok * this.dim;
-    const posOffset = Math.min(pos, this.maxSeqLen - 1) * this.dim;
-
-    for (let i = 0; i < this.dim; i++) {
-      this.x[i] = this.weights.wte[embOffset + i] + this.weights.wpe[posOffset + i];
-    }
-    tape.xInit = new Float32Array(this.x);
-
-    for (let l = 0; l < this.layers; l++) {
-      const layerTape = {};
-      const invScale1 = this.rmsNorm(this.xb, this.x);
-      layerTape.norm1 = { out: new Float32Array(this.xb), invScale: invScale1 };
-
-      // Attention linear projections
-      for (let r = 0; r < this.dim; r++) {
-        let sq = 0, sk = 0, sv = 0;
-        const off = r * this.dim;
-        for (let c = 0; c < this.dim; c++) {
-          sq += this.xb[c] * this.weights[`blk_${l}_wq`][off + c];
-          sk += this.xb[c] * this.weights[`blk_${l}_wk`][off + c];
-          sv += this.xb[c] * this.weights[`blk_${l}_wv`][off + c];
-        }
-        this.q[r] = sq;
-        this.k[r] = sk;
-        this.v[r] = sv;
-      }
-
-      layerTape.q = new Float32Array(this.q);
-      layerTape.k = new Float32Array(this.k);
-      layerTape.v = new Float32Array(this.v);
-
-      if (historyContext) {
-        historyContext.k[l][pos] = new Float32Array(this.k);
-        historyContext.v[l][pos] = new Float32Array(this.v);
-      }
-
-      this.att.fill(0.0);
-      for (let h = 0; h < this.heads; h++) {
-        const hOffset = h * this.headDim;
-        let maxScore = -Infinity;
-        const scores = new Float32Array(pos + 1);
-
-        for (let t = 0; t <= pos; t++) {
-          const histK = historyContext ? historyContext.k[l][t] : this.k;
-          if (!histK) continue;
-          let score = 0.0;
-          for (let d = 0; d < this.headDim; d++) {
-            score += this.q[hOffset + d] * histK[hOffset + d];
-          }
-          score /= Math.sqrt(this.headDim);
-          scores[t] = score;
-          if (score > maxScore) maxScore = score;
-        }
-
-        let sumExp = 0.0;
-        const weights = new Float32Array(pos + 1);
-        for (let t = 0; t <= pos; t++) {
-          weights[t] = Math.exp(scores[t] - maxScore);
-          sumExp += weights[t];
-        }
-        for (let t = 0; t <= pos; t++) {
-          weights[t] /= (sumExp || 1.0);
-          const histV = historyContext ? historyContext.v[l][t] : this.v;
-          if (!histV) continue;
-          for (let d = 0; d < this.headDim; d++) {
-            this.att[hOffset + d] += histV[hOffset + d] * weights[t];
-          }
-        }
-      }
-
-      layerTape.att = new Float32Array(this.att);
-      for (let r = 0; r < this.dim; r++) {
-        let sum = 0.0;
-        const off = r * this.dim;
-        for (let c = 0; c < this.dim; c++) sum += this.att[c] * this.weights[`blk_${l}_wo`][off + c];
-        this.x[r] += sum; // Residual connection
-      }
-
-      // SwiGLU MLP Block
-      const invScale2 = this.rmsNorm(this.xb, this.x);
-      layerTape.norm2 = { out: new Float32Array(this.xb), invScale: invScale2 };
-
-      for (let r = 0; r < this.ffnDim; r++) {
-        let sGate = 0, sUp = 0;
-        const off = r * this.dim;
-        for (let c = 0; c < this.dim; c++) {
-          sGate += this.xb[c] * this.weights[`blk_${l}_wgate`][off + c];
-          sUp += this.xb[c] * this.weights[`blk_${l}_wup`][off + c];
-        }
-        this.h1[r] = sGate;
-        this.h2[r] = sUp;
-        this.siluH1[r] = sGate / (1.0 + Math.exp(-sGate));
-        this.mlpAct[r] = this.siluH1[r] * sUp;
-      }
-
-      layerTape.h1 = new Float32Array(this.h1);
-      layerTape.h2 = new Float32Array(this.h2);
-      layerTape.siluH1 = new Float32Array(this.siluH1);
-      layerTape.mlpAct = new Float32Array(this.mlpAct);
-
-      for (let r = 0; r < this.dim; r++) {
-        let sum = 0.0;
-        const off = r * this.ffnDim;
-        for (let c = 0; c < this.ffnDim; c++) sum += this.mlpAct[c] * this.weights[`blk_${l}_wdown`][off + c];
-        this.x[r] += sum; // Residual connection
-      }
-
-      tape.layers.push(layerTape);
-    }
-
-    const invScaleFinal = this.rmsNorm(this.xb, this.x);
-    tape.normFinal = { out: new Float32Array(this.xb), invScale: invScaleFinal };
-
-    // LM Head Projection
-    for (let r = 0; r < this.vocabSize; r++) {
-      let sum = 0.0;
-      const off = r * this.dim;
-      for (let c = 0; c < this.dim; c++) sum += this.xb[c] * this.weights.lm_head[off + c];
-      this.logits[r] = sum;
-    }
-
-    return { logits: this.logits, tape };
-  }
-
-  trainSequence(tokenIds, lr = 0.002) {
-    if (tokenIds.length < 2) return 0.0;
-    this.zeroGrads();
-
-    const len = Math.min(tokenIds.length - 1, this.maxSeqLen);
-    const history = {
-      k: Array.from({ length: this.layers }, () => []),
-      v: Array.from({ length: this.layers }, () => [])
-    };
-
-    let totalLoss = 0.0;
-    for (let pos = 0; pos < len; pos++) {
-      const inputId = tokenIds[pos];
-      const targetId = tokenIds[pos + 1];
-
-      const { logits, tape } = this.forwardStepWithTape(inputId, pos, history);
-
-      let maxLogit = -Infinity;
-      for (let i = 0; i < this.vocabSize; i++) if (logits[i] > maxLogit) maxLogit = logits[i];
-
-      let sumExp = 0.0;
-      const probs = new Float32Array(this.vocabSize);
-      for (let i = 0; i < this.vocabSize; i++) {
-        probs[i] = Math.exp(logits[i] - maxLogit);
-        sumExp += probs[i];
-      }
-      for (let i = 0; i < this.vocabSize; i++) probs[i] /= (sumExp || 1.0);
-
-      const safeTarget = Math.min(targetId, this.vocabSize - 1);
-      const loss = -Math.log(Math.max(1e-7, probs[safeTarget]));
-      totalLoss += loss;
-      probs[safeTarget] -= 1.0;
-
-      // Backward pass through final head & embeddings
-      const dNorm = new Float32Array(this.dim);
-      for (let r = 0; r < this.vocabSize; r++) {
-        const dL = probs[r];
-        if (Math.abs(dL) < 1e-8) continue;
-        const off = r * this.dim;
-        for (let c = 0; c < this.dim; c++) {
-          this.grads.lm_head[off + c] += dL * tape.normFinal.out[c];
-          dNorm[c] += dL * this.weights.lm_head[off + c];
-        }
-      }
-
-      const embOff = Math.min(inputId, this.vocabSize - 1) * this.dim;
-      const posOff = Math.min(pos, this.maxSeqLen - 1) * this.dim;
-      for (let i = 0; i < this.dim; i++) {
-        const g = dNorm[i] * tape.normFinal.invScale;
-        this.grads.wte[embOff + i] += g;
-        this.grads.wpe[posOff + i] += g;
-      }
-    }
-
-    this.stepAdamW(lr);
-    return totalLoss / len;
-  }
-
-  stepAdamW(lr = 0.002, beta1 = 0.9, beta2 = 0.999, eps = 1e-8, weightDecay = 0.01) {
-    this.stepCount++;
-    const clipVal = 1.0;
-
-    for (const key in this.weights) {
-      const W = this.weights[key];
-      const G = this.grads[key];
-      const M = this.adamM[key];
-      const V = this.adamV[key];
-
-      const len = W.length;
-      const biasCorr1 = 1.0 - Math.pow(beta1, this.stepCount);
-      const biasCorr2 = 1.0 - Math.pow(beta2, this.stepCount);
-
-      for (let i = 0; i < len; i++) {
-        let g = G[i];
-        if (g > clipVal) g = clipVal;
-        else if (g < -clipVal) g = -clipVal;
-
-        W[i] -= lr * weightDecay * W[i];
-
-        M[i] = beta1 * M[i] + (1.0 - beta1) * g;
-        V[i] = beta2 * V[i] + (1.0 - beta2) * (g * g);
-
-        const mHat = M[i] / biasCorr1;
-        const vHat = V[i] / biasCorr2;
-        W[i] -= (lr * mHat) / (Math.sqrt(vHat) + eps);
-      }
-    }
   }
 }
