@@ -1,3 +1,8 @@
+/**
+ * mesh.js
+ * Serverless WebRTC DataChannel Mesh with 6-Digit PIN Exchange
+ */
+
 export class MeshCoordinator {
   constructor(nodeId, onMessage, onPeerChange) {
     this.nodeId = nodeId;
@@ -26,7 +31,7 @@ export class MeshCoordinator {
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     });
 
-    const channel = pc.createDataChannel('jsonllm-mesh');
+    const channel = pc.createDataChannel('clean-jsonllm-mesh');
     this._bindEvents(channel, `peer_${pin}`, pc);
 
     const offer = await pc.createOffer();
