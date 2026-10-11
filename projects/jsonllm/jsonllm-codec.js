@@ -1,12 +1,6 @@
-/**
- * jsonllm-codec.js
- * Clean 4-bit block quantization (Q4_0) and Deflate Base64 packaging
- */
-
 export class JSONLLMCodec {
   static BLOCK_SIZE = 32;
 
-  // Quantize Float32Array to 4-bit nibbles (Q4_0)
   static quantizeQ4(floatArray) {
     const totalBlocks = Math.ceil(floatArray.length / this.BLOCK_SIZE);
     const scales = new Float32Array(totalBlocks);
@@ -40,7 +34,6 @@ export class JSONLLMCodec {
     return { scales, mins, packedBytes, len: floatArray.length };
   }
 
-  // Dequantize 4-bit nibbles back to Float32Array
   static dequantizeQ4(scales, mins, packedBytes, originalLength) {
     const out = new Float32Array(originalLength);
     const totalBlocks = scales.length;
@@ -96,8 +89,7 @@ export class JSONLLMCodec {
     return bytes;
   }
 
-  // Package complete in-memory model directly into a clean JSON string
-  static async exportToJSONLLM(config, weights) {
+  static async exportToJSONLLM(config, tokenizer, weights) {
     const tensors = {};
     for (const [name, arr] of Object.entries(weights)) {
       const { scales, mins, packedBytes, len } = this.quantizeQ4(arr);
@@ -111,15 +103,18 @@ export class JSONLLMCodec {
     }
 
     const payload = {
-      format: 'jsonllm/clean-v2',
+      format: 'jsonllm/v2',
       createdAt: new Date().toISOString(),
       config,
+      tokenizer: {
+        tokenToId: Object.fromEntries(tokenizer.tokenToId),
+        idToToken: Object.fromEntries(tokenizer.idToToken)
+      },
       tensors
     };
     return JSON.stringify(payload);
   }
 
-  // Restore clean float tensors from JSON string
   static async importFromJSONLLM(jsonString) {
     const parsed = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
     const weights = {};
@@ -133,6 +128,10 @@ export class JSONLLMCodec {
         meta.l
       );
     }
-    return { config: parsed.config, weights };
+    return {
+      config: parsed.config,
+      tokenizer: parsed.tokenizer,
+      weights
+    };
   }
 }
