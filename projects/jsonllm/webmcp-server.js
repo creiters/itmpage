@@ -17,7 +17,7 @@ export class WebMCPServer {
             id,
             result: {
               protocolVersion: '2024-11-05',
-              serverInfo: { name: 'browser-jsonllm-server', version: '2.0.0' },
+              serverInfo: { name: 'vimtollm-server', version: '3.0.0' },
               capabilities: { tools: {}, resources: {}, sampling: {} }
             }
           };
@@ -35,8 +35,8 @@ export class WebMCPServer {
                 },
                 {
                   name: 'generate_jsonllm',
-                  description: 'Quantize weights and generate a clean JSONLLM file',
-                  inputSchema: { type: 'object', properties: { modelName: { type: 'string' } } }
+                  description: 'Packs active weights into an FP4/Q4 Deflate JSONLLM container',
+                  inputSchema: { type: 'object', properties: { modelName: { type: 'string' }, mode: { type: 'string' } } }
                 },
                 {
                   name: 'rag_index_document',
@@ -51,18 +51,20 @@ export class WebMCPServer {
           const { name, arguments: args } = params;
           if (name === 'train_model_step') {
             const toks = this.engine.tokenizer.encode(args.text);
-            const loss = this.engine.trainSequence(toks, args.learningRate || 0.002);
+            const loss = this.engine.trainSequence(toks, args.learningRate || 0.003);
             return { jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: `Trained step. Loss: ${loss.toFixed(4)}` }] } };
           }
           if (name === 'generate_jsonllm') {
-            const mName = args.modelName || 'agent-dialog';
+            const mName = args.modelName || 'vimtollm-4m';
+            const mode = args.mode || 'fp4';
             const jsonStr = await this.JSONLLMCodec.exportToJSONLLM(
-              { dim: this.engine.dim, layers: this.engine.layers, vocabSize: this.engine.vocabSize, maxSeqLen: this.engine.maxSeqLen },
+              { dim: this.engine.dim, layers: this.engine.layers, heads: this.engine.heads, ffnDim: this.engine.ffnDim, vocabSize: this.engine.vocabSize, maxSeqLen: this.engine.maxSeqLen },
               this.engine.tokenizer,
-              this.engine.weights
+              this.engine.weights,
+              mode
             );
             await this.storage.putModel(mName, jsonStr);
-            return { jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: `Generated JSONLLM for ${mName} (${(jsonStr.length / 1024).toFixed(1)} KB).` }] } };
+            return { jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: `Generated vimtoLLM (${mode.toUpperCase()}) for ${mName} (${(jsonStr.length / 1024).toFixed(1)} KB).` }] } };
           }
           if (name === 'rag_index_document') {
             await this.rag.indexDocument(args.docId, args.text);
@@ -77,8 +79,8 @@ export class WebMCPServer {
             id,
             result: {
               resources: [
-                { uri: 'jsonllm://models/active', name: 'Active In-Memory JSONLLM' },
-                { uri: 'jsonllm://rag/documents', name: 'Vector RAG Index' }
+                { uri: 'jsonllm://models/active', name: 'Active In-Memory vimtoLLM Model' },
+                { uri: 'jsonllm://rag/documents', name: 'Vector RAG Semantic Index' }
               ]
             }
           };
