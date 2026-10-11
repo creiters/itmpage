@@ -522,6 +522,30 @@ if (btnHostPin) {
   });
 }
 
+// Hardware Device Toggle in app.js
+const btnDeviceCpu = document.getElementById('btn-device-cpu');
+const btnDeviceGpu = document.getElementById('btn-device-gpu');
+const activeDeviceLabel = document.getElementById('active-device-label');
+
+if (btnDeviceCpu) {
+  btnDeviceCpu.addEventListener('click', () => {
+    worker.postMessage({ type: 'SET_DEVICE', payload: { device: 'CPU' } });
+    if (activeDeviceLabel) activeDeviceLabel.textContent = 'Active Backend: CPU (WASI SIMD)';
+    btnDeviceCpu.classList.remove('secondary-btn');
+    btnDeviceGpu.classList.add('secondary-btn');
+  });
+}
+
+if (btnDeviceGpu) {
+  btnDeviceGpu.addEventListener('click', () => {
+    worker.postMessage({ type: 'SET_DEVICE', payload: { device: 'GPU' } });
+    if (activeDeviceLabel) activeDeviceLabel.textContent = 'Active Backend: GPU (WebGPU WGSL)';
+    btnDeviceGpu.classList.remove('secondary-btn');
+    btnDeviceCpu.classList.add('secondary-btn');
+  });
+}
+
+
 if (btnConnectPin) {
   btnConnectPin.addEventListener('click', async () => {
     const input = joinTokenIn ? joinTokenIn.value.trim() : '';
