@@ -2,7 +2,7 @@
   "$schema": "https://modelcontextprotocol.io/schema/2024-11-05/schema.json",
   "name": "browser-native-llm",
   "version": "1.0.0",
-  "description": "Browser-native offline Transformer LLM with Merkle DAG storage and WebRTC compute delegation",
+  "description": "Browser-native offline Transformer LLM with SI-Radix Segment Interval Storage and WebRTC compute delegation",
   "protocolVersion": "2024-11-05",
   "capabilities": {
     "sampling": {
@@ -28,12 +28,12 @@
     "numHeads": 4,
     "vocabSize": 1024,
     "contextLength": 256,
-    "storage": "IndexedDB-Merkle-DAG-4MB"
+    "storage": "IndexedDB-SI-Radix-4MB"
   },
   "tools": [
     {
       "name": "storage_query_chunks",
-      "description": "Inspects local 4MB Merkle DAG weight slices stored in IndexedDB",
+      "description": "Queries SI-Radix 4MB segment index records from IndexedDB",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -44,7 +44,7 @@
     },
     {
       "name": "mesh_dispatch_compute",
-      "description": "Dispatches computation to a connected peer node via WebRTC PIN channel",
+      "description": "Dispatches computation across WebRTC PIN channels",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -55,7 +55,7 @@
     },
     {
       "name": "train_model_step",
-      "description": "Executes one gradient descent backpropagation training step on browser text",
+      "description": "Executes backpropagation on corpus text and updates parameters using AdamW",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -64,14 +64,19 @@
         },
         "required": ["text"]
       }
+    },
+    {
+      "name": "get_training_metrics",
+      "description": "Inspects parameter counts and optimization steps",
+      "inputSchema": { "type": "object", "properties": {} }
     }
   ],
   "resources": [
     {
-      "uri": "resource://model/manifest",
-      "name": "Model DAG Manifest",
+      "uri": "resource://model/si-radix-manifest",
+      "name": "SI-Radix Interval Manifest",
       "mimeType": "application/json",
-      "description": "Merkle root and layer span mappings for local 4MB slices"
+      "description": "O(1) segment interval boundaries and layer map"
     },
     {
       "uri": "resource://storage/status",
