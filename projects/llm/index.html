@@ -9,19 +9,17 @@
 </head>
 <body>
   <div id="layout">
-    <!-- Update Toast -->
     <div id="update-toast" role="alert">
-      <div class="update-toast-content">
-        <div class="update-toast-title">Update Available</div>
-        <div class="update-toast-desc">A new version of the app is ready.</div>
+      <div style="flex:1;">
+        <div style="font-size:0.85rem; font-weight:600;">Update Available</div>
+        <div style="font-size:0.75rem; color:var(--text-muted);">A new version of the app is ready.</div>
       </div>
-      <div class="update-actions">
-        <button id="btn-apply-update" class="update-btn-refresh">Reload</button>
-        <button id="btn-dismiss-update" class="update-btn-dismiss">✕</button>
+      <div style="display:flex; gap:8px;">
+        <button id="btn-apply-update" style="padding:6px 12px; min-height:auto;">Reload</button>
+        <button id="btn-dismiss-update" class="secondary-btn" style="padding:6px 10px; min-height:auto;">✕</button>
       </div>
     </div>
 
-    <!-- Header -->
     <header class="app-header">
       <div>
         <div class="brand-title">Shared LLM</div>
@@ -30,10 +28,8 @@
       <div id="engine-status" class="badge">Engine: WASM Unloaded</div>
     </header>
 
-    <!-- Main Viewport -->
     <div class="view-viewport">
-      
-      <!-- View 1: Chat -->
+      <!-- Tab 1: Chat -->
       <section id="view-chat" class="app-view active">
         <div id="chat-stream"></div>
         <div class="chat-input-bar">
@@ -42,7 +38,7 @@
         </div>
       </section>
 
-      <!-- View 2: Model & DAG Manager -->
+      <!-- Tab 2: Models -->
       <section id="view-models" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
@@ -68,7 +64,6 @@
           <div class="settings-card">
             <h3>Merkle DAG & Context Bounds</h3>
             <div id="graph-manifest" class="graph-box">No 4MB slices found in IndexedDB.</div>
-            <button id="btn-export-slice" class="secondary-btn">Download 4MB Envelope</button>
           </div>
 
           <div class="settings-card">
@@ -82,7 +77,7 @@
         </div>
       </section>
 
-      <!-- View 3: Mesh Network -->
+      <!-- Tab 3: Mesh Network -->
       <section id="view-mesh" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
@@ -103,28 +98,28 @@
         </div>
       </section>
 
-      <!-- View 4: Diagnostics, Architecture & Telemetry -->
+      <!-- Tab 4: Diagnostics & Flow Logs -->
       <section id="view-diagnostics" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
             <h3>Transformer Execution Flow</h3>
             <div class="flow-diagram">
-              <div class="flow-step">1. Prompt Tokenizer (BPE)</div>
+              <div class="flow-step">1. BPE Tokenizer + Prompt Embeddings</div>
               <div class="flow-arrow">▼</div>
-              <div class="flow-step">2. Embedding Matrix Lookup + RoPE ($d = 576$)</div>
+              <div class="flow-step">2. WASI SIMD Fused Dot Product (Q4_K_M inline)</div>
               <div class="flow-arrow">▼</div>
-              <div class="flow-step">3. 30× Transformer Blocks (Attn + SwiGLU MLP via Coroutines)</div>
+              <div class="flow-step">3. 30× Transformer Blocks (Native C WASM Module)</div>
               <div class="flow-arrow">▼</div>
-              <div class="flow-step">4. Fast Filtered Logits Projection & Greedy/Top-P Sample</div>
+              <div class="flow-step">4. Top-K Filtered Logits Selection</div>
             </div>
           </div>
 
           <div class="settings-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <h3>Real-Time Engine Telemetry</h3>
+              <h3>Real-Time Telemetry</h3>
               <button id="btn-clear-logs" style="min-height: 28px; padding: 4px 10px; font-size: 0.75rem;" class="secondary-btn">Clear</button>
             </div>
-            
+
             <div class="telemetry-grid">
               <div class="telemetry-item">
                 <span class="telemetry-val" id="metric-tps">0.0</span>
@@ -135,12 +130,12 @@
                 <span class="telemetry-lbl">Time to First Token</span>
               </div>
               <div class="telemetry-item">
-                <span class="telemetry-val" id="metric-layers">30 / 30</span>
+                <span class="telemetry-val">30 / 30</span>
                 <span class="telemetry-lbl">Active Layers</span>
               </div>
             </div>
 
-            <div id="token-search-preview" class="token-topk-container">
+            <div class="token-topk-container">
               <span class="field-label">Top Token Candidates Distribution</span>
               <div id="token-topk-bars">No active search data.</div>
             </div>
@@ -150,7 +145,6 @@
           </div>
         </div>
       </section>
-
     </div>
 
     <!-- Bottom Navigation Bar -->
