@@ -1,7 +1,3 @@
-/**
- * nano-engine.js - 4M Parameter Pure FP16 Transformer Runtime with Autograd Tape
- */
-
 import { HalfFloatArray } from './jsonllm-codec.js';
 
 export class NanoTokenizer {
@@ -19,9 +15,10 @@ export class NanoTokenizer {
       this.idToToken.set(id, tok);
     });
 
-    const foundationalWords = [
+    const words = [
       "Hello", "Hi", "Hey", "How", "are", "you", "I", "am", "doing", "well",
       "great", "fine", "good", "What", "is", "your", "name", "My", "JSONLLM",
+      "vimtoLLM", "space", "inside", "minus", "84", "10",
       "an", "offline", "browser", "AI", "assistant", "Yes", "No", "can", "help",
       "with", "code", "HTML", "C", "and", "dialogue", "today", "Who", "created",
       "runs", "entirely", "on", "device", "Thanks", "Thank", "welcome", "Goodbye",
@@ -32,7 +29,7 @@ export class NanoTokenizer {
     ];
 
     let id = this.specials.length;
-    for (const w of foundationalWords) {
+    for (const w of words) {
       if (!this.tokenToId.has(w)) {
         this.tokenToId.set(w, id);
         this.idToToken.set(id, w);
@@ -123,25 +120,25 @@ export class NanoTransformer {
       return arr;
     };
 
-    const registerParam = (name, size) => {
+    const register = (name, size) => {
       this.weights[name] = randFP16(size);
       this.grads[name] = new HalfFloatArray(size);
       this.adamM[name] = new HalfFloatArray(size);
       this.adamV[name] = new HalfFloatArray(size);
     };
 
-    registerParam('wte', this.vocabSize * this.dim);
-    registerParam('wpe', this.maxSeqLen * this.dim);
-    registerParam('lm_head', this.vocabSize * this.dim);
+    register('wte', this.vocabSize * this.dim);
+    register('wpe', this.maxSeqLen * this.dim);
+    register('lm_head', this.vocabSize * this.dim);
 
     for (let l = 0; l < this.layers; l++) {
-      registerParam(`blk_${l}_wq`, this.dim * this.dim);
-      registerParam(`blk_${l}_wk`, this.dim * this.dim);
-      registerParam(`blk_${l}_wv`, this.dim * this.dim);
-      registerParam(`blk_${l}_wo`, this.dim * this.dim);
-      registerParam(`blk_${l}_wgate`, this.dim * this.ffnDim);
-      registerParam(`blk_${l}_wup`, this.dim * this.ffnDim);
-      registerParam(`blk_${l}_wdown`, this.ffnDim * this.dim);
+      register(`blk_${l}_wq`, this.dim * this.dim);
+      register(`blk_${l}_wk`, this.dim * this.dim);
+      register(`blk_${l}_wv`, this.dim * this.dim);
+      register(`blk_${l}_wo`, this.dim * this.dim);
+      register(`blk_${l}_wgate`, this.dim * this.ffnDim);
+      register(`blk_${l}_wup`, this.dim * this.ffnDim);
+      register(`blk_${l}_wdown`, this.ffnDim * this.dim);
     }
   }
 
