@@ -1,5 +1,5 @@
 /**
- * llm-worker.js - Repaired Autoregressive Generation with Strict Word Token Masking
+ * llm-worker.js - Word-Level Autoregressive Inference Worker
  */
 
 import { NanoTransformer } from './nano-engine.js';
@@ -12,7 +12,6 @@ let rag = null;
 let engine = null;
 let activeModelName = 'agent-dialog';
 
-// Conversational dataset
 const SEED_PAIRS = [
   { u: "Hi", b: "Hello! How can I help you today?" },
   { u: "Hello", b: "Hi there! I am your offline local AI." },
@@ -28,7 +27,9 @@ async function trainBaseline(transformer, epochs = 24) {
     for (const pair of SEED_PAIRS) {
       const fullText = `<user> ${pair.u} <bot> ${pair.b} <eos>`;
       const tokens = transformer.tokenizer.encode(fullText);
-      transformer.ensureVocabCapacity(transformer.tokenizer.vocabSize);
+      if (typeof transformer.ensureVocabCapacity === 'function') {
+        transformer.ensureVocabCapacity(transformer.tokenizer.vocabSize);
+      }
 
       const kvCache = {
         k: Array.from({ length: transformer.layers }, () => []),
@@ -42,31 +43,26 @@ async function trainBaseline(transformer, epochs = 24) {
   }
 }
 
-// Nucleus & Temperature Sampling with Strict Control Masking
 function sampleNextToken(logits, vocabSize, specialsCount, recentTokens = []) {
   const clone = new Float32Array(logits);
 
-  // Mask control tokens so <user>, <bot>, <pad>, <unk> can NEVER be chosen
   clone[0] = -Infinity; // <pad>
   clone[1] = -Infinity; // <bos>
   clone[3] = -Infinity; // <unk>
   clone[4] = -Infinity; // <user>
   clone[5] = -Infinity; // <bot>
 
-  // Repetition penalty on recent word tokens
   for (const id of recentTokens.slice(-6)) {
     if (id >= specialsCount && id < vocabSize) {
       clone[id] -= 2.5;
     }
   }
 
-  // Find maximum logit
   let maxL = -Infinity;
   for (let i = 2; i < vocabSize; i++) {
     if (clone[i] > maxL) maxL = clone[i];
   }
 
-  // Softmax with temperature = 0.6
   const temp = 0.6;
   const candidates = [];
   let sumExp = 0.0;
@@ -81,7 +77,6 @@ function sampleNextToken(logits, vocabSize, specialsCount, recentTokens = []) {
   for (const c of candidates) c.prob = c.val / (sumExp || 1.0);
   candidates.sort((a, b) => b.prob - a.prob);
 
-  // Top-K (4) cutoff
   const kPool = candidates.slice(0, Math.min(4, candidates.length));
   let cumSum = 0.0;
   for (const c of kPool) cumSum += c.prob;
@@ -92,6 +87,18 @@ function sampleNextToken(logits, vocabSize, specialsCount, recentTokens = []) {
     if (r <= 0) return c.id;
   }
   return kPool[0]?.id || 2;
+}
+
+async function initFreshModel() {
+  self.postMessage({ type: 'STATUS', status: 'Training baseline language weights...' });
+  await trainBaseline(engine, 28);
+  const jsonStr = await JSONLLMCodec.exportToJSONLLM(
+    { dim: engine.dim, layers: engine.layers, heads: engine.heads, vocabSize: engine.vocabSize, maxSeqLen: engine.maxSeqLen },
+    engine.tokenizer,
+    engine.weights
+  );
+  await storage.putModel(activeModelName, jsonStr);
+  self.postMessage({ type: 'STATUS', status: `Ready: ${activeModelName}` });
 }
 
 (async () => {
@@ -124,18 +131,6 @@ function sampleNextToken(logits, vocabSize, specialsCount, recentTokens = []) {
   }
 })();
 
-async function initFreshModel() {
-  self.postMessage({ type: 'STATUS', status: 'Training baseline language weights...' });
-  await trainBaseline(engine, 28);
-  const jsonStr = await JSONLLMCodec.exportToJSONLLM(
-    { dim: engine.dim, layers: engine.layers, heads: engine.heads, vocabSize: engine.vocabSize, maxSeqLen: engine.maxSeqLen },
-    engine.tokenizer,
-    engine.weights
-  );
-  await storage.putModel(activeModelName, jsonStr);
-  self.postMessage({ type: 'STATUS', status: `Ready: ${activeModelName}` });
-}
-
 self.onmessage = async (e) => {
   const { type, payload } = e.data;
 
@@ -144,7 +139,6 @@ self.onmessage = async (e) => {
     const tStart = performance.now();
 
     try {
-      // Vector RAG Context Ingestion
       const matches = await rag.retrieve(prompt, 1);
       let augmented = prompt;
       if (matches.length > 0 && matches[0].score > 0.18) {
@@ -152,10 +146,12 @@ self.onmessage = async (e) => {
         self.postMessage({ type: 'LOG', category: 'INFER', text: `RAG Context Applied: "${matches[0].text}"` });
       }
 
-      // Structure prompt to match trained turn structure
       const turnPrompt = `<user> ${augmented.trim()} <bot>`;
       const promptTokens = engine.tokenizer.encode(turnPrompt);
-      engine.ensureVocabCapacity(engine.tokenizer.vocabSize);
+
+      if (typeof engine.ensureVocabCapacity === 'function') {
+        engine.ensureVocabCapacity(engine.tokenizer.vocabSize);
+      }
 
       const generated = [...promptTokens];
       const outputWords = [];
@@ -165,14 +161,12 @@ self.onmessage = async (e) => {
         v: Array.from({ length: engine.layers }, () => [])
       };
 
-      // 1. Prefill all prompt tokens
       let lastLogits = null;
       for (let p = 0; p < promptTokens.length; p++) {
         const res = engine.forwardStepWithTape(promptTokens[p], p, kvCache);
         lastLogits = res.logits;
       }
 
-      // 2. Sample autoregressively
       for (let t = 0; t < maxTokens; t++) {
         const nextPos = promptTokens.length + t;
         if (nextPos >= engine.maxSeqLen) break;
@@ -184,7 +178,6 @@ self.onmessage = async (e) => {
           generated
         );
 
-        // Stop on <eos> (2)
         if (bestToken === 2) break;
 
         generated.push(bestToken);
@@ -249,4 +242,3 @@ self.onmessage = async (e) => {
     }
   }
 };
-
