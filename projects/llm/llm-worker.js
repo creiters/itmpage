@@ -19,7 +19,6 @@ let xPtr = 0;
 let xbPtr = 0;
 let weightsBasePtr = 0;
 
-// Setup direct channel port from chunk worker
 function setupChunkWorkerPort(port) {
   chunkWorkerPort = port;
   chunkWorkerPort.onmessage = (e) => {
@@ -42,7 +41,7 @@ async function initializeWithTransferredBinary(payload) {
     chunkManifest = payload.manifest;
     modelBuffer = payload.modelBinary;
 
-    self.postMessage({ type: 'LOG', category: 'WASM', text: 'Parsing GGUF metadata from transferred buffer...' });
+    self.postMessage({ type: 'LOG', category: 'WASM', text: 'Parsing GGUF metadata...' });
     const parser = new GGUFParser(modelBuffer);
     parsedModel = parser.parse();
 
@@ -50,7 +49,6 @@ async function initializeWithTransferredBinary(payload) {
     const vocabScores = parsedModel.metadata['tokenizer.ggml.scores'] || [];
     tokenizer = new SimpleBPETokenizer(vocabTokens, vocabScores);
 
-    // Map weights into WASM heap
     weightsBasePtr = 16 * 1024 * 1024;
     const targetView = new Uint8Array(wasi.memory.buffer, weightsBasePtr, modelBuffer.byteLength);
     targetView.set(new Uint8Array(modelBuffer));
@@ -63,21 +61,20 @@ async function initializeWithTransferredBinary(payload) {
     self.postMessage({
       type: 'LOG',
       category: 'INIT',
-      text: `Engine loaded directly from background chunk worker with ${chunkManifest.length} DAG slices.`
+      text: `Engine loaded directly with ${chunkManifest.length} DAG slices.`
     });
   } catch (err) {
     isLoaded = false;
-    self.postMessage({ type: 'ERROR', message: `Direct load failed: ${err.message}` });
+    self.postMessage({ type: 'ERROR', message: `Load failed: ${err.message}` });
   }
 }
 
 self.onmessage = async (e) => {
   const { type, payload } = e.data;
 
-  // Establish direct channel port with chunk worker
   if (type === 'CONNECT_CHUNK_PORT') {
     setupChunkWorkerPort(e.ports[0]);
-    self.postMessage({ type: 'LOG', category: 'WASM', text: 'Direct MessageChannel linked to Background Chunk Worker.' });
+    self.postMessage({ type: 'LOG', category: 'WASM', text: 'Direct MessageChannel linked to Chunk Worker.' });
     return;
   }
 
@@ -160,7 +157,6 @@ self.onmessage = async (e) => {
     for (let pos = 0; pos < promptTokens.length + maxGenTokens; pos++) {
       let currentToken = pos < promptTokens.length ? promptTokens[pos] : generatedTokens[pos];
 
-      // Embedding Vector Lookup
       const embOffset = tensorStart + embedTensor.offset + (currentToken * rowBytes);
       const wasmFloatView = new Float32Array(wasi.memory.buffer);
       const wasmByteView = new Uint8Array(wasi.memory.buffer);
@@ -176,7 +172,6 @@ self.onmessage = async (e) => {
         if (outIdx < 576) wasmFloatView[(xPtr / 4) + outIdx++] = ((byte >> 4) & 0x0F) - 8;
       }
 
-      // Execute 30 Transformer Blocks
       for (let l = 0; l < 30; l++) {
         const wq = tensorStart + parsedModel.tensors.get(`blk.${l}.attn_q.weight`).offset;
         const wk = tensorStart + parsedModel.tensors.get(`blk.${l}.attn_k.weight`).offset;
@@ -189,7 +184,6 @@ self.onmessage = async (e) => {
         exports.run_layer(l, pos, wq, wk, wv, wo, wGate, wUp, wDown);
       }
 
-      // Sample Token
       if (pos >= promptTokens.length - 1) {
         if (tokensGeneratedCount === 0) {
           timeToFirstToken = performance.now() - tStart;
