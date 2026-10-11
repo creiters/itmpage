@@ -3,16 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>JSONLLM & WebMCP PWA</title>
+  <title>Shared LLM & WebMCP</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="layout">
+    <!-- PWA Hot-Update Toast Notification -->
     <div id="update-toast" role="alert">
       <div class="update-toast-content">
         <div class="update-toast-title">Update Available</div>
-        <div class="update-toast-desc">New JSONLLM & WASM engine ready.</div>
+        <div class="update-toast-desc">A new version of the app and WASM engine is ready.</div>
       </div>
       <div class="update-actions">
         <button id="btn-apply-update" class="update-btn-refresh">Reload</button>
@@ -20,26 +21,28 @@
       </div>
     </div>
 
+    <!-- Application Top Navigation Header -->
     <header class="app-header">
       <div>
-        <div class="brand-title">JSONLLM Browser Engine</div>
+        <div class="brand-title">Shared LLM & WebMCP</div>
         <div id="node-label" style="font-size: 0.7rem; color: var(--text-muted);">Node: Initializing...</div>
       </div>
       <div id="engine-status" class="badge">Engine: JSONLLM Ready</div>
     </header>
 
+    <!-- Main Tab Viewport -->
     <div class="view-viewport">
       
-      <!-- Tab 1: Chat -->
+      <!-- Tab 1: Chat Stream -->
       <section id="view-chat" class="app-view active">
         <div id="chat-stream"></div>
         <div class="chat-input-bar">
-          <input type="text" id="input-prompt" placeholder="Message local JSONLLM...">
+          <input type="text" id="input-prompt" placeholder="Message local browser LLM...">
           <button id="btn-send">Send</button>
         </div>
       </section>
 
-      <!-- Tab 2: On-Device Dataset Training & JSONLLM Export -->
+      <!-- Tab 2: On-Device Dataset Training & JSONLLM Studio -->
       <section id="view-train" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
@@ -121,7 +124,7 @@
         </div>
       </section>
 
-      <!-- Tab 3: WebMCP Protocol Hub -->
+      <!-- Tab 3: WebMCP Protocol Hub (JSON-RPC 2.0) -->
       <section id="view-webmcp" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
@@ -150,7 +153,7 @@
             <span class="field-label">Repository & Architecture</span>
             <select id="select-model">
               <option value="smollm-135m" selected>SmolLM-135M (~94 MB, ~24 Segments) - Ultra Fast</option>
-              <option value="smollm2-360m-itlwas">SmolLM2-360M (~229 MB, ~58 Segments)</option>
+              <option value="smollm2-360m-itlwas">SmolLM2-360M (itlwas) (~229 MB, ~58 Segments)</option>
               <option value="llama-3.2-1b">Llama-3.2-1B (~780 MB, ~195 Segments)</option>
               <option value="qwen2.5-1.5b">Qwen2.5-1.5B (~990 MB, ~248 Segments)</option>
               <option value="phi-3.5-mini">Phi-3.5-Mini (~2.39 GB, ~598 Segments)</option>
@@ -166,7 +169,7 @@
           </div>
 
           <div class="settings-card">
-            <h3>SI-Radix Interval Manifest</h3>
+            <h3>SI-Radix Interval Manifest & Bounds</h3>
             <div id="graph-manifest" class="graph-box">No segments found in IndexedDB.</div>
           </div>
 
@@ -208,7 +211,7 @@
 
           <div class="settings-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <h3>IndexedDB Segment Store</h3>
+              <h3>IndexedDB Segment Store (SI-Radix)</h3>
               <button id="btn-refresh-db" class="secondary-btn" style="min-height: 28px; padding: 4px 10px; font-size: 0.75rem;">Refresh</button>
             </div>
             <div id="db-summary-badge" class="badge" style="width: fit-content; margin-top: 6px;">0 segments stored</div>
@@ -250,7 +253,7 @@
         </div>
       </section>
 
-      <!-- Tab 7: Diagnostics & Telemetry -->
+      <!-- Tab 7: Diagnostics, Hardware & Event Stream -->
       <section id="view-diagnostics" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
@@ -289,14 +292,14 @@
               <div id="token-topk-bars" style="margin-top: 4px;">No active search data.</div>
             </div>
 
-            <span class="field-label" style="margin-top: 10px;">Persistent Event Stream</span>
+            <span class="field-label" style="margin-top: 10px;">Persistent Event Stream (Stored in IndexedDB)</span>
             <div id="diagnostics-log" class="console-box" style="margin-top: 4px;"></div>
           </div>
         </div>
       </section>
     </div>
 
-    <!-- Bottom Navigation Bar -->
+    <!-- Bottom Thumb Navigation Bar -->
     <nav class="bottom-nav">
       <button class="nav-tab active" data-target="view-chat">
         <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
