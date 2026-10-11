@@ -1,3 +1,7 @@
+/**
+ * llm-worker.js - Small JSONLLM Inference & RAG Retrieval Engine
+ */
+
 import { DOMAIN_SPECS, DomainTokenizer } from './domain-specs.js';
 import { NanoTransformer } from './nano-engine.js';
 import { JSONLLMCodec } from './jsonllm-codec.js';
@@ -10,7 +14,8 @@ let currentDomain = 'dialog';
 let tokenizer = null;
 let engine = null;
 
-function classify(text) {
+// Intent classification heuristic
+function classifyIntent(text) {
   if (/<(!doctype|html|div|p|body|head|span|button|main)/i.test(text)) return 'html5';
   if (/(#include|int\s+main|printf|void|char\*|struct\b)/.test(text)) return 'clang';
   return 'dialog';
@@ -58,7 +63,7 @@ self.onmessage = async (e) => {
 
   if (type === 'INFER') {
     const { prompt, maxTokens = 32 } = payload;
-    const target = classify(prompt);
+    const target = classifyIntent(prompt);
 
     if (target !== currentDomain) {
       await switchModel(target);
