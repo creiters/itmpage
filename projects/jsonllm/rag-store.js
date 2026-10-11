@@ -42,17 +42,21 @@ export class LocalRAG {
     return dot;
   }
 
-  async indexDocument(docId, text, metadata = {}) {
+  async indexDocument(docId, agentId = 'vimto-dialog', text = '', metadata = {}) {
     const vector = Array.from(this.embed(text)).map((v) => Number(v.toFixed(4)));
-    return await this.storage.putRAGDoc({ docId, text, metadata, vector });
+    return await this.storage.putRAGDoc({ docId, agentId, text, metadata, vector });
   }
 
-  async retrieve(query, topK = 1) {
+  async retrieve(query, agentId = 'vimto-dialog', topK = 1) {
     const queryVec = this.embed(query);
     const docs = await this.storage.getAllRAGDocs();
     if (!docs.length) return [];
 
-    const scored = docs.map((d) => ({
+    // Filter by target agent or universal entries
+    const agentScoped = docs.filter((d) => d.agentId === agentId || d.agentId === 'all');
+    if (!agentScoped.length) return [];
+
+    const scored = agentScoped.map((d) => ({
       ...d,
       score: this.cosineSimilarity(queryVec, new HalfFloatArray(d.vector))
     }));
