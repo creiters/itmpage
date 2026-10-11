@@ -1,7 +1,7 @@
 export class WasiRuntime {
   constructor(initialPages = 4096, maxPages = 8192) {
     this.memory = new WebAssembly.Memory({ initial: initialPages, maximum: maxPages });
-    this.activeDevice = 'CPU'; // 'CPU' or 'GPU'
+    this.activeDevice = 'CPU';
   }
 
   setDevice(device) {
@@ -54,16 +54,15 @@ export class WasiRuntime {
         fd_seek: () => 0,
         fd_close: () => 0,
         proc_exit: (status) => {
-          if (logHandler) logHandler(`[WASI] Process exited with status: ${status}`);
+          if (logHandler) logHandler(`[WASI] Process exited: ${status}`);
           return 0;
         }
       },
       env: {
         memory: this.memory,
         abort: () => {
-          if (logHandler) logHandler('[WASM] Execution halted.');
+          if (logHandler) logHandler('[WASM] Abort.');
         },
-        // Custom WASI device query hook
         get_active_device: () => (self.activeDevice === 'GPU' ? 1 : 0)
       }
     };
