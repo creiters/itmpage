@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shared-llm-v9';
+const CACHE_NAME = 'shared-llm-v10';
 const ASSETS = [
   './',
   './index.html',
@@ -8,6 +8,7 @@ const ASSETS = [
   './app.js',
   './storage.js',
   './chunk-indexer.js',
+  './jsonllm-codec.js',
   './downloader.js',
   './mesh.js',
   './tokenizer.js',
