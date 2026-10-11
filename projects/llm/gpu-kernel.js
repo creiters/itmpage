@@ -30,7 +30,6 @@ export class GPUKernel {
   }
 
   async initShaders() {
-    // WGSL Fused Q4_K_M Matrix-Vector Multiplication Shader
     const shaderModule = this.device.createShaderModule({
       label: 'Q4_K_M_GEMV',
       code: `
