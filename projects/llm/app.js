@@ -94,12 +94,10 @@ const clearStatusLabel = document.getElementById('clear-status-label');
 
 const metricTPS = document.getElementById('metric-tps');
 const metricTTFT = document.getElementById('metric-ttft');
-const metricActiveSlices = document.getElementById('metric-active-slices');
 const tokenTopKBars = document.getElementById('token-topk-bars');
 const diagnosticsLog = document.getElementById('diagnostics-log');
 const btnClearLogs = document.getElementById('btn-clear-logs');
 
-// IndexedDB Viewer Elements
 const btnRefreshDb = document.getElementById('btn-refresh-db');
 const dbChunksTbody = document.getElementById('db-chunks-tbody');
 const dbSummaryBadge = document.getElementById('db-summary-badge');
@@ -119,7 +117,6 @@ async function appendLog(category, text) {
   diagnosticsLog.scrollTop = diagnosticsLog.scrollHeight;
 }
 
-// Hydrate previous event logs from IndexedDB
 async function hydrateLogs() {
   const previousLogs = await storage.getRecentLogs(50);
   previousLogs.reverse().forEach((log) => {
@@ -140,7 +137,7 @@ if (btnClearLogs) {
   });
 }
 
-// 4. Render Database Table View
+// 4. Database Table Rendering
 async function renderDatabaseView() {
   const modelKey = selectModel.value;
   const summary = await storage.getChunkSummary(modelKey);
@@ -216,31 +213,28 @@ async function loadSlicesFromCache() {
   currentChunks = await storage.getModelChunks(modelKey);
 
   if (currentChunks.length > 0) {
-    const expectedTotal = currentChunks[0].metadata.totalChunks;
+    const totalChunks = currentChunks.length;
     const storedRoot = await storage.getSystemKey(`${modelKey}_merkle_root`);
 
-    if (currentChunks.length !== expectedTotal) {
-      if (engineStatus) engineStatus.textContent = `Incomplete: ${currentChunks.length}/${expectedTotal} chunks.`;
-      await appendLog('STORAGE', `Incomplete chunks found: ${currentChunks.length}/${expectedTotal}`);
-      return;
-    }
-
     updateDAGManifest(currentChunks, storedRoot);
-    await appendLog('STORAGE', `Reassembling ${currentChunks.length} chunks via Merkle DAG...`);
+    await appendLog('STORAGE', `Reassembling ${totalChunks} chunks via Merkle DAG...`);
 
     try {
       const unifiedBuffer = await MerkleChunker.reassemble(currentChunks, storedRoot);
       const engineWasm = await getEngineWasmBinary();
 
-      // Pass manifest describing layer bounds per chunk for coroutine searching
-      const manifest = currentChunks.map((c) => ({
-        chunkId: c.metadata.chunkId,
-        index: c.metadata.index,
-        layerRange: c.metadata.context.layerRange,
-        byteOffset: c.metadata.byteOffset,
-        byteLength: c.metadata.byteLength,
-        hash: c.metadata.chunkHash
-      }));
+      const manifest = currentChunks.map((c, i) => {
+        const minL = c.metadata?.context?.layerRange?.[0] ?? Math.floor((i / totalChunks) * 30);
+        const maxL = c.metadata?.context?.layerRange?.[1] ?? Math.floor(((i + 1) / totalChunks) * 30);
+        return {
+          chunkId: c.metadata.chunkId || `${modelKey}_chunk_${i}`,
+          index: i,
+          layerRange: [minL, maxL],
+          byteOffset: c.metadata.byteOffset ?? (i * 4 * 1024 * 1024),
+          byteLength: c.binary.byteLength,
+          hash: c.metadata.chunkHash || 'HASH'
+        };
+      });
 
       worker.postMessage({
         type: 'INIT_ENGINE',
@@ -251,7 +245,7 @@ async function loadSlicesFromCache() {
           manifest
         }
       });
-      await appendLog('WASM', 'Merkle verification passed. Models initialized in WASM heap.');
+      await appendLog('WASM', `Initialized engine with ${manifest.length} manifest slice entries.`);
       await renderDatabaseView();
     } catch (err) {
       if (engineStatus) engineStatus.textContent = 'Assembly Failed: ' + err.message;
@@ -259,8 +253,8 @@ async function loadSlicesFromCache() {
     }
   } else {
     if (engineStatus) engineStatus.textContent = 'Engine: Standalone Mode';
-    worker.postMessage({ type: 'INIT_ENGINE', payload: { modelName: 'Standalone Engine' } });
-    await appendLog('STORAGE', 'No local chunks found. Running standalone.');
+    worker.postMessage({ type: 'INIT_ENGINE', payload: { modelName: 'Standalone Engine', manifest: [] } });
+    await appendLog('STORAGE', 'No local chunks found. Please click "Fetch & Split".');
   }
 }
 await loadSlicesFromCache();
@@ -353,9 +347,9 @@ btnDownloadSplit.addEventListener('click', async () => {
     const binary = await MerkleChunker.reassemble(chunks, rootHash);
     const engineWasm = await getEngineWasmBinary();
 
-    const manifest = chunks.map((c) => ({
+    const manifest = chunks.map((c, i) => ({
       chunkId: c.metadata.chunkId,
-      index: c.metadata.index,
+      index: i,
       layerRange: c.metadata.context.layerRange,
       byteOffset: c.metadata.byteOffset,
       byteLength: c.metadata.byteLength,
@@ -393,11 +387,11 @@ function updateDAGManifest(chunks, rootHash) {
     <strong>Blocks:</strong> ${chunks.length} × 4MB Nodes<br>
     <strong>Context Links:</strong> ${first.context.targetNextContext}<br>
     <strong>Layer Spans:</strong> 0 to 30 mapped<br>
-    <strong>Search Coroutine:</strong> Active (IndexedDB Paged)
+    <strong>Engine:</strong> Native C-WASM + SIMD
   `;
 }
 
-// 9. Clear All Cache & Storage
+// 9. Clear Cache
 if (btnClearCache) {
   btnClearCache.addEventListener('click', async () => {
     const confirmPurge = confirm('Are you sure you want to clear all cache?');
@@ -417,7 +411,7 @@ if (btnClearCache) {
       currentChunks = [];
       if (graphManifest) graphManifest.innerHTML = 'No 4MB slices found in IndexedDB.';
 
-      worker.postMessage({ type: 'INIT_ENGINE', payload: { modelName: 'Standalone Engine' } });
+      worker.postMessage({ type: 'INIT_ENGINE', payload: { modelName: 'Standalone Engine', manifest: [] } });
       await appendLog('STORAGE', 'Cache, event logs, and IndexedDB stores purged.');
 
       if (clearStatusLabel) {
@@ -467,9 +461,6 @@ worker.onmessage = async (e) => {
   if (type === 'TELEMETRY') {
     if (metricTPS) metricTPS.textContent = tps;
     if (metricTTFT) metricTTFT.textContent = `${ttft} ms`;
-    if (metricActiveSlices && currentChunks.length) {
-      metricActiveSlices.textContent = `${currentChunks.length}`;
-    }
 
     if (tokenTopKBars && topCandidates) {
       tokenTopKBars.innerHTML = topCandidates
