@@ -7,7 +7,6 @@ export class NanoTokenizer {
   }
 
   buildVocab() {
-    // 0: PAD, 1: BOS, 2: EOS, 3: UNK
     const specials = ['<pad>', '<bos>', '<eos>', '<unk>'];
     specials.forEach((token, id) => {
       this.tokenToId.set(token, id);
@@ -15,7 +14,6 @@ export class NanoTokenizer {
     });
 
     let currentId = specials.length;
-    // Basic printable ASCII byte vocabulary
     for (let i = 32; i < 127 && currentId < this.vocabSize; i++) {
       const ch = String.fromCharCode(i);
       this.tokenToId.set(ch, currentId);
@@ -26,13 +24,13 @@ export class NanoTokenizer {
 
   encode(text) {
     if (!text) return [1];
-    const tokens = [1]; // Start with BOS
+    const tokens = [1];
     for (let i = 0; i < text.length; i++) {
       const ch = text[i];
       if (this.tokenToId.has(ch)) {
         tokens.push(this.tokenToId.get(ch));
       } else {
-        tokens.push(3); // UNK
+        tokens.push(3);
       }
     }
     return tokens;
@@ -68,11 +66,9 @@ export class NanoTransformer {
       return arr;
     };
 
-    // Embedding & Output Projection
     this.weights.wte = rand(this.vocabSize * this.dim);
     this.weights.lm_head = rand(this.vocabSize * this.dim);
 
-    // Transformer Blocks
     for (let l = 0; l < this.layers; l++) {
       this.weights[`blk_${l}_wq`] = rand(this.dim * this.dim);
       this.weights[`blk_${l}_wk`] = rand(this.dim * this.dim);
@@ -106,12 +102,9 @@ export class NanoTransformer {
 
   forwardStep(tokenId, pos, kvCache) {
     const x = new Float32Array(this.dim);
-
-    // Embedding Lookup
     const embOffset = tokenId * this.dim;
     for (let i = 0; i < this.dim; i++) x[i] = this.weights.wte[embOffset + i];
 
-    // Layers
     for (let l = 0; l < this.layers; l++) {
       const xNorm = this.rmsNorm(x);
       const q = new Float32Array(this.dim);
@@ -125,7 +118,6 @@ export class NanoTransformer {
       kvCache.k[l][pos] = k;
       kvCache.v[l][pos] = v;
 
-      // Multi-Head Attention
       const att = new Float32Array(this.dim);
       for (let h = 0; h < this.heads; h++) {
         const hOffset = h * this.headDim;
@@ -151,7 +143,6 @@ export class NanoTransformer {
       this.matVecMul(outAtt, att, this.weights[`blk_${l}_wo`], this.dim, this.dim);
       for (let i = 0; i < this.dim; i++) x[i] += outAtt[i];
 
-      // SwiGLU Feed-Forward Network
       const xNormFF = this.rmsNorm(x);
       const h1 = new Float32Array(this.dim * 2);
       const h2 = new Float32Array(this.dim * 2);
@@ -169,7 +160,6 @@ export class NanoTransformer {
       for (let i = 0; i < this.dim; i++) x[i] += outFF[i];
     }
 
-    // Output Projection to Vocabulary Logits
     const xFinal = this.rmsNorm(x);
     const logits = new Float32Array(this.vocabSize);
     this.matVecMul(logits, xFinal, this.weights.lm_head, this.vocabSize, this.dim);
@@ -192,7 +182,6 @@ export class NanoTransformer {
       const logits = this.forwardStep(currentToken, pos, kvCache);
 
       if (pos >= inputTokens.length - 1) {
-        // Temperature Sampling with Repetition Penalty
         let bestToken = 1;
         let maxLogit = -Infinity;
         const recent = generatedTokens.slice(-6);
@@ -206,7 +195,7 @@ export class NanoTransformer {
           }
         }
 
-        if (bestToken === 2) break; // EOS
+        if (bestToken === 2) break;
         const char = this.tokenizer.decode([bestToken]);
         fullText += char;
         generatedTokens.push(bestToken);
@@ -228,13 +217,11 @@ export class NanoTransformer {
       v: Array.from({ length: this.layers }, () => [])
     };
 
-    // Forward pass and gradient step over sequence
     for (let pos = 0; pos < tokens.length - 1; pos++) {
       const input = tokens[pos];
       const target = tokens[pos + 1];
       const logits = this.forwardStep(input, pos, kvCache);
 
-      // Softmax probabilities
       let maxLogit = -Infinity;
       for (let i = 0; i < this.vocabSize; i++) {
         if (logits[i] > maxLogit) maxLogit = logits[i];
@@ -248,11 +235,9 @@ export class NanoTransformer {
       }
       for (let i = 0; i < this.vocabSize; i++) probs[i] /= sumExp;
 
-      // Cross-Entropy Loss
       const loss = -Math.log(Math.max(1e-7, probs[target]));
       totalLoss += loss;
 
-      // Output weight update
       const headOffset = target * this.dim;
       for (let d = 0; d < this.dim; d++) {
         const grad = probs[target] - 1.0;
