@@ -1,5 +1,5 @@
 /**
- * webmcp-worker.js - 128M Training & WebMCP Server Worker
+ * webmcp-worker.js - 4M Training & WebMCP Server Worker with FP4/Q4 Serialization
  */
 
 import { NanoTransformer } from './nano-engine.js';
@@ -21,16 +21,16 @@ let isTrainingActive = false;
   await rag.init(storage);
 
   engine = new NanoTransformer({
-    dim: 768,
-    layers: 16,
-    heads: 12,
-    ffnDim: 2048,
-    vocabSize: 4096,
+    dim: 192,
+    layers: 8,
+    heads: 6,
+    ffnDim: 512,
+    vocabSize: 1024,
     maxSeqLen: 128
   });
 
   server = new WebMCPServer(engine, storage, rag, JSONLLMCodec);
-  self.postMessage({ type: 'STATUS', status: 'WebMCP Ready (128M Mode)' });
+  self.postMessage({ type: 'STATUS', status: 'WebMCP Ready (4M Pure FP16/FP4)' });
 })();
 
 self.onmessage = async (e) => {
@@ -43,7 +43,7 @@ self.onmessage = async (e) => {
   }
 
   if (type === 'START_TRAIN') {
-    const { text, epochs = 5, lr = 0.002, seqLen = 64 } = payload;
+    const { text, epochs = 5, lr = 0.003, seqLen = 48 } = payload;
     isTrainingActive = true;
 
     const allTokens = engine.tokenizer.encode(text);
@@ -62,7 +62,7 @@ self.onmessage = async (e) => {
     self.postMessage({
       type: 'LOG',
       category: 'TRAIN',
-      text: `Training 128M Model on ${allTokens.length} tokens across ${sequences.length} batches (${epochs} epochs)...`
+      text: `Training 4M Model on ${allTokens.length} tokens across ${sequences.length} batches (${epochs} epochs)...`
     });
 
     const tStart = performance.now();
@@ -116,13 +116,16 @@ self.onmessage = async (e) => {
   }
 
   if (type === 'GENERATE_JSONLLM') {
-    const modelName = payload?.modelName || 'dialogue-128m';
-    self.postMessage({ type: 'LOG', category: 'STORAGE', text: 'Quantizing 128M weights into Q4_0 Deflate format...' });
+    const modelName = payload?.modelName || 'dialogue-4m';
+    const mode = payload?.mode || 'fp4'; // 'fp4' or 'q4'
+
+    self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Quantizing 4M weights into ${mode.toUpperCase()} Deflate format...` });
 
     const jsonString = await JSONLLMCodec.exportToJSONLLM(
       { dim: engine.dim, layers: engine.layers, heads: engine.heads, ffnDim: engine.ffnDim, vocabSize: engine.vocabSize, maxSeqLen: engine.maxSeqLen },
       engine.tokenizer,
-      engine.weights
+      engine.weights,
+      mode
     );
 
     await storage.putModel(modelName, jsonString);
@@ -131,7 +134,8 @@ self.onmessage = async (e) => {
       type: 'GENERATE_JSONLLM_SUCCESS',
       payload: {
         modelName,
-        sizeKb: (jsonString.length / 1024).toFixed(1)
+        sizeKb: (jsonString.length / 1024).toFixed(1),
+        mode
       }
     });
   }
