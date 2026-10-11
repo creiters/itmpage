@@ -1,9 +1,9 @@
 export class ChunkIndexer {
-  static CHUNK_SIZE = 4 * 1024 * 1024; // Strict 4 MB segment boundary[span_2](start_span)[span_2](end_span)
+  static CHUNK_SIZE = 4 * 1024 * 1024; // Strict 4 MB segment boundary
 
   /**
-   * Synchronous MurmurHash3 (32-bit) verification
-   * Bypasses WebCrypto digest latency on large ArrayBuffers
+   * High-speed synchronous MurmurHash3 (32-bit) checksum algorithm.
+   * Eliminates asynchronous WebCrypto digest overhead on large ArrayBuffers.
    */
   static fastHash32(buffer, seed = 0x9747b28c) {
     const bytes = new Uint8Array(buffer);
@@ -52,7 +52,8 @@ export class ChunkIndexer {
   }
 
   /**
-   * Builds O(1) Segment Interval Map and Inverted Layer Index
+   * Slices model binary into contiguous 4MB segments and constructs
+   * constant-time O(1) interval mapping tables and layer indexes.
    */
   static splitAndIndex(modelBlob, modelName, onProgress) {
     return new Promise(async (resolve, reject) => {
@@ -148,7 +149,7 @@ export class ChunkIndexer {
     for (let i = 0; i < orderedSegments.length; i++) {
       const s = orderedSegments[i];
       if (!s.binary || s.binary.byteLength === 0) {
-        throw new Error(`Detached buffer at SI-Radix segment index ${i}`);
+        throw new Error(`Detached buffer encountered at SI-Radix segment index ${i}`);
       }
 
       const calculatedChecksum = this.fastHash32(s.binary);
@@ -156,7 +157,7 @@ export class ChunkIndexer {
 
       if (calculatedChecksum !== expectedChecksum) {
         throw new Error(
-          `SI-Radix Checksum mismatch at segment ${i} (expected ${expectedChecksum}, got ${calculatedChecksum})`
+          `SI-Radix checksum mismatch at segment ${i} (expected ${expectedChecksum}, got ${calculatedChecksum})`
         );
       }
 
