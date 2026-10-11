@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Clean WebLLM JSON</title>
+  <title>WebLLM JSON Studio</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -11,10 +11,10 @@
   <div id="layout">
     <header class="app-header">
       <div>
-        <div class="brand-title">WebLLM JSON</div>
+        <div class="brand-title">WebLLM JSON Studio</div>
         <div id="node-label" style="font-size: 0.7rem; color: var(--text-muted);">Node: Initializing...</div>
       </div>
-      <div id="engine-status" class="badge ready">Active: agent-dialog</div>
+      <div id="engine-status" class="badge ready">Engine: Standby</div>
     </header>
 
     <div class="view-viewport">
@@ -22,26 +22,26 @@
       <section id="view-chat" class="app-view active">
         <div id="chat-stream"></div>
         <div class="chat-input-bar">
-          <input type="text" id="input-prompt" placeholder="Message local JSON LLM (Vector RAG enabled)...">
+          <input type="text" id="input-prompt" placeholder="Message local JSONLLM (Vector RAG enabled)...">
           <button id="btn-send">Send</button>
         </div>
       </section>
 
-      <!-- 2. Train Tab -->
+      <!-- 2. Train & Generate JSONLLM Tab -->
       <section id="view-train" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
             <h3>On-Device Training Studio</h3>
-            <span class="field-label">Train your micro-model on custom text directly in memory</span>
-            <textarea id="train-text-input" rows="4" style="width: 100%;" placeholder="<user> Hello <bot> Greetings! How can I help? <eos>"></textarea>
+            <span class="field-label">Train your model with full autograd & generate a native .jsonllm package</span>
+            
+            <textarea id="train-text-input" rows="4" style="width: 100%; margin-top: 4px;" placeholder="<user> Hello <bot> Greetings! I am your native JSONLLM model. <eos>"></textarea>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
               <div>
-                <span class="field-label">Target Model</span>
+                <span class="field-label">Target Architecture</span>
                 <select id="select-agent-target" style="width: 100%;">
-                  <option value="dialog" selected>Dialog Expert</option>
-                  <option value="clang">C Language Expert</option>
-                  <option value="html5">HTML5 Expert</option>
+                  <option value="dialog" selected>Dialog Agent (64D, 2L)</option>
+                  <option value="code">Code Agent (64D, 2L)</option>
                 </select>
               </div>
               <div>
@@ -51,8 +51,8 @@
             </div>
 
             <div style="display: flex; gap: 8px; margin-top: 6px;">
-              <button id="btn-start-training" style="flex: 1;">Start Training</button>
-              <button id="btn-save-json" class="secondary-btn" style="flex: 1;">Save Model to JSON</button>
+              <button id="btn-start-training" style="flex: 1;">Start Model Training</button>
+              <button id="btn-generate-jsonllm" class="secondary-btn" style="flex: 1;">Generate & Save JSONLLM</button>
             </div>
 
             <div class="progress-track" style="margin-top: 8px;">
@@ -63,7 +63,7 @@
             <div class="telemetry-grid" style="margin-top: 8px;">
               <div class="telemetry-item">
                 <span class="telemetry-val" id="metric-train-loss">0.0000</span>
-                <span class="telemetry-lbl">Loss</span>
+                <span class="telemetry-lbl">Cross-Entropy Loss</span>
               </div>
               <div class="telemetry-item">
                 <span class="telemetry-val" id="metric-train-ppl">0.0</span>
@@ -71,7 +71,7 @@
               </div>
               <div class="telemetry-item">
                 <span class="telemetry-val" id="metric-model-size">~25 KB</span>
-                <span class="telemetry-lbl">JSON Size</span>
+                <span class="telemetry-lbl">JSONLLM Size</span>
               </div>
             </div>
 
@@ -88,21 +88,21 @@
       <section id="view-rag" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
-            <h3>Vector Knowledge Store</h3>
-            <span class="field-label">Add reference facts to augment prompts without expanding weights</span>
-            <input type="text" id="rag-doc-id" placeholder="Document ID" value="fact_1">
-            <textarea id="rag-doc-text" rows="3" style="width: 100%;" placeholder="Enter reference facts..."></textarea>
+            <h3>Vector Knowledge Store (RAG)</h3>
+            <span class="field-label">Add reference text to augment prompts via cosine retrieval</span>
+            <input type="text" id="rag-doc-id" placeholder="Document ID" value="guideline_1">
+            <textarea id="rag-doc-text" rows="3" style="width: 100%;" placeholder="Enter reference facts or syntax rules..."></textarea>
             <button id="btn-index-rag">Index Document</button>
             <span class="field-label" id="rag-index-status">Store Ready</span>
           </div>
         </div>
       </section>
 
-      <!-- 4. WebMCP Tab -->
+      <!-- 4. WebMCP Protocol Tab -->
       <section id="view-webmcp" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
-            <h3>WebMCP JSON-RPC Hub</h3>
+            <h3>WebMCP JSON-RPC Client</h3>
             <span class="field-label">Execute Model Context Protocol tools and schemas</span>
             <div style="display: flex; gap: 6px; flex-wrap: wrap;">
               <button id="btn-mcp-init" class="secondary-btn">initialize</button>
@@ -111,7 +111,7 @@
             </div>
             <textarea id="mcp-request-json" rows="4" style="width: 100%; font-family: monospace;"></textarea>
             <button id="btn-send-mcp">Execute JSON-RPC</button>
-            <span class="field-label">RPC Output</span>
+            <span class="field-label">Protocol Response</span>
             <pre id="mcp-response-json" class="console-box" style="height: 140px;">Awaiting request...</pre>
           </div>
         </div>
@@ -122,7 +122,7 @@
         <div class="settings-content">
           <div class="settings-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <h3>IndexedDB JSON Models</h3>
+              <h3>IndexedDB JSONLLM Models</h3>
               <button id="btn-refresh-db" class="secondary-btn">Refresh</button>
             </div>
             <div style="overflow-x: auto;">
@@ -157,15 +157,37 @@
         </div>
       </section>
 
-      <!-- 7. Diagnostics Tab -->
+      <!-- 7. Diagnostics & Logs Tab -->
       <section id="view-diagnostics" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <h3>Event Telemetry</h3>
-              <button id="btn-clear-logs" class="secondary-btn">Clear</button>
+              <h3>Real-Time Telemetry & Top Candidates</h3>
+              <button id="btn-clear-logs" class="secondary-btn">Clear Logs</button>
             </div>
-            <div id="diagnostics-log" class="console-box" style="height: 300px;"></div>
+
+            <div class="telemetry-grid">
+              <div class="telemetry-item">
+                <span class="telemetry-val" id="metric-tps">0.0</span>
+                <span class="telemetry-lbl">Tokens / sec</span>
+              </div>
+              <div class="telemetry-item">
+                <span class="telemetry-val" id="metric-ttft">0 ms</span>
+                <span class="telemetry-lbl">TTFT</span>
+              </div>
+              <div class="telemetry-item">
+                <span class="telemetry-val" id="metric-rag-hits">0</span>
+                <span class="telemetry-lbl">RAG Ingested Docs</span>
+              </div>
+            </div>
+
+            <div class="token-topk-container" style="margin-top: 8px;">
+              <span class="field-label">Top Token Candidates Distribution</span>
+              <div id="token-topk-bars" style="margin-top: 4px;">No active search data.</div>
+            </div>
+
+            <span class="field-label" style="margin-top: 8px;">Persistent Event Stream</span>
+            <div id="diagnostics-log" class="console-box" style="height: 220px; margin-top: 4px;"></div>
           </div>
         </div>
       </section>
