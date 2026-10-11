@@ -1,9 +1,13 @@
+/**
+ * webmcp-server.js
+ * Clean WebMCP JSON-RPC 2.0 Protocol Engine
+ */
+
 export class WebMCPServer {
-  constructor(engineInstance, storageInstance, ragInstance, chunkIndexerClass, jsonLlmCodecClass) {
+  constructor(engineInstance, storageInstance, ragInstance, jsonLlmCodecClass) {
     this.engine = engineInstance;
     this.storage = storageInstance;
     this.rag = ragInstance;
-    this.ChunkIndexer = chunkIndexerClass;
     this.JSONLLMCodec = jsonLlmCodecClass;
   }
 
@@ -18,7 +22,7 @@ export class WebMCPServer {
             id,
             result: {
               protocolVersion: '2024-11-05',
-              serverInfo: { name: 'browser-jsonllm-server', version: '1.0.0' },
+              serverInfo: { name: 'clean-jsonllm-server', version: '2.0.0' },
               capabilities: { tools: {}, resources: {}, sampling: {} }
             }
           };
@@ -31,18 +35,18 @@ export class WebMCPServer {
               tools: [
                 {
                   name: 'train_model_step',
-                  description: 'Execute training backpropagation on text',
+                  description: 'Train on-device weights on input text',
                   inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] }
                 },
                 {
-                  name: 'rag_index_document',
-                  description: 'Index document into Vector RAG store',
-                  inputSchema: { type: 'object', properties: { docId: { type: 'string' }, text: { type: 'string' } }, required: ['docId', 'text'] }
+                  name: 'save_model_to_json',
+                  description: 'Persist active weights into IndexedDB clean JSON store',
+                  inputSchema: { type: 'object', properties: { modelName: { type: 'string' } } }
                 },
                 {
-                  name: 'save_model_si_radix',
-                  description: 'Export weights to 4MB SI-Radix JSONLLM slices',
-                  inputSchema: { type: 'object', properties: { modelName: { type: 'string' } } }
+                  name: 'rag_index_fact',
+                  description: 'Index fact into local Vector RAG store',
+                  inputSchema: { type: 'object', properties: { docId: { type: 'string' }, text: { type: 'string' } }, required: ['docId', 'text'] }
                 }
               ]
             }
@@ -55,20 +59,18 @@ export class WebMCPServer {
             const loss = this.engine.trainStep(toks, args.learningRate || 0.002);
             return { jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: `Trained step. Loss: ${loss.toFixed(4)}` }] } };
           }
-          if (name === 'rag_index_document') {
-            await this.rag.indexDocument(args.docId, args.text);
-            return { jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: `Document ${args.docId} indexed into RAG.` }] } };
-          }
-          if (name === 'save_model_si_radix') {
+          if (name === 'save_model_to_json') {
             const mName = args.modelName || 'agent-dialog';
             const jsonStr = await this.JSONLLMCodec.exportToJSONLLM(
-              { dim: this.engine.dim, layers: this.engine.layers, vocabSize: this.engine.vocabSize },
+              { dim: this.engine.dim, layers: this.engine.layers, vocabSize: this.engine.vocabSize, maxSeqLen: this.engine.maxSeqLen },
               this.engine.weights
             );
-            const slices = this.ChunkIndexer.slicePayload(jsonStr, mName);
-            await this.storage.batchSaveSegments(slices);
             await this.storage.putModel(mName, jsonStr);
-            return { jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: `Saved ${slices.length} SI-Radix slices.` }] } };
+            return { jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: `Saved ${mName} directly to IndexedDB (${(jsonStr.length / 1024).toFixed(1)} KB).` }] } };
+          }
+          if (name === 'rag_index_fact') {
+            await this.rag.indexDocument(args.docId, args.text);
+            return { jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: `Document ${args.docId} indexed into RAG.` }] } };
           }
           throw new Error(`Tool not found: ${name}`);
         }
@@ -79,8 +81,8 @@ export class WebMCPServer {
             id,
             result: {
               resources: [
-                { uri: 'jsonllm://models/active', name: 'Active In-Memory Small LLM' },
-                { uri: 'jsonllm://rag/documents', name: 'Vector RAG Semantic Index' }
+                { uri: 'jsonllm://models/active', name: 'Active In-Memory JSON Model' },
+                { uri: 'jsonllm://rag/index', name: 'Vector RAG Index' }
               ]
             }
           };
