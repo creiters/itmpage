@@ -1,3 +1,7 @@
+/**
+ * jsonllm-codec.js - 128M Q4_0 Chunk-Stream Codec
+ */
+
 export class JSONLLMCodec {
   static BLOCK_SIZE = 32;
 
@@ -78,14 +82,19 @@ export class JSONLLMCodec {
 
   static bytesToBase64(bytes) {
     let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    const chunkSz = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSz) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSz));
+    }
     return btoa(binary);
   }
 
   static base64ToBytes(base64) {
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
     return bytes;
   }
 
@@ -103,7 +112,7 @@ export class JSONLLMCodec {
     }
 
     const payload = {
-      format: 'jsonllm/v2',
+      format: 'jsonllm/128m-v1',
       createdAt: new Date().toISOString(),
       config,
       tokenizer: {
