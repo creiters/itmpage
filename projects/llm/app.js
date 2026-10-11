@@ -448,6 +448,52 @@ inputPrompt.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') executeChat();
 });
 
+// Add to app.js: Storage Best Practices & Quota Monitoring
+const metricStorageUsed = document.getElementById('metric-storage-used');
+const metricStorageQuota = document.getElementById('metric-storage-quota');
+const metricStorageStatus = document.getElementById('metric-storage-status');
+const btnRequestPersist = document.getElementById('btn-request-persist');
+
+async function updateStorageMetrics() {
+  const quota = await storage.getStorageQuota();
+  const isPersisted = await storage.isPersistenceGranted();
+
+  if (metricStorageUsed) metricStorageUsed.textContent = `${quota.usageMB} MB`;
+  if (metricStorageQuota) metricStorageQuota.textContent = `${quota.quotaMB} MB`;
+  if (metricStorageStatus) {
+    metricStorageStatus.textContent = isPersisted ? 'Persisted' : 'Best-Effort';
+    metricStorageStatus.style.color = isPersisted ? 'var(--status-ready)' : 'var(--text-muted)';
+  }
+}
+
+if (btnRequestPersist) {
+  btnRequestPersist.addEventListener('click', async () => {
+    btnRequestPersist.disabled = true;
+    const granted = await storage.requestPersistence();
+    await appendLog('STORAGE', granted ? 'Persistent storage permission granted.' : 'Persistent storage request declined or unavailable.');
+    await updateStorageMetrics();
+    btnRequestPersist.disabled = false;
+  });
+}
+
+// Listen for cross-tab and cross-worker storage sync events
+if (storage.broadcast) {
+  storage.broadcast.onmessage = async (event) => {
+    const { type, modelName, count } = event.data;
+    if (type === 'CHUNKS_UPDATED') {
+      await appendLog('STORAGE', `Cross-context sync: ${count} chunks committed for ${modelName}.`);
+      await updateStorageMetrics();
+      await renderDatabaseView();
+    } else if (type === 'ALL_STORAGE_CLEARED') {
+      await appendLog('STORAGE', 'Cross-context sync: Storage cleared across all tabs.');
+      window.location.reload();
+    }
+  };
+}
+
+// Initial quota check on boot
+updateStorageMetrics();
+
 // 11. Mesh Network Controls
 const mesh = new MeshCoordinator(
   nodeId,
