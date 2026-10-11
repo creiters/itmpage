@@ -10,16 +10,76 @@ let parsedModel = null;
 let tokenizer = null;
 let isLoaded = false;
 let activeModelName = 'Unloaded';
-let executionDevice = 'CPU'; // 'CPU' | 'GPU'
+let executionDevice = 'CPU';
 let modelBuffer = null;
 let chunkManifest = [];
+let chunkWorkerPort = null;
 
 let xPtr = 0;
 let xbPtr = 0;
 let weightsBasePtr = 0;
 
+// Setup direct channel port from chunk worker
+function setupChunkWorkerPort(port) {
+  chunkWorkerPort = port;
+  chunkWorkerPort.onmessage = (e) => {
+    const { type, payload } = e.data;
+    if (type === 'LOAD_MODEL_PAYLOAD') {
+      initializeWithTransferredBinary(payload);
+    } else if (type === 'DELIVER_PAGED_CHUNK') {
+      self.postMessage({
+        type: 'LOG',
+        category: 'PAGING',
+        text: `Received paged 4MB chunk #${payload.index} directly from Chunk Worker.`
+      });
+    }
+  };
+}
+
+async function initializeWithTransferredBinary(payload) {
+  try {
+    activeModelName = payload.modelName;
+    chunkManifest = payload.manifest;
+    modelBuffer = payload.modelBinary;
+
+    self.postMessage({ type: 'LOG', category: 'WASM', text: 'Parsing GGUF metadata from transferred buffer...' });
+    const parser = new GGUFParser(modelBuffer);
+    parsedModel = parser.parse();
+
+    const vocabTokens = parsedModel.metadata['tokenizer.ggml.tokens'] || [];
+    const vocabScores = parsedModel.metadata['tokenizer.ggml.scores'] || [];
+    tokenizer = new SimpleBPETokenizer(vocabTokens, vocabScores);
+
+    // Map weights into WASM heap
+    weightsBasePtr = 16 * 1024 * 1024;
+    const targetView = new Uint8Array(wasi.memory.buffer, weightsBasePtr, modelBuffer.byteLength);
+    targetView.set(new Uint8Array(modelBuffer));
+
+    isLoaded = true;
+    self.postMessage({
+      type: 'STATUS',
+      status: `Ready: ${activeModelName} (${executionDevice} Mode)`
+    });
+    self.postMessage({
+      type: 'LOG',
+      category: 'INIT',
+      text: `Engine loaded directly from background chunk worker with ${chunkManifest.length} DAG slices.`
+    });
+  } catch (err) {
+    isLoaded = false;
+    self.postMessage({ type: 'ERROR', message: `Direct load failed: ${err.message}` });
+  }
+}
+
 self.onmessage = async (e) => {
   const { type, payload } = e.data;
+
+  // Establish direct channel port with chunk worker
+  if (type === 'CONNECT_CHUNK_PORT') {
+    setupChunkWorkerPort(e.ports[0]);
+    self.postMessage({ type: 'LOG', category: 'WASM', text: 'Direct MessageChannel linked to Background Chunk Worker.' });
+    return;
+  }
 
   if (type === 'SET_DEVICE') {
     const target = payload.device;
@@ -29,34 +89,31 @@ self.onmessage = async (e) => {
       if (ok) {
         executionDevice = 'GPU';
         self.postMessage({ type: 'STATUS', status: `Ready: ${activeModelName} (WebGPU Active)` });
-        self.postMessage({ type: 'LOG', category: 'DEVICE', text: 'Hardware backend switched to GPU (WebGPU).' });
+        self.postMessage({ type: 'LOG', category: 'DEVICE', text: 'Switched to GPU (WebGPU).' });
       } else {
         executionDevice = 'CPU';
-        self.postMessage({ type: 'LOG', category: 'DEVICE', text: 'WebGPU not available on this device. Fallback to CPU.' });
+        self.postMessage({ type: 'LOG', category: 'DEVICE', text: 'WebGPU unavailable. Fallback to CPU.' });
       }
     } else {
       executionDevice = 'CPU';
-      self.postMessage({ type: 'STATUS', status: `Ready: ${activeModelName} (CPU WASI/SIMD Active)` });
-      self.postMessage({ type: 'LOG', category: 'DEVICE', text: 'Hardware backend switched to CPU (WASI SIMD).' });
+      self.postMessage({ type: 'STATUS', status: `Ready: ${activeModelName} (CPU Active)` });
+      self.postMessage({ type: 'LOG', category: 'DEVICE', text: 'Switched to CPU (WASI SIMD).' });
     }
+    return;
   }
 
   if (type === 'INIT_ENGINE') {
     try {
       wasi = new WasiRuntime(4096, 8192);
       activeModelName = payload?.modelName || 'Loaded Model';
-      chunkManifest = payload?.manifest || [];
 
-      // Check GPU capability
       gpuEngine = new GPUKernel();
       const hasGPU = await gpuEngine.init();
       executionDevice = hasGPU ? 'GPU' : 'CPU';
       wasi.setDevice(executionDevice);
 
-      if (payload?.engineWasmBinary && payload?.modelBinary) {
-        modelBuffer = payload.modelBinary;
-
-        self.postMessage({ type: 'LOG', category: 'WASM', text: 'Instantiating WASI C-WASM module...' });
+      if (payload?.engineWasmBinary) {
+        self.postMessage({ type: 'LOG', category: 'WASM', text: 'Compiling WASI C-WASM module...' });
         wasmInstance = await wasi.compileAndInstantiate(payload.engineWasmBinary, (log) => {
           self.postMessage({ type: 'LOG', category: 'WASM_OUT', text: log });
         });
@@ -65,35 +122,12 @@ self.onmessage = async (e) => {
         exports.init_engine();
         xPtr = exports.get_x_ptr();
         xbPtr = exports.get_xb_ptr();
-
-        self.postMessage({ type: 'LOG', category: 'GGUF', text: 'Parsing GGUF metadata...' });
-        const parser = new GGUFParser(payload.modelBinary);
-        parsedModel = parser.parse();
-
-        const vocabTokens = parsedModel.metadata['tokenizer.ggml.tokens'] || [];
-        const vocabScores = parsedModel.metadata['tokenizer.ggml.scores'] || [];
-        tokenizer = new SimpleBPETokenizer(vocabTokens, vocabScores);
-
-        weightsBasePtr = 16 * 1024 * 1024;
-        const targetView = new Uint8Array(wasi.memory.buffer, weightsBasePtr, modelBuffer.byteLength);
-        targetView.set(new Uint8Array(modelBuffer));
-
-        isLoaded = true;
-        self.postMessage({
-          type: 'STATUS',
-          status: `Ready: ${activeModelName} (${executionDevice} Mode)`
-        });
-        self.postMessage({
-          type: 'LOG',
-          category: 'INIT',
-          text: `Engine initialized in ${executionDevice} mode with ${chunkManifest.length} DAG slices.`
-        });
       }
     } catch (err) {
       isLoaded = false;
-      self.postMessage({ type: 'ERROR', message: `Init failed: ${err.message}` });
-      self.postMessage({ type: 'LOG', category: 'ERROR', text: err.message });
+      self.postMessage({ type: 'ERROR', message: `WASM init failed: ${err.message}` });
     }
+    return;
   }
 
   if (type === 'INFER') {
@@ -142,7 +176,7 @@ self.onmessage = async (e) => {
         if (outIdx < 576) wasmFloatView[(xPtr / 4) + outIdx++] = ((byte >> 4) & 0x0F) - 8;
       }
 
-      // 30 Transformer Blocks
+      // Execute 30 Transformer Blocks
       for (let l = 0; l < 30; l++) {
         const wq = tensorStart + parsedModel.tensors.get(`blk.${l}.attn_q.weight`).offset;
         const wk = tensorStart + parsedModel.tensors.get(`blk.${l}.attn_k.weight`).offset;
