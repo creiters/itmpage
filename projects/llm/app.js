@@ -81,7 +81,6 @@ const engineStatus = document.getElementById('engine-status');
 const peerStatus = document.getElementById('peer-status');
 const selectModel = document.getElementById('select-model');
 const btnDownloadSplit = document.getElementById('btn-download-split');
-const btnExportSlice = document.getElementById('btn-export-slice');
 const progressContainer = document.getElementById('progress-container');
 const progressFill = document.getElementById('progress-fill');
 const progressText = document.getElementById('progress-text');
@@ -95,29 +94,91 @@ const clearStatusLabel = document.getElementById('clear-status-label');
 
 const metricTPS = document.getElementById('metric-tps');
 const metricTTFT = document.getElementById('metric-ttft');
+const metricActiveSlices = document.getElementById('metric-active-slices');
 const tokenTopKBars = document.getElementById('token-topk-bars');
 const diagnosticsLog = document.getElementById('diagnostics-log');
 const btnClearLogs = document.getElementById('btn-clear-logs');
 
-function appendLog(text) {
+// IndexedDB Viewer Elements
+const btnRefreshDb = document.getElementById('btn-refresh-db');
+const dbChunksTbody = document.getElementById('db-chunks-tbody');
+const dbSummaryBadge = document.getElementById('db-summary-badge');
+
+// 3. Storage & Worker Setup
+const storage = new StorageService();
+await storage.init();
+
+async function appendLog(category, text) {
+  await storage.logEvent(category, text);
   if (!diagnosticsLog) return;
   const time = new Date().toLocaleTimeString();
-  diagnosticsLog.textContent += `[${time}] ${text}\n`;
+  const el = document.createElement('div');
+  el.style.marginBottom = '3px';
+  el.innerHTML = `<span style="color:var(--text-muted);">[${time}]</span> <span class="log-tag ${category}">${category}</span> ${text}`;
+  diagnosticsLog.appendChild(el);
   diagnosticsLog.scrollTop = diagnosticsLog.scrollHeight;
 }
 
+// Hydrate previous event logs from IndexedDB
+async function hydrateLogs() {
+  const previousLogs = await storage.getRecentLogs(50);
+  previousLogs.reverse().forEach((log) => {
+    const time = new Date(log.timestamp).toLocaleTimeString();
+    const el = document.createElement('div');
+    el.style.marginBottom = '3px';
+    el.innerHTML = `<span style="color:var(--text-muted);">[${time}]</span> <span class="log-tag ${log.category}">${log.category}</span> ${log.message}`;
+    diagnosticsLog.appendChild(el);
+  });
+  diagnosticsLog.scrollTop = diagnosticsLog.scrollHeight;
+}
+await hydrateLogs();
+
 if (btnClearLogs) {
-  btnClearLogs.addEventListener('click', () => {
-    if (diagnosticsLog) diagnosticsLog.textContent = '';
+  btnClearLogs.addEventListener('click', async () => {
+    await storage.clearLogs();
+    if (diagnosticsLog) diagnosticsLog.innerHTML = '';
   });
 }
 
-// 3. Tab Navigation
+// 4. Render Database Table View
+async function renderDatabaseView() {
+  const modelKey = selectModel.value;
+  const summary = await storage.getChunkSummary(modelKey);
+
+  if (dbSummaryBadge) {
+    dbSummaryBadge.textContent = `${summary.length} chunks stored in IndexedDB (${(summary.length * 4).toFixed(0)} MB)`;
+  }
+
+  if (!dbChunksTbody) return;
+  if (summary.length === 0) {
+    dbChunksTbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No records found.</td></tr>';
+    return;
+  }
+
+  dbChunksTbody.innerHTML = summary
+    .map(
+      (c) => `
+    <tr>
+      <td>${c.chunkId}</td>
+      <td>L${c.layerRange[0]}-L${c.layerRange[1]}</td>
+      <td>${(c.sizeBytes / 1024 / 1024).toFixed(2)} MB</td>
+      <td>${c.hash.slice(0, 8)}...</td>
+    </tr>
+  `
+    )
+    .join('');
+}
+
+if (btnRefreshDb) {
+  btnRefreshDb.addEventListener('click', renderDatabaseView);
+}
+
+// 5. Navigation Tabs
 const navTabs = document.querySelectorAll('.nav-tab');
 const appViews = document.querySelectorAll('.app-view');
 
 navTabs.forEach((tab) => {
-  tab.addEventListener('click', () => {
+  tab.addEventListener('click', async () => {
     const targetId = tab.getAttribute('data-target');
     navTabs.forEach((t) => t.classList.remove('active'));
     tab.classList.add('active');
@@ -130,12 +191,11 @@ navTabs.forEach((tab) => {
     if (targetId === 'view-chat' && chatStream) {
       chatStream.scrollTop = chatStream.scrollHeight;
     }
+    if (targetId === 'view-db') {
+      await renderDatabaseView();
+    }
   });
 });
-
-// 4. Persistence & WASM Worker Setup
-const storage = new StorageService();
-await storage.init();
 
 const pastMessages = await storage.getMessages();
 pastMessages.forEach((m) => renderMessage(m.role, m.text));
@@ -144,14 +204,13 @@ const worker = new Worker('./llm-worker.js', { type: 'module' });
 let currentChunks = [];
 let pendingMeshChunk = null;
 
-// Helper: Fetch engine.wasm binary from origin
 async function getEngineWasmBinary() {
   const res = await fetch('./engine.wasm');
   if (!res.ok) throw new Error('Could not fetch engine.wasm binary.');
   return await res.arrayBuffer();
 }
 
-// 5. Model Loading Pipeline
+// 6. Model Loading Pipeline
 async function loadSlicesFromCache() {
   const modelKey = selectModel.value;
   currentChunks = await storage.getModelChunks(modelKey);
@@ -162,43 +221,56 @@ async function loadSlicesFromCache() {
 
     if (currentChunks.length !== expectedTotal) {
       if (engineStatus) engineStatus.textContent = `Incomplete: ${currentChunks.length}/${expectedTotal} chunks.`;
-      appendLog(`Incomplete chunks found: ${currentChunks.length}/${expectedTotal}`);
+      await appendLog('STORAGE', `Incomplete chunks found: ${currentChunks.length}/${expectedTotal}`);
       return;
     }
 
     updateDAGManifest(currentChunks, storedRoot);
-    appendLog(`Reassembling ${currentChunks.length} chunks via Merkle DAG...`);
+    await appendLog('STORAGE', `Reassembling ${currentChunks.length} chunks via Merkle DAG...`);
 
     try {
       const unifiedBuffer = await MerkleChunker.reassemble(currentChunks, storedRoot);
       const engineWasm = await getEngineWasmBinary();
+
+      // Pass manifest describing layer bounds per chunk for coroutine searching
+      const manifest = currentChunks.map((c) => ({
+        chunkId: c.metadata.chunkId,
+        index: c.metadata.index,
+        layerRange: c.metadata.context.layerRange,
+        byteOffset: c.metadata.byteOffset,
+        byteLength: c.metadata.byteLength,
+        hash: c.metadata.chunkHash
+      }));
 
       worker.postMessage({
         type: 'INIT_ENGINE',
         payload: {
           engineWasmBinary: engineWasm,
           modelBinary: unifiedBuffer,
-          modelName: modelKey
+          modelName: modelKey,
+          manifest
         }
       });
-      appendLog('Merkle verification passed. Models initialized in WASM heap.');
+      await appendLog('WASM', 'Merkle verification passed. Models initialized in WASM heap.');
+      await renderDatabaseView();
     } catch (err) {
       if (engineStatus) engineStatus.textContent = 'Assembly Failed: ' + err.message;
-      appendLog('Assembly Error: ' + err.message);
+      await appendLog('ERROR', 'Assembly Error: ' + err.message);
     }
   } else {
     if (engineStatus) engineStatus.textContent = 'Engine: Standalone Mode';
     worker.postMessage({ type: 'INIT_ENGINE', payload: { modelName: 'Standalone Engine' } });
-    appendLog('No local chunks. Running standalone engine.');
+    await appendLog('STORAGE', 'No local chunks found. Running standalone.');
   }
 }
 await loadSlicesFromCache();
 
 selectModel.addEventListener('change', async () => {
   await loadSlicesFromCache();
+  await renderDatabaseView();
 });
 
-// 6. WebRTC Mesh Network Protocol
+// 7. WebRTC Mesh Protocol
 const mesh = new MeshCoordinator(
   nodeId,
   async (msg, peerKey, channel) => {
@@ -211,6 +283,7 @@ const mesh = new MeshCoordinator(
         await loadSlicesFromCache();
       }
     } else if (msg.type === 'INFERENCE_REQUEST') {
+      await appendLog('WEBRTC', `Received delegated task from peer: ${peerKey}`);
       worker.postMessage({
         type: 'INFER',
         payload: { prompt: msg.prompt, taskId: msg.taskId }
@@ -237,7 +310,7 @@ const mesh = new MeshCoordinator(
   }
 );
 
-// 7. Download & 4 MB Merkle Chunking
+// 8. Download & 4 MB Merkle Chunking
 btnDownloadSplit.addEventListener('click', async () => {
   const modelKey = selectModel.value;
   btnDownloadSplit.disabled = true;
@@ -245,7 +318,7 @@ btnDownloadSplit.addEventListener('click', async () => {
 
   try {
     await storage.deleteModelChunks(modelKey);
-    appendLog(`Starting download: ${modelKey}`);
+    await appendLog('STORAGE', `Starting model fetch: ${modelKey}`);
 
     const downloadResult = await HuggingFaceDownloader.fetchStream(
       modelKey,
@@ -257,7 +330,7 @@ btnDownloadSplit.addEventListener('click', async () => {
       }
     );
 
-    appendLog('Download complete. Computing 4MB Merkle Tree...');
+    await appendLog('STORAGE', 'Download complete. Splitting into 4MB Merkle Tree...');
     const { rootHash, chunks } = await MerkleChunker.splitToMerkleChunks(
       downloadResult.blob,
       modelKey,
@@ -280,21 +353,32 @@ btnDownloadSplit.addEventListener('click', async () => {
     const binary = await MerkleChunker.reassemble(chunks, rootHash);
     const engineWasm = await getEngineWasmBinary();
 
+    const manifest = chunks.map((c) => ({
+      chunkId: c.metadata.chunkId,
+      index: c.metadata.index,
+      layerRange: c.metadata.context.layerRange,
+      byteOffset: c.metadata.byteOffset,
+      byteLength: c.metadata.byteLength,
+      hash: c.metadata.chunkHash
+    }));
+
     worker.postMessage({
       type: 'INIT_ENGINE',
       payload: {
         engineWasmBinary: engineWasm,
         modelBinary: binary,
-        modelName: modelKey
+        modelName: modelKey,
+        manifest
       }
     });
 
     if (progressText) progressText.textContent = `Ready! Merkle Root: ${rootHash.slice(0, 10)}... (4MB verified)`;
-    appendLog(`Persisted ${chunks.length} chunks. Merkle Root: ${rootHash}`);
+    await appendLog('STORAGE', `Persisted ${chunks.length} chunks. Merkle Root: ${rootHash}`);
+    await renderDatabaseView();
   } catch (err) {
     if (engineStatus) engineStatus.textContent = 'Operation Error: ' + err.message;
     if (progressText) progressText.textContent = err.message;
-    appendLog('Error: ' + err.message);
+    await appendLog('ERROR', 'Download/Chunking Error: ' + err.message);
   } finally {
     btnDownloadSplit.disabled = false;
   }
@@ -309,11 +393,11 @@ function updateDAGManifest(chunks, rootHash) {
     <strong>Blocks:</strong> ${chunks.length} × 4MB Nodes<br>
     <strong>Context Links:</strong> ${first.context.targetNextContext}<br>
     <strong>Layer Spans:</strong> 0 to 30 mapped<br>
-    <strong>Engine:</strong> Native C-WASM + SIMD
+    <strong>Search Coroutine:</strong> Active (IndexedDB Paged)
   `;
 }
 
-// 8. Clear Cache
+// 9. Clear All Cache & Storage
 if (btnClearCache) {
   btnClearCache.addEventListener('click', async () => {
     const confirmPurge = confirm('Are you sure you want to clear all cache?');
@@ -334,7 +418,7 @@ if (btnClearCache) {
       if (graphManifest) graphManifest.innerHTML = 'No 4MB slices found in IndexedDB.';
 
       worker.postMessage({ type: 'INIT_ENGINE', payload: { modelName: 'Standalone Engine' } });
-      appendLog('Cache and storage purged.');
+      await appendLog('STORAGE', 'Cache, event logs, and IndexedDB stores purged.');
 
       if (clearStatusLabel) {
         clearStatusLabel.style.color = '#10b981';
@@ -351,7 +435,7 @@ if (btnClearCache) {
   });
 }
 
-// 9. Chat Stream & Telemetry Listener
+// 10. Chat Stream & Telemetry Listener
 let currentBubble = null;
 
 function renderMessage(role, text) {
@@ -373,16 +457,19 @@ function updateAssistantBubble(text) {
   }
 }
 
-worker.onmessage = (e) => {
-  const { type, status, fullText, done, message, text, tps, ttft, topCandidates } = e.data;
+worker.onmessage = async (e) => {
+  const { type, status, fullText, done, message, text, category, tps, ttft, topCandidates } = e.data;
 
   if (type === 'STATUS' && engineStatus) engineStatus.textContent = `Engine: ${status}`;
   if (type === 'ERROR' && engineStatus) engineStatus.textContent = message;
-  if (type === 'LOG') appendLog(text);
+  if (type === 'LOG') await appendLog(category || 'ENGINE', text);
 
   if (type === 'TELEMETRY') {
     if (metricTPS) metricTPS.textContent = tps;
     if (metricTTFT) metricTTFT.textContent = `${ttft} ms`;
+    if (metricActiveSlices && currentChunks.length) {
+      metricActiveSlices.textContent = `${currentChunks.length}`;
+    }
 
     if (tokenTopKBars && topCandidates) {
       tokenTopKBars.innerHTML = topCandidates
@@ -420,6 +507,7 @@ async function executeChat() {
   const delegated = mesh.dispatchCompute(text);
   if (delegated) {
     updateAssistantBubble(`[Mesh] Dispatched to peer: ${delegated.peerKey}`);
+    await appendLog('WEBRTC', `Task dispatched to peer ${delegated.peerKey}`);
   } else {
     worker.postMessage({
       type: 'INFER',
@@ -433,13 +521,13 @@ inputPrompt.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') executeChat();
 });
 
-// 10. WebRTC PIN Controls
+// 11. WebRTC Mesh PIN Handshake
 if (btnHostPin) {
   btnHostPin.addEventListener('click', async () => {
     const pin = mesh.createPin();
     const token = await mesh.generateHostToken(pin);
     if (hostTokenOut) hostTokenOut.value = token;
-    appendLog(`Generated WebRTC Host PIN token: ${pin}`);
+    await appendLog('WEBRTC', `Host PIN generated: ${pin}`);
   });
 }
 
@@ -453,14 +541,14 @@ if (btnConnectPin) {
       if (raw.sdp.type === 'offer') {
         const answer = await mesh.acceptTokenAndCreateAnswer(input);
         if (joinTokenIn) joinTokenIn.value = answer;
-        appendLog('Processed WebRTC offer; created answer token.');
+        await appendLog('WEBRTC', 'Offer token processed; created answer token.');
       } else if (raw.sdp.type === 'answer') {
         await mesh.finalizeHostConnection(input);
-        appendLog('Finalized WebRTC peer connection.');
+        await appendLog('WEBRTC', 'Peer connection established via PIN handshake.');
       }
     } catch (err) {
       alert('Signaling Failed: ' + err.message);
-      appendLog('WebRTC Error: ' + err.message);
+      await appendLog('ERROR', 'WebRTC signaling failed: ' + err.message);
     }
   });
 }
