@@ -2,68 +2,46 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Custom JSON-LLM Studio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Clean WebLLM JSON</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="layout">
-    <!-- PWA Update Toast -->
-    <div id="update-toast" role="alert">
-      <div style="flex: 1;">
-        <div style="font-size: 0.85rem; font-weight: 600;">Update Available</div>
-        <div style="font-size: 0.75rem; color: var(--text-muted);">A new version of the app is ready.</div>
-      </div>
-      <div style="display: flex; gap: 8px;">
-        <button id="btn-apply-update" style="padding: 6px 12px;">Reload</button>
-        <button id="btn-dismiss-update" class="secondary-btn" style="padding: 6px 10px;">✕</button>
-      </div>
-    </div>
-
-    <!-- App Header -->
     <header class="app-header">
       <div>
-        <div class="brand-title">JSON-LLM Studio</div>
+        <div class="brand-title">WebLLM JSON</div>
         <div id="node-label" style="font-size: 0.7rem; color: var(--text-muted);">Node: Initializing...</div>
       </div>
       <div id="engine-status" class="badge ready">Active: agent-dialog</div>
     </header>
 
-    <!-- Main Viewport -->
     <div class="view-viewport">
       <!-- 1. Chat Tab -->
       <section id="view-chat" class="app-view active">
         <div id="chat-stream"></div>
         <div class="chat-input-bar">
-          <input type="text" id="input-prompt" placeholder="Message local agent (RAG enabled)...">
+          <input type="text" id="input-prompt" placeholder="Message local JSON LLM (Vector RAG enabled)...">
           <button id="btn-send">Send</button>
         </div>
       </section>
 
-      <!-- 2. On-Device Training Studio -->
+      <!-- 2. Train Tab -->
       <section id="view-train" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
             <h3>On-Device Training Studio</h3>
-            <span class="field-label">Train your own Transformer model from scratch on custom text</span>
-            
-            <div id="drop-zone" style="border: 2px dashed var(--border); border-radius: 6px; padding: 14px; text-align: center; cursor: pointer;">
-              <span class="field-label">Drag & drop text/code files or browse</span>
-              <input type="file" id="file-dataset-input" multiple style="display: none;">
-              <button id="btn-browse-file" class="secondary-btn" style="margin: 8px auto 0 auto;">Browse Files</button>
-              <div id="dataset-size-badge" class="badge" style="margin-top: 6px; display: inline-block;">0 files loaded</div>
-            </div>
-
-            <textarea id="train-text-input" rows="4" style="width: 100%; margin-top: 8px;" placeholder="Paste text or training pairs..."></textarea>
+            <span class="field-label">Train your micro-model on custom text directly in memory</span>
+            <textarea id="train-text-input" rows="4" style="width: 100%;" placeholder="<user> Hello <bot> Greetings! How can I help? <eos>"></textarea>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
               <div>
-                <span class="field-label">Target Agent</span>
+                <span class="field-label">Target Model</span>
                 <select id="select-agent-target" style="width: 100%;">
-                  <option value="dialog" selected>Dialog Agent</option>
-                  <option value="clang">C Language Agent</option>
-                  <option value="html5">HTML5 Agent</option>
+                  <option value="dialog" selected>Dialog Expert</option>
+                  <option value="clang">C Language Expert</option>
+                  <option value="html5">HTML5 Expert</option>
                 </select>
               </div>
               <div>
@@ -72,12 +50,12 @@
               </div>
             </div>
 
-            <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <div style="display: flex; gap: 8px; margin-top: 6px;">
               <button id="btn-start-training" style="flex: 1;">Start Training</button>
-              <button id="btn-stop-training" class="danger-btn" style="flex: 1;" disabled>Stop</button>
+              <button id="btn-save-json" class="secondary-btn" style="flex: 1;">Save Model to JSON</button>
             </div>
 
-            <div class="progress-track" style="margin-top: 6px;">
+            <div class="progress-track" style="margin-top: 8px;">
               <div id="train-progress-fill" class="progress-fill"></div>
             </div>
             <span id="train-progress-text" class="field-label" style="text-align: center; display: block; margin-top: 4px;">Ready to train</span>
@@ -92,40 +70,40 @@
                 <span class="telemetry-lbl">Perplexity</span>
               </div>
               <div class="telemetry-item">
-                <span class="telemetry-val" id="metric-model-size">~28 KB</span>
+                <span class="telemetry-val" id="metric-model-size">~25 KB</span>
                 <span class="telemetry-lbl">JSON Size</span>
               </div>
             </div>
 
             <div style="display: flex; gap: 8px; margin-top: 8px;">
-              <button id="btn-export-jsonllm" class="secondary-btn" style="flex: 1;">Export .jsonllm File</button>
-              <button id="btn-import-jsonllm-btn" class="secondary-btn" style="flex: 1;">Import .jsonllm File</button>
-              <input type="file" id="file-jsonllm-import" accept=".json,.jsonllm" style="display: none;">
+              <button id="btn-export-file" class="secondary-btn" style="flex: 1;">Download .jsonllm</button>
+              <button id="btn-import-file-btn" class="secondary-btn" style="flex: 1;">Upload .jsonllm</button>
+              <input type="file" id="file-import-input" accept=".json,.jsonllm" style="display: none;">
             </div>
           </div>
         </div>
       </section>
 
-      <!-- 3. Local Vector RAG Knowledge Base -->
+      <!-- 3. Local Vector RAG Tab -->
       <section id="view-rag" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
-            <h3>Vector Knowledge Store (RAG)</h3>
-            <span class="field-label">Index custom domain facts into the local vector index for semantic retrieval</span>
-            <input type="text" id="rag-doc-id" placeholder="Document ID" value="guideline_1">
-            <textarea id="rag-doc-text" rows="3" style="width: 100%;" placeholder="Enter knowledge facts or syntax rules..."></textarea>
+            <h3>Vector Knowledge Store</h3>
+            <span class="field-label">Add reference facts to augment prompts without expanding weights</span>
+            <input type="text" id="rag-doc-id" placeholder="Document ID" value="fact_1">
+            <textarea id="rag-doc-text" rows="3" style="width: 100%;" placeholder="Enter reference facts..."></textarea>
             <button id="btn-index-rag">Index Document</button>
             <span class="field-label" id="rag-index-status">Store Ready</span>
           </div>
         </div>
       </section>
 
-      <!-- 4. WebMCP Protocol Hub -->
+      <!-- 4. WebMCP Tab -->
       <section id="view-webmcp" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
-            <h3>WebMCP JSON-RPC 2.0 Hub</h3>
-            <span class="field-label">Direct Model Context Protocol RPC execution</span>
+            <h3>WebMCP JSON-RPC Hub</h3>
+            <span class="field-label">Execute Model Context Protocol tools and schemas</span>
             <div style="display: flex; gap: 6px; flex-wrap: wrap;">
               <button id="btn-mcp-init" class="secondary-btn">initialize</button>
               <button id="btn-mcp-tools" class="secondary-btn">tools/list</button>
@@ -133,74 +111,44 @@
             </div>
             <textarea id="mcp-request-json" rows="4" style="width: 100%; font-family: monospace;"></textarea>
             <button id="btn-send-mcp">Execute JSON-RPC</button>
-            <span class="field-label">Protocol Response</span>
+            <span class="field-label">RPC Output</span>
             <pre id="mcp-response-json" class="console-box" style="height: 140px;">Awaiting request...</pre>
           </div>
         </div>
       </section>
 
-      <!-- 5. DB View & SI-Radix Segments -->
+      <!-- 5. DB View Tab -->
       <section id="view-db" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <h3>Shared Storage & Quota</h3>
-              <button id="btn-request-persist" class="secondary-btn" style="padding: 4px 10px; font-size: 0.75rem;">Request Persist</button>
+              <h3>IndexedDB JSON Models</h3>
+              <button id="btn-refresh-db" class="secondary-btn">Refresh</button>
             </div>
-            
-            <div class="telemetry-grid" style="margin-top: 6px;">
-              <div class="telemetry-item">
-                <span class="telemetry-val" id="metric-storage-used">0 MB</span>
-                <span class="telemetry-lbl">Storage Used</span>
-              </div>
-              <div class="telemetry-item">
-                <span class="telemetry-val" id="metric-storage-quota">0 MB</span>
-                <span class="telemetry-lbl">Quota</span>
-              </div>
-              <div class="telemetry-item">
-                <span class="telemetry-val" id="metric-storage-status">Checking...</span>
-                <span class="telemetry-lbl">Persistence</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="settings-card">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <h3>IndexedDB SI-Radix Segments</h3>
-              <button id="btn-refresh-db" class="secondary-btn" style="padding: 4px 10px; font-size: 0.75rem;">Refresh</button>
-            </div>
-            <span class="badge" id="db-summary-badge">0 segments</span>
             <div style="overflow-x: auto;">
               <table class="db-table">
                 <thead>
-                  <tr><th>ID</th><th>Model</th><th>Size</th><th>Murmur3</th></tr>
+                  <tr><th>Model Name</th><th>Size</th><th>Format</th><th>Updated</th></tr>
                 </thead>
-                <tbody id="db-chunks-tbody">
-                  <tr><td colspan="4" style="text-align: center;">No segments cached.</td></tr>
+                <tbody id="db-models-tbody">
+                  <tr><td colspan="4" style="text-align: center;">No models saved.</td></tr>
                 </tbody>
               </table>
             </div>
-          </div>
-
-          <div class="settings-card">
-            <h3>Maintenance</h3>
-            <button id="btn-clear-cache" class="danger-btn">Clear All IndexedDB & Cache</button>
-            <span id="clear-status-label" class="field-label" style="text-align: center; display: block;"></span>
+            <button id="btn-clear-db" class="danger-btn" style="margin-top: 8px;">Clear All Models & Caches</button>
           </div>
         </div>
       </section>
 
-      <!-- 6. WebRTC Mesh PIN Tab -->
+      <!-- 6. WebRTC Mesh Tab -->
       <section id="view-mesh" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
-            <h3>Host Session (Generate PIN)</h3>
+            <h3>WebRTC P2P Mesh (6-Digit PIN)</h3>
             <button id="btn-host-pin">Generate Host PIN & Offer</button>
-            <textarea id="host-token-out" rows="2" style="width: 100%;" readonly placeholder="Your host SDP token will appear here..."></textarea>
-          </div>
-          <div class="settings-card">
-            <h3>Join Session (Connect via PIN)</h3>
-            <textarea id="join-token-in" rows="2" style="width: 100%;" placeholder="Paste remote host/answer SDP token here..."></textarea>
+            <textarea id="host-token-out" rows="2" style="width: 100%;" readonly placeholder="Host token..."></textarea>
+            <hr style="border: 0; border-top: 1px solid var(--border);">
+            <textarea id="join-token-in" rows="2" style="width: 100%;" placeholder="Paste remote token..."></textarea>
             <button id="btn-connect-pin">Connect Peer</button>
             <div style="text-align: center; margin-top: 4px;">
               <span class="badge" id="peer-status">0 Peers Connected</span>
@@ -209,13 +157,13 @@
         </div>
       </section>
 
-      <!-- 7. Diagnostics & Event Logs -->
+      <!-- 7. Diagnostics Tab -->
       <section id="view-diagnostics" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <h3>Real-Time Event Stream</h3>
-              <button id="btn-clear-logs" class="secondary-btn" style="padding: 4px 10px; font-size: 0.75rem;">Clear</button>
+              <h3>Event Telemetry</h3>
+              <button id="btn-clear-logs" class="secondary-btn">Clear</button>
             </div>
             <div id="diagnostics-log" class="console-box" style="height: 300px;"></div>
           </div>
@@ -223,7 +171,7 @@
       </section>
     </div>
 
-    <!-- Bottom Navigation Bar -->
+    <!-- Navigation -->
     <nav class="bottom-nav">
       <button class="nav-tab active" data-target="view-chat"><span>Chat</span></button>
       <button class="nav-tab" data-target="view-train"><span>Train</span></button>
