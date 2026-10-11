@@ -1,7 +1,7 @@
 {
-  "name": "Custom JSON-LLM Studio",
-  "short_name": "JsonLLM",
-  "description": "Browser-native small LLM training, Vector RAG, and WebMCP agent mesh without external dependencies",
+  "name": "Clean WebLLM JSON",
+  "short_name": "WebLLM",
+  "description": "Offline browser-native LLM in pure JSON format with on-device training and vector RAG",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait-primary",
@@ -9,7 +9,7 @@
   "theme_color": "#111827",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'><rect width='128' height='128' rx='28' fill='%234f46e5'/><path d='M36 44h56M36 64h40M36 84h48' stroke='white' stroke-width='10' stroke-linecap='round'/></svg>",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'><rect width='128' height='128' rx='28' fill='%236366f1'/><path d='M36 44h56M36 64h40M36 84h48' stroke='white' stroke-width='10' stroke-linecap='round'/></svg>",
       "sizes": "192x192 512x512",
       "type": "image/svg+xml"
     }
