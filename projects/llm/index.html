@@ -9,19 +9,20 @@
 </head>
 <body>
   <div id="layout">
+    <!-- Update Toast -->
+    <div id="update-toast" role="alert">
+      <div class="update-toast-content">
+        <div class="update-toast-title">Update Available</div>
+        <div class="update-toast-desc">A new version of the app is ready.</div>
+      </div>
+      <div class="update-actions">
+        <button id="btn-apply-update" class="update-btn-refresh">Reload</button>
+        <button id="btn-dismiss-update" class="update-btn-dismiss">✕</button>
+      </div>
+    </div>
+
     <!-- Header -->
     <header class="app-header">
-<!-- Inside #layout, right before <header class="app-header"> -->
-<div id="update-toast" role="alert">
-  <div class="update-toast-content">
-    <div class="update-toast-title">Update Available</div>
-    <div class="update-toast-desc">A new version of the app is ready.</div>
-  </div>
-  <div class="update-actions">
-    <button id="btn-apply-update" class="update-btn-refresh">Reload</button>
-    <button id="btn-dismiss-update" class="update-btn-dismiss">✕</button>
-  </div>
-</div>
       <div>
         <div class="brand-title">Shared LLM</div>
         <div id="node-label" style="font-size: 0.7rem; color: var(--text-muted);">Node: Initializing...</div>
@@ -29,7 +30,7 @@
       <div id="engine-status" class="badge">Engine: WASM Unloaded</div>
     </header>
 
-    <!-- Main Tab Viewport -->
+    <!-- Main Viewport -->
     <div class="view-viewport">
       
       <!-- View 1: Chat -->
@@ -41,34 +42,20 @@
         </div>
       </section>
 
-      <!-- View 2: Model & DAG Slice Manager -->
+      <!-- View 2: Model & DAG Manager -->
       <section id="view-models" class="app-view">
         <div class="settings-content">
-
-<!-- Inside <section id="view-models"> under .settings-content -->
-<div class="settings-card">
-  <h3>Application Maintenance</h3>
-  <span class="field-label">Check for updated application shell, WASM kernels, and UI</span>
-  <button id="btn-check-update" class="secondary-btn">Check for App Updates</button>
-  <span id="update-status-label" style="font-size: 0.75rem; color: var(--text-muted); text-align: center; display: block;">App is up to date</span>
-
-  <hr style="border: 0; border-top: 1px solid var(--border); margin: 6px 0;">
-
-  <span class="field-label">Remove downloaded 1MB model slices, chat logs, and service worker caches</span>
-  <button id="btn-clear-cache" class="danger-btn">Clear All Cache & Reset Storage</button>
-  <span id="clear-status-label" style="font-size: 0.75rem; color: var(--text-muted); text-align: center; display: block;"></span>
-</div>
           <div class="settings-card">
             <h3>Download Model</h3>
             <span class="field-label">Repository & Architecture</span>
             <select id="select-model">
-              <option value="smollm-135m" selected>SmolLM-135M (~94 MB, ~94 Chunks) - Fast</option>
-              <option value="smollm2-360m-itlwas">SmolLM2-360M (~229 MB, ~229 Chunks)</option>
-              <option value="llama-3.2-1b">Llama-3.2-1B (~780 MB, ~780 Chunks)</option>
-              <option value="qwen2.5-1.5b">Qwen2.5-1.5B (~990 MB, ~990 Chunks)</option>
-              <option value="phi-3.5-mini">Phi-3.5-Mini (~2.39 GB, ~2390 Chunks)</option>
+              <option value="smollm-135m" selected>SmolLM-135M (~94 MB, ~24 Chunks of 4MB) - Ultra Fast</option>
+              <option value="smollm2-360m-itlwas">SmolLM2-360M (~229 MB, ~58 Chunks of 4MB)</option>
+              <option value="llama-3.2-1b">Llama-3.2-1B (~780 MB, ~195 Chunks of 4MB)</option>
+              <option value="qwen2.5-1.5b">Qwen2.5-1.5B (~990 MB, ~248 Chunks of 4MB)</option>
+              <option value="phi-3.5-mini">Phi-3.5-Mini (~2.39 GB, ~598 Chunks of 4MB)</option>
             </select>
-            <button id="btn-download-split">Fetch & Split to 1MB Slices</button>
+            <button id="btn-download-split">Fetch & Split to 4MB Merkle Slices</button>
 
             <div id="progress-container" style="display: none;">
               <div class="progress-track">
@@ -79,14 +66,23 @@
           </div>
 
           <div class="settings-card">
-            <h3>DAG Slices & Context</h3>
-            <div id="graph-manifest" class="graph-box">No 1MB slices found in IndexedDB.</div>
-            <button id="btn-export-slice" class="secondary-btn">Download 1MB Envelope</button>
+            <h3>Merkle DAG & Context Bounds</h3>
+            <div id="graph-manifest" class="graph-box">No 4MB slices found in IndexedDB.</div>
+            <button id="btn-export-slice" class="secondary-btn">Download 4MB Envelope</button>
+          </div>
+
+          <div class="settings-card">
+            <h3>Application Maintenance</h3>
+            <button id="btn-check-update" class="secondary-btn">Check for App Updates</button>
+            <span id="update-status-label" style="font-size: 0.75rem; color: var(--text-muted); text-align: center; display: block;">App is up to date</span>
+            <hr style="border: 0; border-top: 1px solid var(--border); margin: 6px 0;">
+            <button id="btn-clear-cache" class="danger-btn">Clear All Cache & Reset Storage</button>
+            <span id="clear-status-label" style="font-size: 0.75rem; color: var(--text-muted); text-align: center; display: block;"></span>
           </div>
         </div>
       </section>
 
-      <!-- View 3: Mesh Network & WebRTC PIN Connection -->
+      <!-- View 3: Mesh Network -->
       <section id="view-mesh" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
@@ -107,6 +103,54 @@
         </div>
       </section>
 
+      <!-- View 4: Diagnostics, Architecture & Telemetry -->
+      <section id="view-diagnostics" class="app-view">
+        <div class="settings-content">
+          <div class="settings-card">
+            <h3>Transformer Execution Flow</h3>
+            <div class="flow-diagram">
+              <div class="flow-step">1. Prompt Tokenizer (BPE)</div>
+              <div class="flow-arrow">▼</div>
+              <div class="flow-step">2. Embedding Matrix Lookup + RoPE ($d = 576$)</div>
+              <div class="flow-arrow">▼</div>
+              <div class="flow-step">3. 30× Transformer Blocks (Attn + SwiGLU MLP via Coroutines)</div>
+              <div class="flow-arrow">▼</div>
+              <div class="flow-step">4. Fast Filtered Logits Projection & Greedy/Top-P Sample</div>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <h3>Real-Time Engine Telemetry</h3>
+              <button id="btn-clear-logs" style="min-height: 28px; padding: 4px 10px; font-size: 0.75rem;" class="secondary-btn">Clear</button>
+            </div>
+            
+            <div class="telemetry-grid">
+              <div class="telemetry-item">
+                <span class="telemetry-val" id="metric-tps">0.0</span>
+                <span class="telemetry-lbl">Tokens / sec</span>
+              </div>
+              <div class="telemetry-item">
+                <span class="telemetry-val" id="metric-ttft">0 ms</span>
+                <span class="telemetry-lbl">Time to First Token</span>
+              </div>
+              <div class="telemetry-item">
+                <span class="telemetry-val" id="metric-layers">30 / 30</span>
+                <span class="telemetry-lbl">Active Layers</span>
+              </div>
+            </div>
+
+            <div id="token-search-preview" class="token-topk-container">
+              <span class="field-label">Top Token Candidates Distribution</span>
+              <div id="token-topk-bars">No active search data.</div>
+            </div>
+
+            <span class="field-label" style="margin-top: 6px;">Live Inference Log Stream</span>
+            <div id="diagnostics-log" class="console-box"></div>
+          </div>
+        </div>
+      </section>
+
     </div>
 
     <!-- Bottom Navigation Bar -->
@@ -123,7 +167,12 @@
 
       <button class="nav-tab" data-target="view-mesh">
         <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
-        <span>Mesh PIN</span>
+        <span>Mesh</span>
+      </button>
+
+      <button class="nav-tab" data-target="view-diagnostics">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-4-4h3V9h2v4h3l-4 4zm-5-10V5h10v2H7z"/></svg>
+        <span>Flow/Logs</span>
       </button>
     </nav>
   </div>
