@@ -35,13 +35,12 @@ self.onmessage = async (e) => {
     activeModelName = modelName;
 
     try {
-      // 1. Quota Pre-Check
       const quota = await storage.getStorageQuota();
       if (quota.quotaBytes > 0 && quota.usageBytes + modelBlob.size > quota.quotaBytes) {
-        throw new Error(`Insufficient storage: ${quota.usageMB}MB used of ${quota.quotaMB}MB quota. Need ${((modelBlob.size)/(1024*1024)).toFixed(1)}MB.`);
+        throw new Error(`Insufficient storage: ${quota.usageMB}MB used of ${quota.quotaMB}MB quota.`);
       }
 
-      self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Storage check passed. Quota used: ${quota.percentUsed}% (${quota.usageMB}/${quota.quotaMB} MB).` });
+      self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Storage check passed. Quota used: ${quota.percentUsed}%.` });
       self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Building 4MB Merkle tree for ${modelName}...` });
 
       const { rootHash, chunks } = await MerkleChunker.splitToMerkleChunks(
@@ -54,7 +53,6 @@ self.onmessage = async (e) => {
 
       await storage.setSystemKey(`${modelName}_merkle_root`, rootHash);
 
-      // 2. Batch Transaction Write
       self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Writing ${chunks.length} 4MB chunks via batch transaction...` });
       await storage.batchPutChunks(chunks, (completed, total) => {
         if (completed % 5 === 0 || completed === total) {
