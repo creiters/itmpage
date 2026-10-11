@@ -1,5 +1,5 @@
 export class NanoTokenizer {
-  constructor(vocabSize = 96) {
+  constructor(vocabSize = 128) {
     this.vocabSize = vocabSize;
     this.tokenToId = new Map();
     this.idToToken = new Map();
@@ -14,6 +14,7 @@ export class NanoTokenizer {
     });
 
     let cur = specials.length;
+    // Map printable ASCII characters (32..126)
     for (let c = 32; c <= 126 && cur < this.vocabSize; c++) {
       const ch = String.fromCharCode(c);
       this.tokenToId.set(ch, cur);
@@ -24,7 +25,7 @@ export class NanoTokenizer {
 
   encode(text) {
     if (!text) return [1];
-    const tokens = [1];
+    const tokens = [1]; // <bos>
     let cursor = 0;
 
     while (cursor < text.length) {
@@ -49,7 +50,7 @@ export class NanoTokenizer {
   decode(tokens) {
     if (!tokens || !tokens.length) return '';
     return tokens
-      .filter((id) => id > 3)
+      .filter((id) => id > 3) // Exclude control tokens from final text
       .map((id) => this.idToToken.get(id) || '')
       .join('');
   }
@@ -60,9 +61,9 @@ export class NanoTransformer {
     this.dim = config.dim || 64;
     this.layers = config.layers || 2;
     this.heads = config.heads || 2;
-    this.headDim = this.dim / this.heads;
-    this.vocabSize = config.vocabSize || 96;
-    this.maxSeqLen = config.maxSeqLen || 48;
+    this.headDim = this.dim / this.heads; // 32
+    this.vocabSize = config.vocabSize || 128;
+    this.maxSeqLen = config.maxSeqLen || 64;
     this.stepCount = config.stepCount || 0;
 
     this.weights = {};
@@ -116,7 +117,8 @@ export class NanoTransformer {
     const tape = { pos, tokenId, layers: [] };
     const x = new Float32Array(this.dim);
 
-    const embOffset = tokenId * this.dim;
+    const safeTok = Math.min(tokenId, this.vocabSize - 1);
+    const embOffset = safeTok * this.dim;
     for (let i = 0; i < this.dim; i++) x[i] = this.weights.wte[embOffset + i];
     tape.xInit = new Float32Array(x);
 
@@ -146,6 +148,7 @@ export class NanoTransformer {
       layerTape.k = k;
       layerTape.v = v;
 
+      // Save to KV-cache
       kvCache.k[l][pos] = k;
       kvCache.v[l][pos] = v;
 
@@ -157,6 +160,8 @@ export class NanoTransformer {
 
         for (let t = 0; t <= pos; t++) {
           const histK = kvCache.k[l][t];
+          if (!histK) continue; // Boundary guard
+
           let score = 0.0;
           for (let d = 0; d < this.headDim; d++) {
             score += q[hOffset + d] * histK[hOffset + d];
@@ -175,6 +180,8 @@ export class NanoTransformer {
         for (let t = 0; t <= pos; t++) {
           weights[t] /= sumExp;
           const histV = kvCache.v[l][t];
+          if (!histV) continue;
+
           for (let d = 0; d < this.headDim; d++) {
             att[hOffset + d] += histV[hOffset + d] * weights[t];
           }
@@ -240,7 +247,7 @@ export class NanoTransformer {
     return { logits, tape };
   }
 
-  trainSequence(tokenIds, lr = 0.002) {
+  trainSequence(tokenIds, lr = 0.003) {
     if (tokenIds.length < 2) return 0.0;
     this.stepCount++;
 
@@ -274,9 +281,8 @@ export class NanoTransformer {
       const loss = -Math.log(Math.max(1e-7, probs[targetId]));
       totalLoss += loss;
 
-      probs[targetId] -= 1.0; // Gradient
+      probs[targetId] -= 1.0;
 
-      // Head gradient
       const dNormFinal = new Float32Array(this.dim);
       for (let r = 0; r < this.vocabSize; r++) {
         const dL = probs[r];
@@ -288,8 +294,8 @@ export class NanoTransformer {
         }
       }
 
-      // Embedding gradient
-      const embOffset = inputId * this.dim;
+      const safeIn = Math.min(inputId, this.vocabSize - 1);
+      const embOffset = safeIn * this.dim;
       for (let i = 0; i < this.dim; i++) {
         this.grads.wte[embOffset + i] += dNormFinal[i] * tape.normFinal.invScale;
       }
