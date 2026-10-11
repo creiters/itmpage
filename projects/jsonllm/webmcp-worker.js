@@ -1,5 +1,5 @@
 /**
- * webmcp-worker.js - 4M Training & WebMCP Server Worker with FP4/Q4 Serialization
+ * webmcp-worker.js - 4M Training & Dialogue Serialization Worker
  */
 
 import { NanoTransformer } from './nano-engine.js';
@@ -42,6 +42,7 @@ self.onmessage = async (e) => {
     return;
   }
 
+  // Train on Dialogue Corpus
   if (type === 'START_TRAIN') {
     const { text, epochs = 5, lr = 0.003, seqLen = 48 } = payload;
     isTrainingActive = true;
@@ -62,7 +63,7 @@ self.onmessage = async (e) => {
     self.postMessage({
       type: 'LOG',
       category: 'TRAIN',
-      text: `Training 4M Model on ${allTokens.length} tokens across ${sequences.length} batches (${epochs} epochs)...`
+      text: `Training on ${allTokens.length} tokens in ${sequences.length} batches (${epochs} epochs)...`
     });
 
     const tStart = performance.now();
@@ -115,9 +116,28 @@ self.onmessage = async (e) => {
     return;
   }
 
+  // Save Compact Dialogue Dataset (< 2 KB)
+  if (type === 'SAVE_COMPACT_DIALOGUE') {
+    const { datasetName, pairs } = payload;
+    const compactJSON = await JSONLLMCodec.exportDialogueDataset(engine.tokenizer, pairs);
+    await storage.putDialogueDataset(datasetName, compactJSON);
+
+    self.postMessage({
+      type: 'SAVE_DIALOGUE_COMPLETE',
+      payload: {
+        datasetName,
+        pairCount: pairs.length,
+        bytes: compactJSON.length,
+        sizeKb: (compactJSON.length / 1024).toFixed(2)
+      }
+    });
+    return;
+  }
+
+  // Generate 4M Model in FP4 (E2M1)
   if (type === 'GENERATE_JSONLLM') {
     const modelName = payload?.modelName || 'dialogue-4m';
-    const mode = payload?.mode || 'fp4'; // 'fp4' or 'q4'
+    const mode = payload?.mode || 'fp4';
 
     self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Quantizing 4M weights into ${mode.toUpperCase()} Deflate format...` });
 
