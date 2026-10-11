@@ -1,0 +1,83 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schema/2024-11-05/schema.json",
+  "name": "browser-native-llm",
+  "version": "1.0.0",
+  "description": "Browser-native offline Transformer LLM with Merkle DAG storage and WebRTC compute delegation",
+  "protocolVersion": "2024-11-05",
+  "capabilities": {
+    "sampling": {
+      "contextWindow": 1024,
+      "maxTokens": 128,
+      "streaming": true
+    },
+    "tools": {
+      "listChanged": true
+    },
+    "resources": {
+      "subscribe": false,
+      "listChanged": true
+    },
+    "prompts": {
+      "listChanged": false
+    }
+  },
+  "model": {
+    "architecture": "nano-transformer",
+    "hiddenDim": 256,
+    "numLayers": 6,
+    "numHeads": 4,
+    "vocabSize": 1024,
+    "contextLength": 256,
+    "storage": "IndexedDB-Merkle-DAG-4MB"
+  },
+  "tools": [
+    {
+      "name": "storage_query_chunks",
+      "description": "Inspects local 4MB Merkle DAG weight slices stored in IndexedDB",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "modelName": { "type": "string", "description": "Identifier of the model" }
+        },
+        "required": ["modelName"]
+      }
+    },
+    {
+      "name": "mesh_dispatch_compute",
+      "description": "Dispatches computation to a connected peer node via WebRTC PIN channel",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "prompt": { "type": "string", "description": "Text prompt to evaluate" }
+        },
+        "required": ["prompt"]
+      }
+    },
+    {
+      "name": "train_model_step",
+      "description": "Executes one gradient descent backpropagation training step on browser text",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string", "description": "Training corpus text segment" },
+          "learningRate": { "type": "number", "default": 0.001 }
+        },
+        "required": ["text"]
+      }
+    }
+  ],
+  "resources": [
+    {
+      "uri": "resource://model/manifest",
+      "name": "Model DAG Manifest",
+      "mimeType": "application/json",
+      "description": "Merkle root and layer span mappings for local 4MB slices"
+    },
+    {
+      "uri": "resource://storage/status",
+      "name": "Storage Status",
+      "mimeType": "application/json",
+      "description": "IndexedDB quota and persistence state"
+    }
+  ]
+}
