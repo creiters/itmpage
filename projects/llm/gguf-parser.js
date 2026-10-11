@@ -1,5 +1,5 @@
 export class GGUFParser {
-  static GGUF_MAGIC = 0x46554747; // 'GGUF' in Little Endian
+  static GGUF_MAGIC = 0x46554747; // 'GGUF'
 
   constructor(arrayBuffer) {
     this.buffer = arrayBuffer;
@@ -34,12 +34,12 @@ export class GGUFParser {
       case 1: { const v = this.view.getInt8(this.offset); this.offset += 1; return v; }
       case 2: { const v = this.view.getUint16(this.offset, true); this.offset += 2; return v; }
       case 3: { const v = this.view.getInt16(this.offset, true); this.offset += 2; return v; }
-      case 4: { const v = this.view.getUint32(this.offset, true); this.offset += 4; return v; }
+      case 4: return this.readUint32();
       case 5: { const v = this.view.getInt32(this.offset, true); this.offset += 4; return v; }
       case 6: { const v = this.view.getFloat32(this.offset, true); this.offset += 4; return v; }
-      case 7: { return this.view.getUint8(this.offset++) !== 0; }
+      case 7: return this.view.getUint8(this.offset++) !== 0;
       case 8: return this.readString();
-      case 9: { // Array
+      case 9: {
         const itemType = this.readUint32();
         const len = this.readUint64();
         const arr = [];
@@ -58,21 +58,19 @@ export class GGUFParser {
   parse() {
     const magic = this.readUint32();
     if (magic !== GGUFParser.GGUF_MAGIC) {
-      throw new Error('Not a valid GGUF binary (invalid magic header).');
+      throw new Error('Not a valid GGUF binary: Magic header mismatch.');
     }
 
     const version = this.readUint32();
     const tensorCount = this.readUint64();
     const metadataCount = this.readUint64();
 
-    // 1. Parse Metadata Key-Value pairs
     for (let i = 0; i < metadataCount; i++) {
       const key = this.readString();
       const valType = this.readUint32();
       this.metadata[key] = this.readMetadataValue(valType);
     }
 
-    // 2. Parse Tensor Information Table
     for (let i = 0; i < tensorCount; i++) {
       const name = this.readString();
       const nDims = this.readUint32();
@@ -86,7 +84,6 @@ export class GGUFParser {
       this.tensors.set(name, { dims, type, offset });
     }
 
-    // Tensor payload starts aligned to metadata alignment (typically 32 bytes)
     const alignment = this.metadata['general.alignment'] || 32;
     const padding = (alignment - (this.offset % alignment)) % alignment;
     const tensorDataStart = this.offset + padding;
