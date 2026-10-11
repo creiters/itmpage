@@ -14,21 +14,20 @@
   --status-ready-bg: rgba(16, 185, 129, 0.15);
   --status-err: #ef4444;
   --status-err-bg: rgba(239, 68, 68, 0.15);
-  --nav-height: 60px;
-  --header-height: 52px;
+  --nav-height: 56px;
+  --header-height: 50px;
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   -webkit-tap-highlight-color: transparent;
 }
 
 html, body {
   width: 100%;
-  height: 100%;
   height: 100dvh;
   background-color: var(--bg-core);
   color: var(--text-main);
@@ -41,13 +40,12 @@ html, body {
   flex-direction: column;
   width: 100vw;
   height: 100dvh;
-  max-width: 1000px;
+  max-width: 960px;
   margin: 0 auto;
   position: relative;
   overflow: hidden;
 }
 
-/* Header */
 header.app-header {
   height: var(--header-height);
   padding: 0 16px;
@@ -61,14 +59,13 @@ header.app-header {
 }
 
 .brand-title {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--accent-glow);
-  letter-spacing: -0.02em;
 }
 
 .node-label {
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   color: var(--text-muted);
 }
 
@@ -88,13 +85,12 @@ header.app-header {
   border-color: var(--status-ready);
 }
 
-/* Main Viewport Container */
 .view-viewport {
   flex: 1;
   position: relative;
   overflow: hidden;
   display: flex;
-  min-height: 0; /* Critical for flex scrolling */
+  min-height: 0;
 }
 
 .app-view {
@@ -110,7 +106,6 @@ header.app-header {
   display: flex;
 }
 
-/* View 1: Chat Stream */
 #chat-stream {
   flex: 1;
   padding: 16px;
@@ -124,7 +119,7 @@ header.app-header {
 
 .message {
   max-width: 85%;
-  padding: 10px 14px;
+  padding: 9px 13px;
   border-radius: 8px;
   font-size: 0.85rem;
   line-height: 1.45;
@@ -158,17 +153,15 @@ header.app-header {
 
 .chat-input-bar input {
   flex: 1;
-  border-radius: 6px;
 }
 
-/* Settings and Forms Content */
 .settings-content {
   flex: 1;
   padding: 16px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   min-height: 0;
   overscroll-behavior-y: contain;
 }
@@ -201,20 +194,19 @@ header.app-header {
 }
 
 .status-label {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
   text-align: center;
   display: block;
 }
 
-/* Controls & Inputs */
 input, select, textarea {
   background-color: var(--bg-input);
   border: 1px solid var(--border);
   color: var(--text-main);
-  padding: 9px 12px;
+  padding: 8px 10px;
   border-radius: 6px;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   outline: none;
   width: 100%;
 }
@@ -229,7 +221,7 @@ textarea.pin-box {
 }
 
 textarea.console-input {
-  height: 110px;
+  height: 100px;
   resize: vertical;
 }
 
@@ -251,23 +243,21 @@ textarea.console-input {
 }
 
 .flex-1 { flex: 1; }
-.flex-2 { flex: 2; }
 
-/* Buttons */
 button {
   background-color: var(--accent);
   color: #fff;
   border: none;
-  padding: 9px 14px;
+  padding: 8px 12px;
   border-radius: 6px;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  min-height: 38px;
+  min-height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.15s, background-color 0.15s;
+  transition: opacity 0.15s;
 }
 
 button:active {
@@ -286,8 +276,8 @@ button.danger-btn {
 }
 
 button.small-btn {
-  min-height: 30px;
-  padding: 4px 10px;
+  min-height: 28px;
+  padding: 4px 8px;
   font-size: 0.72rem;
 }
 
@@ -296,7 +286,6 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* Progress Track */
 .progress-track {
   background-color: var(--bg-input);
   border: 1px solid var(--border);
@@ -312,7 +301,6 @@ button:disabled {
   transition: width 0.12s linear;
 }
 
-/* Telemetry Grid */
 .telemetry-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -331,7 +319,7 @@ button:disabled {
 }
 
 .telemetry-val {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--accent-glow);
 }
@@ -339,15 +327,13 @@ button:disabled {
 .telemetry-lbl {
   font-size: 0.65rem;
   color: var(--text-muted);
-  text-align: center;
 }
 
-/* Candidate Logits Visualization */
 .token-topk-container {
   background-color: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 10px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -357,7 +343,7 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
 }
 
 .topk-label {
@@ -371,7 +357,7 @@ button:disabled {
   flex: 1;
   background-color: var(--border);
   border-radius: 3px;
-  height: 6px;
+  height: 5px;
   overflow: hidden;
 }
 
@@ -381,21 +367,20 @@ button:disabled {
 }
 
 .topk-score {
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   color: var(--text-muted);
-  width: 38px;
+  width: 35px;
   text-align: right;
 }
 
-/* Console & Log Boxes */
 .console-box {
   background-color: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 10px;
+  padding: 8px;
   font-size: 0.75rem;
   color: #38bdf8;
-  height: 160px;
+  height: 140px;
   overflow-y: auto;
   white-space: pre-wrap;
   line-height: 1.4;
@@ -403,7 +388,7 @@ button:disabled {
 }
 
 .console-box.tall {
-  height: 220px;
+  height: 200px;
 }
 
 .log-entry {
@@ -414,9 +399,9 @@ button:disabled {
 }
 
 .log-tag {
-  padding: 1px 5px;
+  padding: 1px 4px;
   border-radius: 3px;
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   font-weight: 700;
 }
 .log-tag.STORAGE { background: #065f46; color: #6ee7b7; }
@@ -426,7 +411,6 @@ button:disabled {
 .log-tag.WEBRTC  { background: #374151; color: #e5e7eb; }
 .log-tag.ERROR   { background: #991b1b; color: #fca5a5; }
 
-/* Tables */
 .table-container {
   overflow-x: auto;
   border: 1px solid var(--border);
@@ -437,13 +421,13 @@ button:disabled {
 .db-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   text-align: left;
 }
 
 .db-table th {
   background-color: var(--bg-panel);
-  padding: 8px 10px;
+  padding: 7px 9px;
   color: var(--text-muted);
   font-weight: 600;
   border-bottom: 1px solid var(--border);
@@ -451,22 +435,12 @@ button:disabled {
 }
 
 .db-table td {
-  padding: 8px 10px;
+  padding: 7px 9px;
   border-bottom: 1px solid var(--border-subtle);
   color: var(--text-main);
   white-space: nowrap;
 }
 
-.db-table tr:last-child td {
-  border-bottom: none;
-}
-
-.table-empty-cell {
-  text-align: center;
-  color: var(--text-muted);
-}
-
-/* Bottom Navigation Bar */
 .bottom-nav {
   height: var(--nav-height);
   background-color: var(--bg-panel);
@@ -485,7 +459,7 @@ button:disabled {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   color: var(--text-muted);
   background: none;
   border: none;
@@ -494,64 +468,10 @@ button:disabled {
   border-radius: 0;
 }
 
-.nav-tab svg {
-  width: 20px;
-  height: 20px;
-  fill: currentColor;
-}
-
 .nav-tab.active {
   color: var(--accent-glow);
-  background: none;
-}
-
-/* Update Notification Toast */
-#update-toast {
-  position: fixed;
-  top: max(12px, env(safe-area-inset-top));
-  left: 50%;
-  transform: translateX(-50%) translateY(-150%);
-  background-color: var(--bg-card);
-  border: 1px solid var(--accent-glow);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
-  padding: 10px 14px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  z-index: 1000;
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  max-width: 90vw;
-  width: 400px;
-}
-
-#update-toast.show {
-  transform: translateX(-50%) translateY(0);
-}
-
-.update-toast-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.update-toast-title {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
-.update-toast-desc {
-  font-size: 0.72rem;
-  color: var(--text-muted);
 }
 
 .hidden-file-input {
   display: none;
-}
-
-.divider {
-  border: 0;
-  border-top: 1px solid var(--border);
 }
