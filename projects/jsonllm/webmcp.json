@@ -1,12 +1,20 @@
 {
   "$schema": "https://modelcontextprotocol.io/schema/2024-11-05/schema.json",
-  "name": "browser-jsonllm-server",
-  "version": "2.0.0",
-  "description": "Browser-native Model Context Protocol server generating and serving JSONLLM models",
+  "name": "vimtollm-server",
+  "version": "3.0.0",
+  "description": "vimtoLLM - all space inside! 10 on minus 84. browser-native Model Context Protocol server",
+  "protocolVersion": "2024-11-05",
   "capabilities": {
     "tools": { "listChanged": true },
     "resources": { "subscribe": false, "listChanged": true },
     "sampling": {}
+  },
+  "model": {
+    "name": "vimtoLLM - all space inside! 10 on minus 84.",
+    "architecture": "nano-transformer",
+    "precision": "fp16-fp4",
+    "parameters": 3956736,
+    "storage": "IndexedDB-Atomic-JSONLLM"
   },
   "tools": [
     {
@@ -16,24 +24,25 @@
         "type": "object",
         "properties": {
           "text": { "type": "string", "description": "Training corpus text" },
-          "learningRate": { "type": "number", "default": 0.002 }
+          "learningRate": { "type": "number", "default": 0.003 }
         },
         "required": ["text"]
       }
     },
     {
       "name": "generate_jsonllm",
-      "description": "Compacts current transformer weights into a 4-bit Deflate JSONLLM envelope and stores it in IndexedDB",
+      "description": "Packs active weights into an FP4/Q4 Deflate JSONLLM container in IndexedDB",
       "inputSchema": {
         "type": "object",
         "properties": {
-          "modelName": { "type": "string", "default": "browser-nano-llm" }
+          "modelName": { "type": "string", "default": "vimtollm-4m" },
+          "mode": { "type": "string", "default": "fp4" }
         }
       }
     },
     {
       "name": "rag_index_document",
-      "description": "Indexes a text document into the local Vector RAG store",
+      "description": "Indexes a document into the local Vector RAG store",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -47,7 +56,7 @@
   "resources": [
     {
       "uri": "jsonllm://models/active",
-      "name": "Active In-Memory JSONLLM",
+      "name": "Active In-Memory vimtoLLM Model",
       "mimeType": "application/json"
     },
     {
