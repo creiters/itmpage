@@ -1,3 +1,8 @@
+/**
+ * domain-specs.js
+ * Domain architectures and curated tokenizers for micro-agents
+ */
+
 export const DOMAIN_SPECS = {
   dialog: {
     modelName: 'agent-dialog',
