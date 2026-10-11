@@ -1,7 +1,3 @@
-/**
- * webmcp-worker.js - 4M Training & Dialogue Serialization Worker
- */
-
 import { NanoTransformer } from './nano-engine.js';
 import { StorageService } from './storage.js';
 import { LocalRAG } from './rag-store.js';
@@ -30,7 +26,7 @@ let isTrainingActive = false;
   });
 
   server = new WebMCPServer(engine, storage, rag, JSONLLMCodec);
-  self.postMessage({ type: 'STATUS', status: 'WebMCP Ready (4M Pure FP16/FP4)' });
+  self.postMessage({ type: 'STATUS', status: 'WebMCP Ready (vimtoLLM FP16/FP4)' });
 })();
 
 self.onmessage = async (e) => {
@@ -42,7 +38,6 @@ self.onmessage = async (e) => {
     return;
   }
 
-  // Train on Dialogue Corpus
   if (type === 'START_TRAIN') {
     const { text, epochs = 5, lr = 0.003, seqLen = 48 } = payload;
     isTrainingActive = true;
@@ -63,7 +58,7 @@ self.onmessage = async (e) => {
     self.postMessage({
       type: 'LOG',
       category: 'TRAIN',
-      text: `Training on ${allTokens.length} tokens in ${sequences.length} batches (${epochs} epochs)...`
+      text: `Training vimtoLLM on ${allTokens.length} tokens across ${sequences.length} batches (${epochs} epochs)...`
     });
 
     const tStart = performance.now();
@@ -116,7 +111,6 @@ self.onmessage = async (e) => {
     return;
   }
 
-  // Save Compact Dialogue Dataset (< 2 KB)
   if (type === 'SAVE_COMPACT_DIALOGUE') {
     const { datasetName, pairs } = payload;
     const compactJSON = await JSONLLMCodec.exportDialogueDataset(engine.tokenizer, pairs);
@@ -134,12 +128,11 @@ self.onmessage = async (e) => {
     return;
   }
 
-  // Generate 4M Model in FP4 (E2M1)
   if (type === 'GENERATE_JSONLLM') {
-    const modelName = payload?.modelName || 'dialogue-4m';
+    const modelName = payload?.modelName || 'vimtollm-4m';
     const mode = payload?.mode || 'fp4';
 
-    self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Quantizing 4M weights into ${mode.toUpperCase()} Deflate format...` });
+    self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Quantizing vimtoLLM weights into ${mode.toUpperCase()} Deflate format...` });
 
     const jsonString = await JSONLLMCodec.exportToJSONLLM(
       { dim: engine.dim, layers: engine.layers, heads: engine.heads, ffnDim: engine.ffnDim, vocabSize: engine.vocabSize, maxSeqLen: engine.maxSeqLen },
