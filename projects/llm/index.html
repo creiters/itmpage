@@ -9,6 +9,7 @@
 </head>
 <body>
   <div id="layout">
+    <!-- Update Toast -->
     <div id="update-toast" role="alert">
       <div style="flex:1;">
         <div style="font-size:0.85rem; font-weight:600;">Update Available</div>
@@ -98,26 +99,41 @@
         </div>
       </section>
 
-      <!-- Tab 4: Diagnostics & Flow Logs -->
+      <!-- Tab 4: IndexedDB Storage & Chunk Viewer -->
+      <section id="view-db" class="app-view">
+        <div class="settings-content">
+          <div class="settings-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <h3>IndexedDB Chunk Store</h3>
+              <button id="btn-refresh-db" class="secondary-btn" style="min-height: 28px; padding: 4px 10px; font-size: 0.75rem;">Refresh</button>
+            </div>
+            <div id="db-summary-badge" class="badge" style="width: fit-content;">0 chunks stored</div>
+            <div class="table-container">
+              <table class="db-table" id="db-chunks-table">
+                <thead>
+                  <tr>
+                    <th>Chunk ID</th>
+                    <th>Layers</th>
+                    <th>Size</th>
+                    <th>Hash</th>
+                  </tr>
+                </thead>
+                <tbody id="db-chunks-tbody">
+                  <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No records found.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 5: Complete Event Log & Search Telemetry -->
       <section id="view-diagnostics" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
-            <h3>Transformer Execution Flow</h3>
-            <div class="flow-diagram">
-              <div class="flow-step">1. BPE Tokenizer + Prompt Embeddings</div>
-              <div class="flow-arrow">▼</div>
-              <div class="flow-step">2. WASI SIMD Fused Dot Product (Q4_K_M inline)</div>
-              <div class="flow-arrow">▼</div>
-              <div class="flow-step">3. 30× Transformer Blocks (Native C WASM Module)</div>
-              <div class="flow-arrow">▼</div>
-              <div class="flow-step">4. Top-K Filtered Logits Selection</div>
-            </div>
-          </div>
-
-          <div class="settings-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <h3>Real-Time Telemetry</h3>
-              <button id="btn-clear-logs" style="min-height: 28px; padding: 4px 10px; font-size: 0.75rem;" class="secondary-btn">Clear</button>
+              <h3>Complete App Event Logs</h3>
+              <button id="btn-clear-logs" style="min-height: 28px; padding: 4px 10px; font-size: 0.75rem;" class="secondary-btn">Clear Logs</button>
             </div>
 
             <div class="telemetry-grid">
@@ -127,11 +143,11 @@
               </div>
               <div class="telemetry-item">
                 <span class="telemetry-val" id="metric-ttft">0 ms</span>
-                <span class="telemetry-lbl">Time to First Token</span>
+                <span class="telemetry-lbl">TTFT</span>
               </div>
               <div class="telemetry-item">
-                <span class="telemetry-val">30 / 30</span>
-                <span class="telemetry-lbl">Active Layers</span>
+                <span class="telemetry-val" id="metric-active-slices">0</span>
+                <span class="telemetry-lbl">Active Slices</span>
               </div>
             </div>
 
@@ -140,7 +156,7 @@
               <div id="token-topk-bars">No active search data.</div>
             </div>
 
-            <span class="field-label" style="margin-top: 6px;">Live Inference Log Stream</span>
+            <span class="field-label" style="margin-top: 6px;">Persistent Event Stream (Stored in IndexedDB)</span>
             <div id="diagnostics-log" class="console-box"></div>
           </div>
         </div>
@@ -164,9 +180,14 @@
         <span>Mesh</span>
       </button>
 
+      <button class="nav-tab" data-target="view-db">
+        <svg viewBox="0 0 24 24"><path d="M12 3C7.58 3 4 4.79 4 7v10c0 2.21 3.58 4 8 4s8-1.79 8-4V7c0-2.21-3.58-4-8-4zm0 2c3.87 0 6 1.5 6 2s-2.13 2-6 2-6-1.5-6-2 2.13-2 6-2zm6 12c0 .5-2.13 2-6 2s-6-1.5-6-2v-2.23c1.61.78 3.72 1.23 6 1.23s4.39-.45 6-1.23V17zm0-4c0 .5-2.13 2-6 2s-6-1.5-6-2v-2.23c1.61.78 3.72 1.23 6 1.23s4.39-.45 6-1.23V13z"/></svg>
+        <span>DB View</span>
+      </button>
+
       <button class="nav-tab" data-target="view-diagnostics">
         <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-4-4h3V9h2v4h3l-4 4zm-5-10V5h10v2H7z"/></svg>
-        <span>Flow/Logs</span>
+        <span>Logs</span>
       </button>
     </nav>
   </div>
