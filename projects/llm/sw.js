@@ -1,26 +1,25 @@
-const CACHE_NAME = 'shared-llm-v0.07';
-const OFFLINE_RESOURCES = [
+const CACHE_NAME = 'shared-llm-v6';
+const ASSETS = [
   './',
   './index.html',
   './style.css',
   './manifest.json',
   './app.js',
   './storage.js',
-  './chunker.js',
+  './merkle-chunker.js',
   './downloader.js',
   './mesh.js',
   './wasm-engine.js',
   './gguf-parser.js',
   './tokenizer.js',
-  './llm-worker.js'
+  './llm-worker.js',
+  './engine.wasm'
 ];
 
 self.addEventListener('install', (event) => {
-  // Pre-cache fresh application assets into the new cache bucket
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(OFFLINE_RESOURCES))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
   );
-  // Do NOT skipWaiting automatically: wait until user prompts to prevent memory corruption during active generation
 });
 
 self.addEventListener('activate', (event) => {
@@ -51,7 +50,6 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Listener for explicit update activation from the client
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
