@@ -1,4 +1,4 @@
-const CACHE_NAME = 'webllm-json-v2';
+const CACHE_NAME = 'vimtollm-app-v3';
 const ASSETS = [
   './',
   './index.html',
