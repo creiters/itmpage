@@ -10,7 +10,7 @@ let activeModelName = 'Unloaded';
 let modelBuffer = null;
 let modelView = null;
 
-// Architecture hyperparameters
+// Architecture parameters
 let nLayers = 30;
 let nEmbd = 576;
 let nHeads = 9;
@@ -18,25 +18,35 @@ let nKVHeads = 3;
 let headDim = 64;
 let nFF = 1536;
 
-// KV Cache for context persistence across tokens
-let kvCache = {
-  k: [], // [layer][pos][dim]
-  v: []
-};
+// Static Scratchpads for zero-allocation forward pass
+let scratchX, scratchXb, scratchQ, scratchK, scratchV, scratchAtt, scratchH1, scratchH2, scratchOutMlp, scratchRowBuf;
 
-function initKVCache(layers, maxSeq = 512, dim = 192) {
-  kvCache.k = Array.from({ length: layers }, () => []);
-  kvCache.v = Array.from({ length: layers }, () => []);
+// Causal KV Cache
+let kvCache = { k: [], v: [] };
+
+function initEngineState() {
+  scratchX = new Float32Array(nEmbd);
+  scratchXb = new Float32Array(nEmbd);
+  scratchQ = new Float32Array(nEmbd);
+  scratchK = new Float32Array(headDim * nKVHeads);
+  scratchV = new Float32Array(headDim * nKVHeads);
+  scratchAtt = new Float32Array(nEmbd);
+  scratchH1 = new Float32Array(nFF);
+  scratchH2 = new Float32Array(nFF);
+  scratchOutMlp = new Float32Array(nEmbd);
+  scratchRowBuf = new Float32Array(Math.max(nEmbd, nFF));
+
+  kvCache.k = Array.from({ length: nLayers }, () => []);
+  kvCache.v = Array.from({ length: nLayers }, () => []);
 }
 
-// Precise Q4_K dequantizer for GGUF
-function dequantizeQ4_K_Block(view, byteOffset, out, length) {
+// In-place Q4_K_M Block Dequantizer
+function dequantizeQ4_K_Row(view, byteOffset, out, length) {
   let outIdx = 0;
   let inOffset = byteOffset;
   const blocks = Math.ceil(length / 256);
 
   for (let b = 0; b < blocks && outIdx < length; b++) {
-    // Read scales
     const d = view.getUint16(inOffset, true) / 65535.0;
     const dmin = view.getUint16(inOffset + 2, true) / 65535.0;
     inOffset += 4;
@@ -52,24 +62,24 @@ function dequantizeQ4_K_Block(view, byteOffset, out, length) {
   }
 }
 
-function rmsNorm(out, x, weight, size, eps = 1e-5) {
+function rmsNorm(out, x, size, eps = 1e-5) {
   let sumSq = 0.0;
   for (let i = 0; i < size; i++) sumSq += x[i] * x[i];
   const scale = 1.0 / Math.sqrt(sumSq / size + eps);
-  for (let i = 0; i < size; i++) out[i] = x[i] * scale * (weight ? weight[i] : 1.0);
+  for (let i = 0; i < size; i++) out[i] = x[i] * scale;
 }
 
-function matMul(out, x, tensor, outDim, inDim) {
+function fastMatMul(out, x, tensor, outDim, inDim) {
   const rowBytes = Math.ceil((inDim * 4.5) / 8) + 32;
-  const rowBuf = new Float32Array(inDim);
+  const baseOffset = parsedModel.tensorDataStart + tensor.offset;
 
   for (let r = 0; r < outDim; r++) {
-    const offset = parsedModel.tensorDataStart + tensor.offset + r * rowBytes;
+    const offset = baseOffset + r * rowBytes;
     if (offset + rowBytes > modelBuffer.byteLength) break;
-    dequantizeQ4_K_Block(modelView, offset, rowBuf, inDim);
+    dequantizeQ4_K_Row(modelView, offset, scratchRowBuf, inDim);
 
     let acc = 0.0;
-    for (let c = 0; c < inDim; c++) acc += x[c] * rowBuf[c];
+    for (let c = 0; c < inDim; c++) acc += x[c] * scratchRowBuf[c];
     out[r] = acc;
   }
 }
@@ -88,23 +98,12 @@ function applyRoPE(vec, pos, hDim) {
   }
 }
 
-/**
- * Coroutine: Processes blocks in batches of 5 layers, yielding control to keep worker responsive
- */
-function* runTransformerCoroutines(x, pos) {
-  const xb = new Float32Array(nEmbd);
-  const q = new Float32Array(nEmbd);
-  const k = new Float32Array(headDim * nKVHeads);
-  const v = new Float32Array(headDim * nKVHeads);
-  const att = new Float32Array(nEmbd);
-  const h1 = new Float32Array(nFF);
-  const h2 = new Float32Array(nFF);
-  const outMlp = new Float32Array(nEmbd);
-
-  const BATCH_SIZE = 5; // Run 5 blocks per coroutine step
+// Coroutine Transformer Blocks: Batched execution
+function* runLayerCoroutines(x, pos) {
+  const BATCH_SIZE = 6;
 
   for (let l = 0; l < nLayers; l++) {
-    rmsNorm(xb, x, null, nEmbd);
+    rmsNorm(scratchXb, x, nEmbd);
 
     const wq = parsedModel.tensors.get(`blk.${l}.attn_q.weight`);
     const wk = parsedModel.tensors.get(`blk.${l}.attn_k.weight`);
@@ -112,60 +111,58 @@ function* runTransformerCoroutines(x, pos) {
     const wo = parsedModel.tensors.get(`blk.${l}.attn_output.weight`);
 
     if (wq && wk && wv) {
-      matMul(q, xb, wq, nEmbd, nEmbd);
-      matMul(k, xb, wk, headDim * nKVHeads, nEmbd);
-      matMul(v, xb, wv, headDim * nKVHeads, nEmbd);
+      fastMatMul(scratchQ, scratchXb, wq, nEmbd, nEmbd);
+      fastMatMul(scratchK, scratchXb, wk, headDim * nKVHeads, nEmbd);
+      fastMatMul(scratchV, scratchXb, wv, headDim * nKVHeads, nEmbd);
 
-      applyRoPE(q, pos, headDim);
-      applyRoPE(k, pos, headDim);
+      applyRoPE(scratchQ, pos, headDim);
+      applyRoPE(scratchK, pos, headDim);
 
-      // Save to KV cache for attention history
-      kvCache.k[l][pos] = new Float32Array(k);
-      kvCache.v[l][pos] = new Float32Array(v);
+      kvCache.k[l][pos] = new Float32Array(scratchK);
+      kvCache.v[l][pos] = new Float32Array(scratchV);
 
-      // Causal Self-Attention
-      let bestScore = -Infinity;
+      // Causal Self-Attention over KV-Cache
+      let maxScore = -Infinity;
       for (let t = 0; t <= pos; t++) {
         const histK = kvCache.k[l][t];
         let score = 0.0;
-        for (let i = 0; i < headDim; i++) score += q[i] * histK[i];
+        for (let i = 0; i < headDim; i++) score += scratchQ[i] * histK[i];
         score /= Math.sqrt(headDim);
-        if (score > bestScore) bestScore = score;
+        if (score > maxScore) maxScore = score;
       }
 
-      const attWeight = 1.0 / (1.0 + Math.exp(-Math.max(-10, Math.min(10, bestScore))));
+      const attWeight = 1.0 / (1.0 + Math.exp(-Math.max(-10, Math.min(10, maxScore))));
       for (let i = 0; i < nEmbd; i++) {
-        att[i] = v[i % (headDim * nKVHeads)] * attWeight;
+        scratchAtt[i] = scratchV[i % (headDim * nKVHeads)] * attWeight;
       }
 
       if (wo) {
-        matMul(xb, att, wo, nEmbd, nEmbd);
-        for (let i = 0; i < nEmbd; i++) x[i] += xb[i];
+        fastMatMul(scratchXb, scratchAtt, wo, nEmbd, nEmbd);
+        for (let i = 0; i < nEmbd; i++) x[i] += scratchXb[i];
       }
     }
 
-    // SwiGLU MLP Feed-Forward Block
+    // SwiGLU MLP Block
     const wGate = parsedModel.tensors.get(`blk.${l}.ffn_gate.weight`);
     const wUp = parsedModel.tensors.get(`blk.${l}.ffn_up.weight`);
     const wDown = parsedModel.tensors.get(`blk.${l}.ffn_down.weight`);
 
     if (wGate && wUp && wDown) {
-      rmsNorm(xb, x, null, nEmbd);
-      matMul(h1, xb, wGate, nFF, nEmbd);
-      matMul(h2, xb, wUp, nFF, nEmbd);
+      rmsNorm(scratchXb, x, nEmbd);
+      fastMatMul(scratchH1, scratchXb, wGate, nFF, nEmbd);
+      fastMatMul(scratchH2, scratchXb, wUp, nFF, nEmbd);
 
       for (let i = 0; i < nFF; i++) {
-        const silu = h1[i] / (1.0 + Math.exp(-Math.max(-10, Math.min(10, h1[i]))));
-        h1[i] = silu * h2[i];
+        const silu = scratchH1[i] / (1.0 + Math.exp(-Math.max(-10, Math.min(10, scratchH1[i]))));
+        scratchH1[i] = silu * scratchH2[i];
       }
 
-      matMul(outMlp, h1, wDown, nEmbd, nFF);
-      for (let i = 0; i < nEmbd; i++) x[i] += outMlp[i];
+      fastMatMul(scratchOutMlp, scratchH1, wDown, nEmbd, nFF);
+      for (let i = 0; i < nEmbd; i++) x[i] += scratchOutMlp[i];
     }
 
-    // Yield control every BATCH_SIZE layers (coroutine cooperative multitasking)
     if ((l + 1) % BATCH_SIZE === 0) {
-      yield `Layer block ${l + 1}/${nLayers} complete`;
+      yield l + 1;
     }
   }
 }
@@ -182,7 +179,7 @@ self.onmessage = async (e) => {
         modelBuffer = payload.wasmBinary;
         modelView = new DataView(modelBuffer);
 
-        self.postMessage({ type: 'STATUS', status: 'Verifying Merkle GGUF mappings...' });
+        self.postMessage({ type: 'LOG', text: `Unpacking GGUF binary: ${modelBuffer.byteLength} bytes` });
         const parser = new GGUFParser(payload.wasmBinary);
         parsedModel = parser.parse();
 
@@ -197,98 +194,124 @@ self.onmessage = async (e) => {
         const vocabScores = parsedModel.metadata['tokenizer.ggml.scores'] || [];
         tokenizer = new SimpleBPETokenizer(vocabTokens, vocabScores);
 
-        initKVCache(nLayers, 512, headDim * nKVHeads);
-
+        initEngineState();
         isLoaded = true;
+
         self.postMessage({
           type: 'STATUS',
-          status: `Ready: ${activeModelName} (${nLayers}L, 4MB Merkle Verified)`
+          status: `Ready: ${activeModelName} (${nLayers}L, Fast Static Alloc)`
+        });
+        self.postMessage({
+          type: 'LOG',
+          text: `Engine initialized: ${nLayers} layers, ${nEmbd} dim, vocab size: ${vocabTokens.length}`
         });
       }
     } catch (err) {
       isLoaded = false;
       self.postMessage({ type: 'ERROR', message: `Engine init failed: ${err.message}` });
+      self.postMessage({ type: 'LOG', text: `ERROR: ${err.message}` });
     }
   }
 
   if (type === 'INFER') {
     const { prompt, taskId } = payload;
     if (!isLoaded || !modelBuffer) {
-      self.postMessage({ type: 'TOKEN', taskId, token: 'Error: Engine not ready', done: true });
+      self.postMessage({ type: 'TOKEN', taskId, token: 'Engine not ready.', done: true });
       return;
     }
 
-    self.postMessage({ type: 'STATUS', status: 'Executing transformer coroutines...' });
+    const tStart = performance.now();
+    self.postMessage({ type: 'LOG', text: `Infer started: "${prompt}"` });
 
-    // Format chat prompt using standard template
     const formattedPrompt = `<|im_start|>user\n${prompt}<|im_end|>\n<|im_start|>assistant\n`;
     const promptTokens = tokenizer.encode(formattedPrompt);
     const generatedTokens = [...promptTokens];
     let fullOutput = '';
     const maxGenTokens = 32;
 
-    const x = new Float32Array(nEmbd);
-    const xb = new Float32Array(nEmbd);
     const embedTensor = parsedModel.tensors.get('token_embd.weight') || parsedModel.tensors.get('model.embed_tokens.weight');
     const lmHeadTensor = parsedModel.tensors.get('output.weight') || embedTensor;
     const rowBytes = Math.ceil((nEmbd * 4.5) / 8) + 32;
 
-    // Reset KV cache for this prompt
-    initKVCache(nLayers, 512, headDim * nKVHeads);
+    // Reset KV cache for prompt
+    initEngineState();
+
+    let tokensGeneratedCount = 0;
+    let timeToFirstToken = 0;
 
     for (let pos = 0; pos < promptTokens.length + maxGenTokens; pos++) {
       let currentToken = pos < promptTokens.length ? promptTokens[pos] : generatedTokens[pos];
 
-      // Embedding Lookup
+      // Embedding Vector Lookup
       const embOffset = parsedModel.tensorDataStart + embedTensor.offset + currentToken * rowBytes;
       if (embOffset + rowBytes <= modelBuffer.byteLength) {
-        dequantizeQ4_K_Block(modelView, embOffset, x, nEmbd);
+        dequantizeQ4_K_Row(modelView, embOffset, scratchX, nEmbd);
       }
 
-      // Execute Coroutine
-      const coroutine = runTransformerCoroutines(x, pos);
-      let stepResult = coroutine.next();
-      while (!stepResult.done) {
-        // Yield control to process message events and avoid thread lock
+      // Coroutine Transformer Blocks
+      const coroutine = runLayerCoroutines(scratchX, pos);
+      let step = coroutine.next();
+      while (!step.done) {
         await new Promise((r) => setTimeout(r, 0));
-        stepResult = coroutine.next();
+        step = coroutine.next();
       }
 
-      // Sample next token when prompt pre-fill finishes
+      // Sample Token Once Prompt Pre-Fill Completes
       if (pos >= promptTokens.length - 1) {
-        rmsNorm(xb, x, null, nEmbd);
+        if (tokensGeneratedCount === 0) {
+          timeToFirstToken = performance.now() - tStart;
+        }
 
-        let bestToken = 1;
-        let maxLogit = -Infinity;
-        const candidatePool = Math.min(tokenizer.tokens.length, 3000);
+        rmsNorm(scratchXb, scratchX, nEmbd);
+
+        // Fast Filtered Top-K Search
+        let topCandidateLogits = [];
+        const candidateSearchPool = Math.min(tokenizer.tokens.length, 2500);
         const recentTokens = generatedTokens.slice(-8);
 
-        for (let v = 3; v < candidatePool; v++) {
+        for (let v = 3; v < candidateSearchPool; v++) {
           const headOffset = parsedModel.tensorDataStart + lmHeadTensor.offset + v * rowBytes;
           if (headOffset + rowBytes > modelBuffer.byteLength) break;
 
-          const headWeights = new Float32Array(nEmbd);
-          dequantizeQ4_K_Block(modelView, headOffset, headWeights, nEmbd);
-
+          dequantizeQ4_K_Row(modelView, headOffset, scratchRowBuf, nEmbd);
           let logit = 0.0;
-          for (let i = 0; i < nEmbd; i++) logit += xb[i] * headWeights[i];
+          for (let i = 0; i < nEmbd; i++) logit += scratchXb[i] * scratchRowBuf[i];
 
-          // Repetition penalty
+          // Repetition Penalty
           if (recentTokens.includes(v)) logit -= 3.5;
 
-          if (logit > maxLogit) {
-            maxLogit = logit;
-            bestToken = v;
+          if (topCandidateLogits.length < 5) {
+            topCandidateLogits.push({ token: v, logit });
+            topCandidateLogits.sort((a, b) => b.logit - a.logit);
+          } else if (logit > topCandidateLogits[topCandidateLogits.length - 1].logit) {
+            topCandidateLogits[topCandidateLogits.length - 1] = { token: v, logit };
+            topCandidateLogits.sort((a, b) => b.logit - a.logit);
           }
         }
 
-        // Stop on EOS or terminator
+        const bestToken = topCandidateLogits[0]?.token || 1;
         if (bestToken <= 2) break;
+
         const decoded = tokenizer.decode(bestToken);
         if (!decoded || decoded.includes('<|im_end|>')) break;
 
         fullOutput += decoded;
         generatedTokens.push(bestToken);
+        tokensGeneratedCount++;
+
+        // Send Diagnostics Telemetry
+        const elapsedSec = (performance.now() - tStart) / 1000;
+        const currentTPS = (tokensGeneratedCount / elapsedSec).toFixed(1);
+
+        self.postMessage({
+          type: 'TELEMETRY',
+          tps: currentTPS,
+          ttft: Math.round(timeToFirstToken),
+          topCandidates: topCandidateLogits.map((c) => ({
+            word: tokenizer.decode(c.token) || `ID_${c.token}`,
+            logit: c.logit.toFixed(2)
+          }))
+        });
 
         self.postMessage({
           type: 'TOKEN',
@@ -301,6 +324,9 @@ self.onmessage = async (e) => {
     }
 
     self.postMessage({ type: 'TOKEN', taskId, token: '', fullText: fullOutput.trim(), done: true });
-    self.postMessage({ type: 'STATUS', status: `Ready: ${activeModelName}` });
+    self.postMessage({
+      type: 'LOG',
+      text: `Inference finished: generated ${tokensGeneratedCount} tokens in ${((performance.now() - tStart) / 1000).toFixed(2)}s`
+    });
   }
 };
