@@ -1,7 +1,7 @@
 {
   "name": "Shared LLM Native",
   "short_name": "SharedLLM",
-  "description": "Offline PWA LLM with 4MB Merkle Tree DAG, native C WASM/WASI, and WebRTC mesh compute",
+  "description": "Offline PWA LLM with SI-Radix segment indexing, native C WASM/WASI, and WebRTC mesh compute",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait-primary",
