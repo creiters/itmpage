@@ -2,7 +2,6 @@ import { StorageService } from './storage.js';
 import { HuggingFaceDownloader } from './downloader.js';
 import { MeshCoordinator } from './mesh.js';
 
-// 1. Service Worker & Update Handlers
 let newWorkerWaiting = null;
 let refreshing = false;
 
@@ -68,7 +67,6 @@ if (btnDismissUpdate) {
   });
 }
 
-// 2. Identity & DOM References
 const nodeId = 'Node_' + Math.random().toString(36).substring(2, 7);
 const nodeLabel = document.getElementById('node-label');
 if (nodeLabel) nodeLabel.textContent = `Node ID: ${nodeId}`;
@@ -78,13 +76,11 @@ const inputPrompt = document.getElementById('input-prompt');
 const btnSend = document.getElementById('btn-send');
 const engineStatus = document.getElementById('engine-status');
 
-// Training Controls
 const trainTextInput = document.getElementById('train-text-input');
 const btnTrainStep = document.getElementById('btn-train-step');
 const btnSaveWeights = document.getElementById('btn-save-weights');
 const trainMetricsBadge = document.getElementById('train-metrics-badge');
 
-// WebMCP Controls
 const mcpRequestJson = document.getElementById('mcp-request-json');
 const mcpResponseJson = document.getElementById('mcp-response-json');
 const btnSendMcp = document.getElementById('btn-send-mcp');
@@ -93,7 +89,6 @@ const btnMcpTools = document.getElementById('btn-mcp-tools');
 const btnMcpResources = document.getElementById('btn-mcp-resources');
 const btnMcpSample = document.getElementById('btn-mcp-sample');
 
-// Storage & DB Controls
 const selectModel = document.getElementById('select-model');
 const btnDownloadSplit = document.getElementById('btn-download-split');
 const progressContainer = document.getElementById('progress-container');
@@ -111,19 +106,16 @@ const metricStorageQuota = document.getElementById('metric-storage-quota');
 const metricStorageStatus = document.getElementById('metric-storage-status');
 const btnRequestPersist = document.getElementById('btn-request-persist');
 
-// Hardware Controls
 const btnDeviceCpu = document.getElementById('btn-device-cpu');
 const btnDeviceGpu = document.getElementById('btn-device-gpu');
 const activeDeviceLabel = document.getElementById('active-device-label');
 
-// WebRTC Controls
 const peerStatus = document.getElementById('peer-status');
 const hostTokenOut = document.getElementById('host-token-out');
 const joinTokenIn = document.getElementById('join-token-in');
 const btnHostPin = document.getElementById('btn-host-pin');
 const btnConnectPin = document.getElementById('btn-connect-pin');
 
-// Telemetry Controls
 const metricTPS = document.getElementById('metric-tps');
 const metricTTFT = document.getElementById('metric-ttft');
 const metricActiveSlices = document.getElementById('metric-active-slices');
@@ -131,7 +123,6 @@ const tokenTopKBars = document.getElementById('token-topk-bars');
 const diagnosticsLog = document.getElementById('diagnostics-log');
 const btnClearLogs = document.getElementById('btn-clear-logs');
 
-// Navigation Tabs
 const navTabs = document.querySelectorAll('.nav-tab');
 const appViews = document.querySelectorAll('.app-view');
 
@@ -153,7 +144,6 @@ navTabs.forEach((tab) => {
   });
 });
 
-// 3. Storage Service Initialization
 const storage = new StorageService();
 await storage.init();
 
@@ -188,7 +178,6 @@ if (btnClearLogs) {
   });
 }
 
-// 4. Background Workers & Inter-Worker Channel
 const chunkWorker = new Worker('./chunk-worker.js', { type: 'module' });
 const computeWorker = new Worker('./llm-worker.js', { type: 'module' });
 const webmcpWorker = new Worker('./webmcp-worker.js', { type: 'module' });
@@ -214,7 +203,6 @@ async function initComputeEngineWasm() {
 }
 await initComputeEngineWasm();
 
-// Event Listener for Chunk Worker
 chunkWorker.onmessage = async (e) => {
   const { type, payload, message, category, text, progress } = e.data;
 
@@ -223,24 +211,22 @@ chunkWorker.onmessage = async (e) => {
   } else if (type === 'ERROR') {
     await appendLog('ERROR', message);
   } else if (type === 'CHUNK_PROGRESS') {
-    const pct = ((progress.current / progress.total) * 100).toFixed(0);
-    if (progressFill) progressFill.style.width = `${pct}%`;
-    if (progressText) progressText.textContent = `Merkle ${progress.phase}: ${progress.current}/${progress.total} (4MB blocks)`;
+    if (progressFill) progressFill.style.width = `${progress.percent}%`;
+    if (progressText) progressText.textContent = `Indexing segments: ${progress.current}/${progress.total} (${progress.percent}%)`;
   } else if (type === 'SPLIT_COMPLETE' || type === 'CHUNKS_READY') {
-    if (engineStatus) engineStatus.textContent = `Engine: Loaded (${payload.chunkCount} Slices)`;
-    if (progressText) progressText.textContent = `Verified Merkle Root: ${payload.rootHash.slice(0, 10)}...`;
-    updateDAGManifest(payload.manifest, payload.rootHash, payload.modelName);
+    if (engineStatus) engineStatus.textContent = `Engine: Loaded (${payload.chunkCount} Segments)`;
+    if (progressText) progressText.textContent = `SI-Radix Ready: ${payload.chunkCount} segments mapped O(1).`;
+    updateDAGManifest(payload.manifest, payload.modelName);
     if (metricActiveSlices) metricActiveSlices.textContent = `${payload.chunkCount}`;
     await renderDatabaseView();
     await updateStorageMetrics();
     btnDownloadSplit.disabled = false;
   } else if (type === 'CHUNKS_EMPTY') {
-    if (engineStatus) engineStatus.textContent = 'Engine: Standalone (No Slices)';
-    await appendLog('STORAGE', `No stored slices found for ${payload.modelName}. Please download.`);
+    if (engineStatus) engineStatus.textContent = 'Engine: Standalone (No Segments)';
+    await appendLog('STORAGE', `No stored segments found for ${payload.modelName}. Please download.`);
   }
 };
 
-// Event Listener for WebMCP Worker
 webmcpWorker.onmessage = async (e) => {
   const { type, status, payload } = e.data;
 
@@ -258,19 +244,35 @@ webmcpWorker.onmessage = async (e) => {
     }
   }
 
-  if (type === 'TRAIN_RESULT' && trainMetricsBadge) {
-    trainMetricsBadge.textContent = `Loss: ${payload.loss.toFixed(4)} (${payload.textLength} chars)`;
-    btnTrainStep.disabled = false;
-  }
+  if (type === 'TRAIN_PROGRESS') {
+    const metricTrainLoss = document.getElementById('metric-train-loss');
+    const metricTrainPpl = document.getElementById('metric-train-ppl');
+    const metricTrainSpeed = document.getElementById('metric-train-speed');
+    const trainProgressFill = document.getElementById('train-progress-fill');
+    const trainProgressText = document.getElementById('train-progress-text');
 
-  if (type === 'SAVE_COMPLETE') {
-    alert(`Model weights partitioned into ${payload.chunksCount} chunks! Merkle Root: ${payload.rootHash.slice(0, 10)}...`);
-    await renderDatabaseView();
-    await updateStorageMetrics();
+    if (metricTrainLoss) metricTrainLoss.textContent = payload.loss.toFixed(4);
+    if (metricTrainPpl) metricTrainPpl.textContent = payload.perplexity.toFixed(1);
+    if (metricTrainSpeed) metricTrainSpeed.textContent = payload.tokensPerSec;
+
+    if (trainProgressFill) trainProgressFill.style.width = `${payload.progressPct}%`;
+    if (trainProgressText) {
+      trainProgressText.textContent = `Epoch ${payload.epoch}/${payload.totalEpochs} (${payload.step}/${payload.totalStepsInEpoch}) — ${payload.progressPct}%`;
+    }
+  } else if (type === 'TRAIN_FINISHED') {
+    const btnStartTraining = document.getElementById('btn-start-training');
+    const btnStopTraining = document.getElementById('btn-stop-training');
+    const trainProgressText = document.getElementById('train-progress-text');
+
+    if (btnStartTraining) btnStartTraining.disabled = false;
+    if (btnStopTraining) btnStopTraining.disabled = true;
+    if (trainProgressText) {
+      trainProgressText.textContent = `Completed ${payload.totalSteps} steps in ${payload.elapsedSec}s.`;
+    }
+    await appendLog('TRAIN', `Training completed: ${payload.totalSteps} steps in ${payload.elapsedSec}s.`);
   }
 };
 
-// 5. Database & Storage View Management
 async function updateStorageMetrics() {
   const quota = await storage.getStorageQuota();
   const isPersisted = await storage.isPersistenceGranted();
@@ -297,7 +299,7 @@ if (storage.broadcast) {
   storage.broadcast.onmessage = async (event) => {
     const { type, modelName, count } = event.data;
     if (type === 'CHUNKS_UPDATED') {
-      await appendLog('STORAGE', `Storage sync: ${count} chunks updated for ${modelName}.`);
+      await appendLog('STORAGE', `Segment sync: ${count} segments updated for ${modelName}.`);
       await updateStorageMetrics();
       await renderDatabaseView();
     } else if (type === 'ALL_STORAGE_CLEARED') {
@@ -314,12 +316,12 @@ async function renderDatabaseView() {
   }
 
   if (dbSummaryBadge) {
-    dbSummaryBadge.textContent = `${summary.length} chunks stored in IndexedDB (${(summary.length * 4).toFixed(0)} MB)`;
+    dbSummaryBadge.textContent = `${summary.length} segments stored in IndexedDB (${(summary.length * 4).toFixed(0)} MB)`;
   }
 
   if (!dbChunksTbody) return;
   if (!summary.length) {
-    dbChunksTbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No records found.</td></tr>';
+    dbChunksTbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No segments found.</td></tr>';
     return;
   }
 
@@ -330,7 +332,7 @@ async function renderDatabaseView() {
       <td>${c.chunkId}</td>
       <td>L${c.layerRange[0]}-L${c.layerRange[1]}</td>
       <td>${(c.sizeBytes / 1024 / 1024).toFixed(2)} MB</td>
-      <td>${c.hash.slice(0, 8)}...</td>
+      <td>${c.hash}</td>
     </tr>
   `
     )
@@ -344,7 +346,6 @@ if (btnRefreshDb) {
   });
 }
 
-// 6. Model Loading & Download Actions
 function requestLoadCachedModel() {
   const modelKey = selectModel.value;
   chunkWorker.postMessage({
@@ -376,7 +377,7 @@ btnDownloadSplit.addEventListener('click', async () => {
       }
     );
 
-    await appendLog('STORAGE', 'Download complete. Passing blob to Background Chunk Worker...');
+    await appendLog('STORAGE', 'Download complete. Passing to SI-Radix Segment Engine...');
     chunkWorker.postMessage({
       type: 'SPLIT_AND_STORE_CHUNKS',
       payload: {
@@ -391,93 +392,17 @@ btnDownloadSplit.addEventListener('click', async () => {
   }
 });
 
-function updateDAGManifest(manifest, rootHash, modelName) {
+function updateDAGManifest(manifest, modelName) {
   if (!manifest || !graphManifest) return;
   graphManifest.innerHTML = `
     <strong>Model:</strong> ${modelName}<br>
-    <strong>Merkle Root:</strong> ${rootHash ? rootHash.slice(0, 16) + '...' : 'Verified'}<br>
-    <strong>Blocks:</strong> ${manifest.length} × 4MB Nodes<br>
-    <strong>Worker Architecture:</strong> Background Chunk Worker<br>
-    <strong>Data Path:</strong> Zero-Copy MessageChannel
+    <strong>Index Structure:</strong> SI-Radix Segment Interval Table<br>
+    <strong>Segments:</strong> ${manifest.totalSegments} × 4MB Segments<br>
+    <strong>Resolution:</strong> O(1) Direct Offset Arithmetic Lookup<br>
+    <strong>Verification:</strong> Murmur3 32-bit Checksum Vector
   `;
 }
 
-// 7. Training & WebMCP Client Operations
-if (btnTrainStep) {
-  btnTrainStep.addEventListener('click', () => {
-    const text = trainTextInput.value.trim();
-    if (!text) return alert('Enter training text.');
-    btnTrainStep.disabled = true;
-    trainMetricsBadge.textContent = 'Training step in progress...';
-    webmcpWorker.postMessage({ type: 'TRAIN_STEP', payload: { text, lr: 0.001 } });
-  });
-}
-
-if (btnSaveWeights) {
-  btnSaveWeights.addEventListener('click', () => {
-    webmcpWorker.postMessage({ type: 'SAVE_MODEL_TO_MERKLE', payload: { modelName: 'browser-nano-llm' } });
-  });
-}
-
-if (btnMcpInit) {
-  btnMcpInit.addEventListener('click', () => {
-    mcpRequestJson.value = JSON.stringify({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'initialize',
-      params: { protocolVersion: '2024-11-05', clientInfo: { name: 'browser-ui', version: '1.0' } }
-    }, null, 2);
-  });
-}
-
-if (btnMcpTools) {
-  btnMcpTools.addEventListener('click', () => {
-    mcpRequestJson.value = JSON.stringify({
-      jsonrpc: '2.0',
-      id: 2,
-      method: 'tools/list',
-      params: {}
-    }, null, 2);
-  });
-}
-
-if (btnMcpResources) {
-  btnMcpResources.addEventListener('click', () => {
-    mcpRequestJson.value = JSON.stringify({
-      jsonrpc: '2.0',
-      id: 3,
-      method: 'resources/list',
-      params: {}
-    }, null, 2);
-  });
-}
-
-if (btnMcpSample) {
-  btnMcpSample.addEventListener('click', () => {
-    mcpRequestJson.value = JSON.stringify({
-      jsonrpc: '2.0',
-      id: 4,
-      method: 'sampling/createMessage',
-      params: {
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hello model' } }],
-        maxTokens: 32
-      }
-    }, null, 2);
-  });
-}
-
-if (btnSendMcp) {
-  btnSendMcp.addEventListener('click', () => {
-    try {
-      const parsed = JSON.parse(mcpRequestJson.value);
-      webmcpWorker.postMessage({ type: 'WEBMCP_REQUEST', payload: parsed });
-    } catch (err) {
-      alert('Invalid JSON: ' + err.message);
-    }
-  });
-}
-
-// 8. Hardware Selection
 if (btnDeviceCpu) {
   btnDeviceCpu.addEventListener('click', () => {
     computeWorker.postMessage({ type: 'SET_DEVICE', payload: { device: 'CPU' } });
@@ -496,10 +421,9 @@ if (btnDeviceGpu) {
   });
 }
 
-// 9. Storage Cleanup
 if (btnClearCache) {
   btnClearCache.addEventListener('click', async () => {
-    const confirmPurge = confirm('Clear all storage, chunks, logs, and caches?');
+    const confirmPurge = confirm('Clear all storage, segments, logs, and caches?');
     if (!confirmPurge) return;
 
     btnClearCache.disabled = true;
@@ -513,7 +437,7 @@ if (btnClearCache) {
       }
 
       if (chatStream) chatStream.innerHTML = '';
-      if (graphManifest) graphManifest.innerHTML = 'No 4MB slices found in IndexedDB.';
+      if (graphManifest) graphManifest.innerHTML = 'No segments found in IndexedDB.';
 
       if (clearStatusLabel) {
         clearStatusLabel.style.color = '#10b981';
@@ -530,7 +454,6 @@ if (btnClearCache) {
   });
 }
 
-// 10. Chat & Telemetry Streaming
 let currentBubble = null;
 
 function renderMessage(role, text) {
@@ -596,23 +519,14 @@ async function executeChat() {
   currentBubble = null;
   await storage.saveMessage('user', text);
 
-  // Distribute over mesh if connected, otherwise execute locally via WebMCP
   const delegated = mesh.dispatchCompute(text);
   if (delegated) {
     updateAssistantBubble(`[Mesh] Task dispatched to peer: ${delegated.peerKey}`);
     await appendLog('WEBRTC', `Task dispatched to peer ${delegated.peerKey}`);
   } else {
-    webmcpWorker.postMessage({
-      type: 'WEBMCP_REQUEST',
-      payload: {
-        jsonrpc: '2.0',
-        id: Date.now(),
-        method: 'sampling/createMessage',
-        params: {
-          messages: [{ role: 'user', content: { type: 'text', text } }],
-          maxTokens: 64
-        }
-      }
+    computeWorker.postMessage({
+      type: 'INFER',
+      payload: { prompt: text, taskId: 'local_' + Date.now() }
     });
   }
 }
@@ -622,7 +536,6 @@ inputPrompt.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') executeChat();
 });
 
-// 11. Mesh Network Setup
 const mesh = new MeshCoordinator(
   nodeId,
   async (msg, peerKey, channel) => {
@@ -677,5 +590,4 @@ if (btnConnectPin) {
   });
 }
 
-// Initial storage metrics evaluation
 updateStorageMetrics();
