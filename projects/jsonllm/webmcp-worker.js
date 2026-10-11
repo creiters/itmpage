@@ -1,5 +1,5 @@
 /**
- * webmcp-worker.js - On-Device Training & JSONLLM Serializer Worker
+ * webmcp-worker.js - 128M Training & WebMCP Server Worker
  */
 
 import { NanoTransformer } from './nano-engine.js';
@@ -20,10 +20,17 @@ let isTrainingActive = false;
   rag = new LocalRAG(64);
   await rag.init(storage);
 
-  engine = new NanoTransformer({ dim: 64, layers: 2, heads: 2, vocabSize: 128, maxSeqLen: 64 });
-  server = new WebMCPServer(engine, storage, rag, JSONLLMCodec);
+  engine = new NanoTransformer({
+    dim: 768,
+    layers: 16,
+    heads: 12,
+    ffnDim: 2048,
+    vocabSize: 4096,
+    maxSeqLen: 128
+  });
 
-  self.postMessage({ type: 'STATUS', status: 'WebMCP Ready' });
+  server = new WebMCPServer(engine, storage, rag, JSONLLMCodec);
+  self.postMessage({ type: 'STATUS', status: 'WebMCP Ready (128M Mode)' });
 })();
 
 self.onmessage = async (e) => {
@@ -36,42 +43,39 @@ self.onmessage = async (e) => {
   }
 
   if (type === 'START_TRAIN') {
-    const { text, epochs = 5, lr = 0.002, seqLen = 48 } = payload;
+    const { text, epochs = 5, lr = 0.002, seqLen = 64 } = payload;
     isTrainingActive = true;
 
     const allTokens = engine.tokenizer.encode(text);
     if (allTokens.length < 4) {
-      self.postMessage({ type: 'LOG', category: 'ERROR', text: 'Training text too short (min 4 tokens).' });
+      self.postMessage({ type: 'LOG', category: 'ERROR', text: 'Text too short (min 4 tokens).' });
       return;
     }
 
-    // Dynamic Sliding Window Packaging
     const sequences = [];
     const stride = Math.max(4, Math.floor(seqLen * 0.6));
     for (let i = 0; i < allTokens.length - seqLen; i += stride) {
       sequences.push(allTokens.slice(i, i + seqLen + 1));
     }
-    if (sequences.length === 0) {
-      sequences.push(allTokens);
-    }
+    if (sequences.length === 0) sequences.push(allTokens);
 
     self.postMessage({
       type: 'LOG',
       category: 'TRAIN',
-      text: `Training ${allTokens.length} tokens into ${sequences.length} batches over ${epochs} epochs...`
+      text: `Training 128M Model on ${allTokens.length} tokens across ${sequences.length} batches (${epochs} epochs)...`
     });
 
     const tStart = performance.now();
     let totalSteps = 0;
+    let epLossSum = 0.0;
 
     for (let ep = 1; ep <= epochs && isTrainingActive; ep++) {
-      // Stochastic epoch shuffle
       for (let i = sequences.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [sequences[i], sequences[j]] = [sequences[j], sequences[i]];
       }
 
-      let epLossSum = 0.0;
+      epLossSum = 0.0;
       for (let b = 0; b < sequences.length && isTrainingActive; b++) {
         const loss = engine.trainSequence(sequences[b], lr);
         epLossSum += loss;
@@ -97,7 +101,7 @@ self.onmessage = async (e) => {
               progressPct
             }
           });
-          await new Promise((r) => setTimeout(r, 0)); // Micro-yield
+          await new Promise((r) => setTimeout(r, 0));
         }
       }
     }
@@ -112,17 +116,23 @@ self.onmessage = async (e) => {
   }
 
   if (type === 'GENERATE_JSONLLM') {
-    const modelName = payload?.modelName || 'agent-dialog';
+    const modelName = payload?.modelName || 'dialogue-128m';
+    self.postMessage({ type: 'LOG', category: 'STORAGE', text: 'Quantizing 128M weights into Q4_0 Deflate format...' });
+
     const jsonString = await JSONLLMCodec.exportToJSONLLM(
-      { dim: engine.dim, layers: engine.layers, heads: engine.heads, vocabSize: engine.vocabSize, maxSeqLen: engine.maxSeqLen },
+      { dim: engine.dim, layers: engine.layers, heads: engine.heads, ffnDim: engine.ffnDim, vocabSize: engine.vocabSize, maxSeqLen: engine.maxSeqLen },
       engine.tokenizer,
       engine.weights
     );
 
     await storage.putModel(modelName, jsonString);
+
     self.postMessage({
       type: 'GENERATE_JSONLLM_SUCCESS',
-      payload: { modelName, jsonString, sizeKb: (jsonString.length / 1024).toFixed(1) }
+      payload: {
+        modelName,
+        sizeKb: (jsonString.length / 1024).toFixed(1)
+      }
     });
   }
 };
