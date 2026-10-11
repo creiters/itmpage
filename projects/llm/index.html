@@ -129,6 +129,16 @@
       <!-- Tab 5: Complete Event Log & Search Telemetry -->
       <section id="view-diagnostics" class="app-view">
         <div class="settings-content">
+<!-- Inside <section id="view-diagnostics"> under .settings-content -->
+<div class="settings-card">
+  <h3>Hardware Accelerator Target</h3>
+  <span class="field-label">Select compute execution mode</span>
+  <div style="display: flex; gap: 8px;">
+    <button id="btn-device-cpu" class="secondary-btn" style="flex: 1;">CPU (WASI SIMD)</button>
+    <button id="btn-device-gpu" style="flex: 1;">GPU (WebGPU WGSL)</button>
+  </div>
+  <span id="active-device-label" class="badge" style="width: fit-content; margin-top: 4px;">Active Backend: Detecting...</span>
+</div>
           <div class="settings-card">
             <h3>Transformer Execution Flow</h3>
             <div class="flow-diagram">
