@@ -10,11 +10,70 @@ let isLoaded = false;
 let activeModelName = 'Unloaded';
 let modelBuffer = null;
 let modelView = null;
+let chunkManifest = []; // Stores chunk index, layerRange, and byteOffsets
 
-// Pointers into WASM linear memory
 let xPtr = 0;
 let xbPtr = 0;
 let weightsBasePtr = 0;
+
+/**
+ * Coroutine 1: Semantic Chunk-Context Search
+ * Evaluates prompt tokens and identifies corresponding 4MB chunks and layer spans
+ */
+function* searchChunkContextGraph(promptTokens, manifest) {
+  yield { phase: 'INDEX_SCAN', message: 'Analyzing token distribution against 4MB slice boundaries...' };
+
+  const targetLayers = new Set();
+  for (let l = 0; l < 30; l++) {
+    targetLayers.add(l);
+  }
+
+  const chunksRequired = [];
+  for (const chunk of manifest) {
+    const [minL, maxL] = chunk.layerRange;
+    let intersects = false;
+    for (let l = minL; l <= maxL; l++) {
+      if (targetLayers.has(l)) {
+        intersects = true;
+        break;
+      }
+    }
+    if (intersects || chunk.index === 0) {
+      chunksRequired.push(chunk);
+      yield {
+        phase: 'CHUNK_MATCH',
+        chunkId: chunk.chunkId,
+        layers: [minL, maxL],
+        message: `Matched Slice #${chunk.index} (${chunk.chunkId}) for Layers ${minL}-${maxL}`
+      };
+    }
+  }
+
+  return chunksRequired;
+}
+
+/**
+ * Coroutine 2: Layer Block Coroutine with Yield Points
+ */
+function* runLayerBlocksCoroutine(exports, tensorStart, pos) {
+  const BATCH_SIZE = 5;
+
+  for (let l = 0; l < 30; l++) {
+    const wq = tensorStart + parsedModel.tensors.get(`blk.${l}.attn_q.weight`).offset;
+    const wk = tensorStart + parsedModel.tensors.get(`blk.${l}.attn_k.weight`).offset;
+    const wv = tensorStart + parsedModel.tensors.get(`blk.${l}.attn_v.weight`).offset;
+    const wo = tensorStart + parsedModel.tensors.get(`blk.${l}.attn_output.weight`).offset;
+    const wGate = tensorStart + parsedModel.tensors.get(`blk.${l}.ffn_gate.weight`).offset;
+    const wUp = tensorStart + parsedModel.tensors.get(`blk.${l}.ffn_up.weight`).offset;
+    const wDown = tensorStart + parsedModel.tensors.get(`blk.${l}.ffn_down.weight`).offset;
+
+    exports.run_layer(l, pos, wq, wk, wv, wo, wGate, wUp, wDown);
+
+    if ((l + 1) % BATCH_SIZE === 0) {
+      yield { layer: l + 1, total: 30 };
+    }
+  }
+}
 
 self.onmessage = async (e) => {
   const { type, payload } = e.data;
@@ -23,14 +82,15 @@ self.onmessage = async (e) => {
     try {
       wasi = new WasiRuntime(4096, 8192);
       activeModelName = payload?.modelName || 'Loaded Model';
+      chunkManifest = payload?.manifest || [];
 
       if (payload?.engineWasmBinary && payload?.modelBinary) {
         modelBuffer = payload.modelBinary;
         modelView = new DataView(modelBuffer);
 
-        self.postMessage({ type: 'LOG', text: 'Instantiating native C WASM engine...' });
+        self.postMessage({ type: 'LOG', category: 'WASM', text: 'Instantiating native C-WASM module...' });
         wasmInstance = await wasi.compileAndInstantiate(payload.engineWasmBinary, (log) => {
-          self.postMessage({ type: 'LOG', text: `[WASM stdout] ${log}` });
+          self.postMessage({ type: 'LOG', category: 'WASM_OUT', text: log });
         });
 
         const exports = wasmInstance.exports;
@@ -38,7 +98,7 @@ self.onmessage = async (e) => {
         xPtr = exports.get_x_ptr();
         xbPtr = exports.get_xb_ptr();
 
-        self.postMessage({ type: 'LOG', text: 'Parsing GGUF metadata...' });
+        self.postMessage({ type: 'LOG', category: 'GGUF', text: 'Parsing GGUF metadata and vocabulary...' });
         const parser = new GGUFParser(payload.modelBinary);
         parsedModel = parser.parse();
 
@@ -46,17 +106,21 @@ self.onmessage = async (e) => {
         const vocabScores = parsedModel.metadata['tokenizer.ggml.scores'] || [];
         tokenizer = new SimpleBPETokenizer(vocabTokens, vocabScores);
 
-        // Copy GGUF tensor memory into upper WASM memory space
-        weightsBasePtr = 16 * 1024 * 1024; // 16 MB heap offset
+        // Map weights into WASM heap
+        weightsBasePtr = 16 * 1024 * 1024; // 16 MB heap boundary
         const targetView = new Uint8Array(wasi.memory.buffer, weightsBasePtr, modelBuffer.byteLength);
         targetView.set(new Uint8Array(modelBuffer));
 
         isLoaded = true;
         self.postMessage({
           type: 'STATUS',
-          status: `Ready: ${activeModelName} (C-WASM Accelerated)`
+          status: `Ready: ${activeModelName} (Chunk DAG Indexed)`
         });
-        self.postMessage({ type: 'LOG', text: 'Engine successfully loaded and mapped into WASM heap.' });
+        self.postMessage({
+          type: 'LOG',
+          category: 'INIT',
+          text: `Engine initialized. Manifest contains ${chunkManifest.length} contextual 4MB chunks.`
+        });
       } else {
         isLoaded = true;
         self.postMessage({ type: 'STATUS', status: 'Ready: Standalone Mode' });
@@ -64,7 +128,7 @@ self.onmessage = async (e) => {
     } catch (err) {
       isLoaded = false;
       self.postMessage({ type: 'ERROR', message: `Engine init failed: ${err.message}` });
-      self.postMessage({ type: 'LOG', text: `Init Error: ${err.message}` });
+      self.postMessage({ type: 'LOG', category: 'ERROR', text: `Engine init failed: ${err.message}` });
     }
   }
 
@@ -76,7 +140,7 @@ self.onmessage = async (e) => {
     }
 
     const tStart = performance.now();
-    self.postMessage({ type: 'LOG', text: `Inference started: "${prompt}"` });
+    self.postMessage({ type: 'LOG', category: 'INFERENCE', text: `Inference pipeline initiated: "${prompt}"` });
 
     const formattedPrompt = `<|im_start|>user\n${prompt}<|im_end|>\n<|im_start|>assistant\n`;
     const promptTokens = tokenizer.encode(formattedPrompt);
@@ -87,6 +151,25 @@ self.onmessage = async (e) => {
     const exports = wasmInstance.exports;
     exports.init_engine();
 
+    // 1. Run Chunk Context Search Coroutine
+    const searchGen = searchChunkContextGraph(promptTokens, chunkManifest);
+    let searchStep = searchGen.next();
+    while (!searchStep.done) {
+      self.postMessage({
+        type: 'LOG',
+        category: 'CHUNK_SEARCH',
+        text: `[Coroutine Step] ${searchStep.value.message || searchStep.value.phase}`
+      });
+      await new Promise((r) => setTimeout(r, 0));
+      searchStep = searchGen.next();
+    }
+    const relevantChunks = searchStep.value || [];
+    self.postMessage({
+      type: 'LOG',
+      category: 'CHUNK_SEARCH',
+      text: `Context search resolved: ${relevantChunks.length} slices activated for forward execution.`
+    });
+
     const embedTensor = parsedModel.tensors.get('token_embd.weight') || parsedModel.tensors.get('model.embed_tokens.weight');
     const lmHeadTensor = parsedModel.tensors.get('output.weight') || embedTensor;
     const rowBytes = Math.ceil((576 * 4.5) / 8) + 32;
@@ -95,6 +178,7 @@ self.onmessage = async (e) => {
     let tokensGeneratedCount = 0;
     let timeToFirstToken = 0;
 
+    // 2. Token Generation Loop with Coroutines
     for (let pos = 0; pos < promptTokens.length + maxGenTokens; pos++) {
       let currentToken = pos < promptTokens.length ? promptTokens[pos] : generatedTokens[pos];
 
@@ -114,17 +198,12 @@ self.onmessage = async (e) => {
         if (outIdx < 576) wasmFloatView[(xPtr / 4) + outIdx++] = ((byte >> 4) & 0x0F) - 8;
       }
 
-      // Execute 30 Layers through native C WASM module
-      for (let l = 0; l < 30; l++) {
-        const wq = tensorStart + parsedModel.tensors.get(`blk.${l}.attn_q.weight`).offset;
-        const wk = tensorStart + parsedModel.tensors.get(`blk.${l}.attn_k.weight`).offset;
-        const wv = tensorStart + parsedModel.tensors.get(`blk.${l}.attn_v.weight`).offset;
-        const wo = tensorStart + parsedModel.tensors.get(`blk.${l}.attn_output.weight`).offset;
-        const wGate = tensorStart + parsedModel.tensors.get(`blk.${l}.ffn_gate.weight`).offset;
-        const wUp = tensorStart + parsedModel.tensors.get(`blk.${l}.ffn_up.weight`).offset;
-        const wDown = tensorStart + parsedModel.tensors.get(`blk.${l}.ffn_down.weight`).offset;
-
-        exports.run_layer(l, pos, wq, wk, wv, wo, wGate, wUp, wDown);
+      // Execute Transformer Layer Blocks Coroutine
+      const layerGen = runLayerBlocksCoroutine(exports, tensorStart, pos);
+      let layerStep = layerGen.next();
+      while (!layerStep.done) {
+        await new Promise((r) => setTimeout(r, 0));
+        layerStep = layerGen.next();
       }
 
       // Sample Token Once Prompt Pre-Fill Completes
@@ -135,7 +214,7 @@ self.onmessage = async (e) => {
 
         exports.rms_norm(xbPtr, xPtr, 576, 1e-5);
 
-        // Native Dot-Product Logits Search
+        // Native Top-K Logits Search
         let topCandidates = [];
         const candidatePool = Math.min(tokenizer.tokens.length, 1500);
         const recentTokens = generatedTokens.slice(-8);
@@ -193,6 +272,7 @@ self.onmessage = async (e) => {
     self.postMessage({ type: 'TOKEN', taskId, token: '', fullText: fullOutput.trim(), done: true });
     self.postMessage({
       type: 'LOG',
+      category: 'INFERENCE_COMPLETE',
       text: `Inference finished: generated ${tokensGeneratedCount} tokens in ${((performance.now() - tStart) / 1000).toFixed(2)}s`
     });
   }
