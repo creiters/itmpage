@@ -3,10 +3,6 @@ import { ChunkIndexer } from './chunk-indexer.js';
 export class JSONLLMCodec {
   static FORMAT_VERSION = 'jsonllm/v1';
 
-  /**
-   * Quantize a Float32Array to 4-bit nibbles with scale and min headers.
-   * Compresses every 32 floats into 16 bytes + 2 float32 parameters.
-   */
   static quantizeQ4(floatArray, blockSize = 32) {
     const len = floatArray.length;
     const numBlocks = Math.ceil(len / blockSize);
@@ -53,9 +49,6 @@ export class JSONLLMCodec {
     };
   }
 
-  /**
-   * Dequantize 4-bit nibbles back into a continuous Float32Array.
-   */
   static dequantizeQ4(quantData, blockSize = 32) {
     const { numElements, scales, mins, packedBytes } = quantData;
     const out = new Float32Array(numElements);
@@ -85,9 +78,6 @@ export class JSONLLMCodec {
     return out;
   }
 
-  /**
-   * Compresses arbitrary bytes via native browser Deflate stream to Base64.
-   */
   static async compressBytesToBase64(bytes) {
     if (typeof CompressionStream !== 'undefined') {
       const cs = new CompressionStream('deflate');
@@ -107,7 +97,6 @@ export class JSONLLMCodec {
       return { base64: btoa(binary), compressed: true };
     }
 
-    // Fallback if CompressionStream is absent
     let binary = '';
     for (let i = 0; i < bytes.byteLength; i++) {
       binary += String.fromCharCode(bytes[i]);
@@ -115,9 +104,6 @@ export class JSONLLMCodec {
     return { base64: btoa(binary), compressed: false };
   }
 
-  /**
-   * Decompresses Base64 string back to Uint8Array via native DecompressStream.
-   */
   static async decompressBase64ToBytes(base64Str, wasCompressed = true) {
     const binary = atob(base64Str);
     const bytes = new Uint8Array(binary.length);
@@ -139,9 +125,6 @@ export class JSONLLMCodec {
     return bytes;
   }
 
-  /**
-   * Encodes a complete NanoTransformer instance into a JSONLLM string.
-   */
   static async exportToJSONLLM(modelInstance, modelName = 'browser-nano-llm') {
     const config = {
       dim: modelInstance.dim,
@@ -185,7 +168,6 @@ export class JSONLLMCodec {
     const jsonString = JSON.stringify(jsonllmObject);
     const jsonBlob = new Blob([jsonString], { type: 'application/json' });
 
-    // Generate SI-Radix 4MB segment index over the JSON text blob
     const { manifest, segments } = await ChunkIndexer.splitAndIndex(jsonBlob, modelName);
 
     return {
@@ -196,9 +178,6 @@ export class JSONLLMCodec {
     };
   }
 
-  /**
-   * Parses and reconstructs a model from a JSONLLM object or text.
-   */
   static async importFromJSONLLM(jsonllmInput) {
     const payload = typeof jsonllmInput === 'string' ? JSON.parse(jsonllmInput) : jsonllmInput;
 
