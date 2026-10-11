@@ -1,7 +1,3 @@
-/**
- * llm-worker.js - vimtoLLM Inference Worker
- */
-
 import { NanoTransformer } from './nano-engine.js';
 import { JSONLLMCodec, HalfFloatArray } from './jsonllm-codec.js';
 import { StorageService } from './storage.js';
@@ -13,7 +9,6 @@ let engine = null;
 let activeModelName = 'vimtollm-4m';
 let activeQuantMode = 'fp4';
 
-// Updated foundational training pairs embedding the new name & identity
 const SEED_CORPUS = [
   { u: "Hi", b: "Hello! How can I assist you today?" },
   { u: "Hello", b: "Hi there! I am vimtoLLM - all space inside! 10 on minus 84." },
@@ -90,6 +85,7 @@ function sampleNextToken(logits, vocabSize, specialsCount, recentTokens = []) {
   const pPool = [];
   for (const c of kPool) {
     cumSum += c.prob;
+    pPool.push(c);
     if (cumSum >= 0.85) break;
   }
 
