@@ -1,8 +1,8 @@
 {
   "$schema": "https://modelcontextprotocol.io/schema/2024-11-05/server.json",
   "name": "browser-jsonllm-server",
-  "version": "1.0.0",
-  "description": "Browser-native Model Context Protocol server powered by custom JSONLLM agents and vector RAG",
+  "version": "2.0.0",
+  "description": "Clean browser-native Model Context Protocol server powered by JSON models",
   "capabilities": {
     "tools": { "listChanged": true },
     "resources": { "subscribe": false, "listChanged": true },
@@ -11,7 +11,7 @@
   "tools": [
     {
       "name": "train_model_step",
-      "description": "Execute backpropagation step on input text using AdamW on-device",
+      "description": "Train on-device weights with AdamW on arbitrary text",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -22,8 +22,18 @@
       }
     },
     {
-      "name": "rag_index_document",
-      "description": "Index arbitrary text into local client-side Vector RAG store",
+      "name": "save_model_to_json",
+      "description": "Persist the trained model into IndexedDB as a clean JSON document",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "modelName": { "type": "string", "default": "agent-dialog" }
+        }
+      }
+    },
+    {
+      "name": "rag_index_fact",
+      "description": "Store a text guideline into the local vector RAG database",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -32,27 +42,17 @@
         },
         "required": ["docId", "text"]
       }
-    },
-    {
-      "name": "save_model_si_radix",
-      "description": "Export current trained weights into 4MB SI-Radix JSONLLM slices in IndexedDB",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "modelName": { "type": "string", "default": "custom-agent-dialog" }
-        }
-      }
     }
   ],
   "resources": [
     {
       "uri": "jsonllm://models/active",
-      "name": "Active In-Memory Small LLM",
+      "name": "Active In-Memory JSON Model",
       "mimeType": "application/json"
     },
     {
-      "uri": "jsonllm://rag/documents",
-      "name": "Vector RAG Semantic Index",
+      "uri": "jsonllm://rag/index",
+      "name": "Vector RAG Index",
       "mimeType": "application/json"
     }
   ]
