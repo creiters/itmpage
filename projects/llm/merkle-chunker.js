@@ -1,5 +1,5 @@
 export class MerkleChunker {
-  static CHUNK_SIZE = 4 * 1024 * 1024; // 4 MB boundary
+  static CHUNK_SIZE = 4 * 1024 * 1024; // Strict 4 MB boundary
 
   static async sha256(buffer) {
     if (!buffer || buffer.byteLength === 0) return 'EMPTY_BUFFER';
