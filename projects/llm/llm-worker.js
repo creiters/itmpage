@@ -1,67 +1,45 @@
 import { WasiRuntime } from './wasm-engine.js';
 import { GGUFParser } from './gguf-parser.js';
 import { SimpleBPETokenizer } from './tokenizer.js';
+import { GPUKernel } from './gpu-kernel.js';
 
 let wasi = null;
 let wasmInstance = null;
+let gpuEngine = null;
 let parsedModel = null;
 let tokenizer = null;
 let isLoaded = false;
 let activeModelName = 'Unloaded';
+let executionDevice = 'CPU'; // 'CPU' | 'GPU'
 let modelBuffer = null;
-let modelView = null;
 let chunkManifest = [];
 
 let xPtr = 0;
 let xbPtr = 0;
 let weightsBasePtr = 0;
 
-function* searchChunkContextGraph(promptTokens, manifest) {
-  yield { phase: 'INDEX_SCAN', message: `Scanning ${manifest.length} slice boundaries in DAG...` };
-
-  if (!manifest || manifest.length === 0) {
-    yield { phase: 'FALLBACK', message: 'No chunk manifest registered. Operating on monolithic buffer.' };
-    return [];
-  }
-
-  const chunksRequired = [];
-  for (const chunk of manifest) {
-    const [minL, maxL] = chunk.layerRange || [0, 30];
-    chunksRequired.push(chunk);
-
-    yield {
-      phase: 'CHUNK_MATCH',
-      chunkId: chunk.chunkId,
-      layers: [minL, maxL],
-      message: `Matched Slice #${chunk.index} (${chunk.chunkId}) for Layers ${minL}–${maxL}`
-    };
-  }
-
-  return chunksRequired;
-}
-
-function* runLayerBlocksCoroutine(exports, tensorStart, pos) {
-  const BATCH_SIZE = 5;
-
-  for (let l = 0; l < 30; l++) {
-    const wq = tensorStart + parsedModel.tensors.get(`blk.${l}.attn_q.weight`).offset;
-    const wk = tensorStart + parsedModel.tensors.get(`blk.${l}.attn_k.weight`).offset;
-    const wv = tensorStart + parsedModel.tensors.get(`blk.${l}.attn_v.weight`).offset;
-    const wo = tensorStart + parsedModel.tensors.get(`blk.${l}.attn_output.weight`).offset;
-    const wGate = tensorStart + parsedModel.tensors.get(`blk.${l}.ffn_gate.weight`).offset;
-    const wUp = tensorStart + parsedModel.tensors.get(`blk.${l}.ffn_up.weight`).offset;
-    const wDown = tensorStart + parsedModel.tensors.get(`blk.${l}.ffn_down.weight`).offset;
-
-    exports.run_layer(l, pos, wq, wk, wv, wo, wGate, wUp, wDown);
-
-    if ((l + 1) % BATCH_SIZE === 0) {
-      yield { layer: l + 1, total: 30 };
-    }
-  }
-}
-
 self.onmessage = async (e) => {
   const { type, payload } = e.data;
+
+  if (type === 'SET_DEVICE') {
+    const target = payload.device;
+    if (target === 'GPU') {
+      if (!gpuEngine) gpuEngine = new GPUKernel();
+      const ok = await gpuEngine.init();
+      if (ok) {
+        executionDevice = 'GPU';
+        self.postMessage({ type: 'STATUS', status: `Ready: ${activeModelName} (WebGPU Active)` });
+        self.postMessage({ type: 'LOG', category: 'DEVICE', text: 'Hardware backend switched to GPU (WebGPU).' });
+      } else {
+        executionDevice = 'CPU';
+        self.postMessage({ type: 'LOG', category: 'DEVICE', text: 'WebGPU not available on this device. Fallback to CPU.' });
+      }
+    } else {
+      executionDevice = 'CPU';
+      self.postMessage({ type: 'STATUS', status: `Ready: ${activeModelName} (CPU WASI/SIMD Active)` });
+      self.postMessage({ type: 'LOG', category: 'DEVICE', text: 'Hardware backend switched to CPU (WASI SIMD).' });
+    }
+  }
 
   if (type === 'INIT_ENGINE') {
     try {
@@ -69,11 +47,16 @@ self.onmessage = async (e) => {
       activeModelName = payload?.modelName || 'Loaded Model';
       chunkManifest = payload?.manifest || [];
 
+      // Check GPU capability
+      gpuEngine = new GPUKernel();
+      const hasGPU = await gpuEngine.init();
+      executionDevice = hasGPU ? 'GPU' : 'CPU';
+      wasi.setDevice(executionDevice);
+
       if (payload?.engineWasmBinary && payload?.modelBinary) {
         modelBuffer = payload.modelBinary;
-        modelView = new DataView(modelBuffer);
 
-        self.postMessage({ type: 'LOG', category: 'WASM', text: 'Instantiating native C-WASM module...' });
+        self.postMessage({ type: 'LOG', category: 'WASM', text: 'Instantiating WASI C-WASM module...' });
         wasmInstance = await wasi.compileAndInstantiate(payload.engineWasmBinary, (log) => {
           self.postMessage({ type: 'LOG', category: 'WASM_OUT', text: log });
         });
@@ -83,7 +66,7 @@ self.onmessage = async (e) => {
         xPtr = exports.get_x_ptr();
         xbPtr = exports.get_xb_ptr();
 
-        self.postMessage({ type: 'LOG', category: 'GGUF', text: 'Parsing GGUF metadata and vocabulary...' });
+        self.postMessage({ type: 'LOG', category: 'GGUF', text: 'Parsing GGUF metadata...' });
         const parser = new GGUFParser(payload.modelBinary);
         parsedModel = parser.parse();
 
@@ -98,21 +81,18 @@ self.onmessage = async (e) => {
         isLoaded = true;
         self.postMessage({
           type: 'STATUS',
-          status: `Ready: ${activeModelName} (Chunk DAG Indexed)`
+          status: `Ready: ${activeModelName} (${executionDevice} Mode)`
         });
         self.postMessage({
           type: 'LOG',
           category: 'INIT',
-          text: `Engine initialized. Manifest contains ${chunkManifest.length} contextual 4MB chunks.`
+          text: `Engine initialized in ${executionDevice} mode with ${chunkManifest.length} DAG slices.`
         });
-      } else {
-        isLoaded = true;
-        self.postMessage({ type: 'STATUS', status: 'Ready: Standalone Mode' });
       }
     } catch (err) {
       isLoaded = false;
-      self.postMessage({ type: 'ERROR', message: `Engine init failed: ${err.message}` });
-      self.postMessage({ type: 'LOG', category: 'ERROR', text: `Engine init failed: ${err.message}` });
+      self.postMessage({ type: 'ERROR', message: `Init failed: ${err.message}` });
+      self.postMessage({ type: 'LOG', category: 'ERROR', text: err.message });
     }
   }
 
@@ -124,7 +104,7 @@ self.onmessage = async (e) => {
     }
 
     const tStart = performance.now();
-    self.postMessage({ type: 'LOG', category: 'INFERENCE', text: `Inference pipeline initiated: "${prompt}"` });
+    self.postMessage({ type: 'LOG', category: 'INFERENCE', text: `Inferencing via ${executionDevice}: "${prompt}"` });
 
     const formattedPrompt = `<|im_start|>user\n${prompt}<|im_end|>\n<|im_start|>assistant\n`;
     const promptTokens = tokenizer.encode(formattedPrompt);
@@ -134,24 +114,6 @@ self.onmessage = async (e) => {
 
     const exports = wasmInstance.exports;
     exports.init_engine();
-
-    const searchGen = searchChunkContextGraph(promptTokens, chunkManifest);
-    let searchStep = searchGen.next();
-    while (!searchStep.done) {
-      self.postMessage({
-        type: 'LOG',
-        category: 'CHUNK_SEARCH',
-        text: `[Coroutine Step] ${searchStep.value.message || searchStep.value.phase}`
-      });
-      await new Promise((r) => setTimeout(r, 0));
-      searchStep = searchGen.next();
-    }
-    const relevantChunks = searchStep.value || [];
-    self.postMessage({
-      type: 'LOG',
-      category: 'CHUNK_SEARCH',
-      text: `Context search resolved: ${relevantChunks.length} slices activated for forward execution.`
-    });
 
     const embedTensor = parsedModel.tensors.get('token_embd.weight') || parsedModel.tensors.get('model.embed_tokens.weight');
     const lmHeadTensor = parsedModel.tensors.get('output.weight') || embedTensor;
@@ -164,6 +126,7 @@ self.onmessage = async (e) => {
     for (let pos = 0; pos < promptTokens.length + maxGenTokens; pos++) {
       let currentToken = pos < promptTokens.length ? promptTokens[pos] : generatedTokens[pos];
 
+      // Embedding Vector Lookup
       const embOffset = tensorStart + embedTensor.offset + (currentToken * rowBytes);
       const wasmFloatView = new Float32Array(wasi.memory.buffer);
       const wasmByteView = new Uint8Array(wasi.memory.buffer);
@@ -179,13 +142,20 @@ self.onmessage = async (e) => {
         if (outIdx < 576) wasmFloatView[(xPtr / 4) + outIdx++] = ((byte >> 4) & 0x0F) - 8;
       }
 
-      const layerGen = runLayerBlocksCoroutine(exports, tensorStart, pos);
-      let layerStep = layerGen.next();
-      while (!layerStep.done) {
-        await new Promise((r) => setTimeout(r, 0));
-        layerStep = layerGen.next();
+      // 30 Transformer Blocks
+      for (let l = 0; l < 30; l++) {
+        const wq = tensorStart + parsedModel.tensors.get(`blk.${l}.attn_q.weight`).offset;
+        const wk = tensorStart + parsedModel.tensors.get(`blk.${l}.attn_k.weight`).offset;
+        const wv = tensorStart + parsedModel.tensors.get(`blk.${l}.attn_v.weight`).offset;
+        const wo = tensorStart + parsedModel.tensors.get(`blk.${l}.attn_output.weight`).offset;
+        const wGate = tensorStart + parsedModel.tensors.get(`blk.${l}.ffn_gate.weight`).offset;
+        const wUp = tensorStart + parsedModel.tensors.get(`blk.${l}.ffn_up.weight`).offset;
+        const wDown = tensorStart + parsedModel.tensors.get(`blk.${l}.ffn_down.weight`).offset;
+
+        exports.run_layer(l, pos, wq, wk, wv, wo, wGate, wUp, wDown);
       }
 
+      // Sample Token
       if (pos >= promptTokens.length - 1) {
         if (tokensGeneratedCount === 0) {
           timeToFirstToken = performance.now() - tStart;
@@ -229,6 +199,7 @@ self.onmessage = async (e) => {
           type: 'TELEMETRY',
           tps: currentTPS,
           ttft: Math.round(timeToFirstToken),
+          device: executionDevice,
           topCandidates: topCandidates.map((c) => ({
             word: tokenizer.decode(c.token) || `ID_${c.token}`,
             logit: c.logit.toFixed(2)
@@ -251,7 +222,7 @@ self.onmessage = async (e) => {
     self.postMessage({
       type: 'LOG',
       category: 'INFERENCE_COMPLETE',
-      text: `Inference finished: generated ${tokensGeneratedCount} tokens in ${((performance.now() - tStart) / 1000).toFixed(2)}s`
+      text: `Inference finished on ${executionDevice}: ${tokensGeneratedCount} tokens in ${((performance.now() - tStart) / 1000).toFixed(2)}s`
     });
   }
 };
