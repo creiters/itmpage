@@ -10,51 +10,36 @@ let isLoaded = false;
 let activeModelName = 'Unloaded';
 let modelBuffer = null;
 let modelView = null;
-let chunkManifest = []; // Stores chunk index, layerRange, and byteOffsets
+let chunkManifest = [];
 
 let xPtr = 0;
 let xbPtr = 0;
 let weightsBasePtr = 0;
 
-/**
- * Coroutine 1: Semantic Chunk-Context Search
- * Evaluates prompt tokens and identifies corresponding 4MB chunks and layer spans
- */
 function* searchChunkContextGraph(promptTokens, manifest) {
-  yield { phase: 'INDEX_SCAN', message: 'Analyzing token distribution against 4MB slice boundaries...' };
+  yield { phase: 'INDEX_SCAN', message: `Scanning ${manifest.length} slice boundaries in DAG...` };
 
-  const targetLayers = new Set();
-  for (let l = 0; l < 30; l++) {
-    targetLayers.add(l);
+  if (!manifest || manifest.length === 0) {
+    yield { phase: 'FALLBACK', message: 'No chunk manifest registered. Operating on monolithic buffer.' };
+    return [];
   }
 
   const chunksRequired = [];
   for (const chunk of manifest) {
-    const [minL, maxL] = chunk.layerRange;
-    let intersects = false;
-    for (let l = minL; l <= maxL; l++) {
-      if (targetLayers.has(l)) {
-        intersects = true;
-        break;
-      }
-    }
-    if (intersects || chunk.index === 0) {
-      chunksRequired.push(chunk);
-      yield {
-        phase: 'CHUNK_MATCH',
-        chunkId: chunk.chunkId,
-        layers: [minL, maxL],
-        message: `Matched Slice #${chunk.index} (${chunk.chunkId}) for Layers ${minL}-${maxL}`
-      };
-    }
+    const [minL, maxL] = chunk.layerRange || [0, 30];
+    chunksRequired.push(chunk);
+
+    yield {
+      phase: 'CHUNK_MATCH',
+      chunkId: chunk.chunkId,
+      layers: [minL, maxL],
+      message: `Matched Slice #${chunk.index} (${chunk.chunkId}) for Layers ${minL}–${maxL}`
+    };
   }
 
   return chunksRequired;
 }
 
-/**
- * Coroutine 2: Layer Block Coroutine with Yield Points
- */
 function* runLayerBlocksCoroutine(exports, tensorStart, pos) {
   const BATCH_SIZE = 5;
 
@@ -106,8 +91,7 @@ self.onmessage = async (e) => {
         const vocabScores = parsedModel.metadata['tokenizer.ggml.scores'] || [];
         tokenizer = new SimpleBPETokenizer(vocabTokens, vocabScores);
 
-        // Map weights into WASM heap
-        weightsBasePtr = 16 * 1024 * 1024; // 16 MB heap boundary
+        weightsBasePtr = 16 * 1024 * 1024;
         const targetView = new Uint8Array(wasi.memory.buffer, weightsBasePtr, modelBuffer.byteLength);
         targetView.set(new Uint8Array(modelBuffer));
 
@@ -151,7 +135,6 @@ self.onmessage = async (e) => {
     const exports = wasmInstance.exports;
     exports.init_engine();
 
-    // 1. Run Chunk Context Search Coroutine
     const searchGen = searchChunkContextGraph(promptTokens, chunkManifest);
     let searchStep = searchGen.next();
     while (!searchStep.done) {
@@ -178,11 +161,9 @@ self.onmessage = async (e) => {
     let tokensGeneratedCount = 0;
     let timeToFirstToken = 0;
 
-    // 2. Token Generation Loop with Coroutines
     for (let pos = 0; pos < promptTokens.length + maxGenTokens; pos++) {
       let currentToken = pos < promptTokens.length ? promptTokens[pos] : generatedTokens[pos];
 
-      // Embedding Vector Lookup
       const embOffset = tensorStart + embedTensor.offset + (currentToken * rowBytes);
       const wasmFloatView = new Float32Array(wasi.memory.buffer);
       const wasmByteView = new Uint8Array(wasi.memory.buffer);
@@ -198,7 +179,6 @@ self.onmessage = async (e) => {
         if (outIdx < 576) wasmFloatView[(xPtr / 4) + outIdx++] = ((byte >> 4) & 0x0F) - 8;
       }
 
-      // Execute Transformer Layer Blocks Coroutine
       const layerGen = runLayerBlocksCoroutine(exports, tensorStart, pos);
       let layerStep = layerGen.next();
       while (!layerStep.done) {
@@ -206,7 +186,6 @@ self.onmessage = async (e) => {
         layerStep = layerGen.next();
       }
 
-      // Sample Token Once Prompt Pre-Fill Completes
       if (pos >= promptTokens.length - 1) {
         if (tokensGeneratedCount === 0) {
           timeToFirstToken = performance.now() - tStart;
@@ -214,7 +193,6 @@ self.onmessage = async (e) => {
 
         exports.rms_norm(xbPtr, xPtr, 576, 1e-5);
 
-        // Native Top-K Logits Search
         let topCandidates = [];
         const candidatePool = Math.min(tokenizer.tokens.length, 1500);
         const recentTokens = generatedTokens.slice(-8);
