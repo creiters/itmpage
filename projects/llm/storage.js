@@ -1,5 +1,5 @@
 export class StorageService {
-  constructor(dbName = 'SharedLLM_Store', version = 2) {
+  constructor(dbName = 'SharedLLM_Store', version = 3) {
     this.dbName = dbName;
     this.version = version;
     this.db = null;
@@ -11,16 +11,26 @@ export class StorageService {
 
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
+
         if (!db.objectStoreNames.contains('chat_history')) {
           db.createObjectStore('chat_history', { keyPath: 'id', autoIncrement: true });
         }
+
         if (!db.objectStoreNames.contains('model_chunks')) {
           const chunkStore = db.createObjectStore('model_chunks', { keyPath: 'chunkId' });
           chunkStore.createIndex('by_model', 'metadata.modelName', { unique: false });
           chunkStore.createIndex('by_index', 'metadata.index', { unique: false });
+          chunkStore.createIndex('by_hash', 'metadata.chunkHash', { unique: false });
         }
+
         if (!db.objectStoreNames.contains('system_state')) {
           db.createObjectStore('system_state', { keyPath: 'key' });
+        }
+
+        if (!db.objectStoreNames.contains('event_logs')) {
+          const logStore = db.createObjectStore('event_logs', { keyPath: 'id', autoIncrement: true });
+          logStore.createIndex('by_timestamp', 'timestamp', { unique: false });
+          logStore.createIndex('by_category', 'category', { unique: false });
         }
       };
 
@@ -30,6 +40,47 @@ export class StorageService {
       };
 
       request.onerror = () => reject(request.error);
+    });
+  }
+
+  async logEvent(category, message, details = null) {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('event_logs', 'readwrite');
+      const store = tx.objectStore('event_logs');
+      const entry = {
+        timestamp: Date.now(),
+        category,
+        message,
+        details: details ? JSON.stringify(details) : null
+      };
+      const req = store.add(entry);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async getRecentLogs(limit = 100) {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('event_logs', 'readonly');
+      const store = tx.objectStore('event_logs');
+      const req = store.getAll();
+
+      req.onsuccess = () => {
+        const logs = req.result || [];
+        logs.sort((a, b) => b.timestamp - a.timestamp);
+        resolve(logs.slice(0, limit));
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async clearLogs() {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('event_logs', 'readwrite');
+      const store = tx.objectStore('event_logs');
+      const req = store.clear();
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => reject(req.error);
     });
   }
 
@@ -67,6 +118,29 @@ export class StorageService {
     });
   }
 
+  async getChunk(chunkId) {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('model_chunks', 'readonly');
+      const store = tx.objectStore('model_chunks');
+      const req = store.get(chunkId);
+      req.onsuccess = () => {
+        if (!req.result) return resolve(null);
+        let buf = req.result.binary;
+        if (buf instanceof Uint8Array) {
+          buf = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+        } else if (buf instanceof ArrayBuffer) {
+          buf = buf.slice(0);
+        }
+        resolve({
+          chunkId: req.result.chunkId,
+          metadata: req.result.metadata,
+          binary: buf
+        });
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
   async getModelChunks(modelName) {
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction('model_chunks', 'readonly');
@@ -92,6 +166,18 @@ export class StorageService {
       };
       req.onerror = () => reject(req.error);
     });
+  }
+
+  async getChunkSummary(modelName) {
+    const chunks = await this.getModelChunks(modelName);
+    return chunks.map((c) => ({
+      chunkId: c.chunkId,
+      index: c.metadata.index,
+      sizeBytes: c.binary.byteLength,
+      hash: c.metadata.chunkHash,
+      layerRange: c.metadata.context.layerRange,
+      nextChunkId: c.metadata.nextChunkId
+    }));
   }
 
   async deleteModelChunks(modelName) {
@@ -136,7 +222,7 @@ export class StorageService {
 
   async clearAll() {
     return new Promise((resolve, reject) => {
-      const storeNames = ['chat_history', 'model_chunks', 'system_state'];
+      const storeNames = ['chat_history', 'model_chunks', 'system_state', 'event_logs'];
       const tx = this.db.transaction(storeNames, 'readwrite');
       storeNames.forEach((name) => {
         if (this.db.objectStoreNames.contains(name)) tx.objectStore(name).clear();
