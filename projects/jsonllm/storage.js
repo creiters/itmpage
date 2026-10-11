@@ -1,11 +1,8 @@
 export class StorageService {
-  constructor(dbName = 'Clean_JSONLLM_Store', version = 2) {
+  constructor(dbName = 'Clean_JSONLLM_Store', version = 3) {
     this.dbName = dbName;
     this.version = version;
     this.db = null;
-    this.broadcast = typeof BroadcastChannel !== 'undefined'
-      ? new BroadcastChannel('jsonllm-sync')
-      : null;
   }
 
   async init() {
@@ -77,12 +74,13 @@ export class StorageService {
     });
   }
 
-  async putDialogueDataset(datasetName, jsonPayload) {
+  async putDialogueDataset(datasetName, agentId, jsonPayload) {
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction('dialogue_datasets', 'readwrite');
       const store = tx.objectStore('dialogue_datasets');
       const req = store.put({
         datasetName,
+        agentId,
         jsonPayload,
         bytes: jsonPayload.length,
         updated: Date.now()
@@ -152,7 +150,7 @@ export class StorageService {
     });
   }
 
-  async getRecentLogs(limit = 60) {
+  async getRecentLogs(limit = 100) {
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction('event_logs', 'readonly');
       const store = tx.objectStore('event_logs');
