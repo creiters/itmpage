@@ -1,6 +1,5 @@
 /**
- * nano-engine.js - Pure FP16 Transformer Engine (4M Architecture)
- * Config: Dim=192, Layers=8, Heads=6, FFN=512, Vocab=1024, Context=128
+ * nano-engine.js - 4M Parameter Pure FP16 Transformer Runtime with Autograd Tape
  */
 
 import { HalfFloatArray } from './jsonllm-codec.js';
@@ -20,7 +19,7 @@ export class NanoTokenizer {
       this.idToToken.set(id, tok);
     });
 
-    const words = [
+    const foundationalWords = [
       "Hello", "Hi", "Hey", "How", "are", "you", "I", "am", "doing", "well",
       "great", "fine", "good", "What", "is", "your", "name", "My", "JSONLLM",
       "an", "offline", "browser", "AI", "assistant", "Yes", "No", "can", "help",
@@ -28,12 +27,12 @@ export class NanoTokenizer {
       "runs", "entirely", "on", "device", "Thanks", "Thank", "welcome", "Goodbye",
       "Bye", "ready", "System", "Status", "OK", "Please", "ask", "a", "question",
       "nice", "to", "meet", "parameters", "model", "4M", "memory", "fast",
-      "FP4", "Q4", "E2M1", "quantized", "FP16", "pure",
+      "FP4", "Q4", "E2M1", "quantized", "FP16", "pure", "compact", "saving",
       ".", ",", "!", "?", ":", ";", "'", "\"", "\n", "-", "(", ")"
     ];
 
     let id = this.specials.length;
-    for (const w of words) {
+    for (const w of foundationalWords) {
       if (!this.tokenToId.has(w)) {
         this.tokenToId.set(w, id);
         this.idToToken.set(id, w);
@@ -124,25 +123,25 @@ export class NanoTransformer {
       return arr;
     };
 
-    const register = (name, size) => {
+    const registerParam = (name, size) => {
       this.weights[name] = randFP16(size);
       this.grads[name] = new HalfFloatArray(size);
       this.adamM[name] = new HalfFloatArray(size);
       this.adamV[name] = new HalfFloatArray(size);
     };
 
-    register('wte', this.vocabSize * this.dim);
-    register('wpe', this.maxSeqLen * this.dim);
-    register('lm_head', this.vocabSize * this.dim);
+    registerParam('wte', this.vocabSize * this.dim);
+    registerParam('wpe', this.maxSeqLen * this.dim);
+    registerParam('lm_head', this.vocabSize * this.dim);
 
     for (let l = 0; l < this.layers; l++) {
-      register(`blk_${l}_wq`, this.dim * this.dim);
-      register(`blk_${l}_wk`, this.dim * this.dim);
-      register(`blk_${l}_wv`, this.dim * this.dim);
-      register(`blk_${l}_wo`, this.dim * this.dim);
-      register(`blk_${l}_wgate`, this.dim * this.ffnDim);
-      register(`blk_${l}_wup`, this.dim * this.ffnDim);
-      register(`blk_${l}_wdown`, this.ffnDim * this.dim);
+      registerParam(`blk_${l}_wq`, this.dim * this.dim);
+      registerParam(`blk_${l}_wk`, this.dim * this.dim);
+      registerParam(`blk_${l}_wv`, this.dim * this.dim);
+      registerParam(`blk_${l}_wo`, this.dim * this.dim);
+      registerParam(`blk_${l}_wgate`, this.dim * this.ffnDim);
+      registerParam(`blk_${l}_wup`, this.dim * this.ffnDim);
+      registerParam(`blk_${l}_wdown`, this.ffnDim * this.dim);
     }
   }
 
