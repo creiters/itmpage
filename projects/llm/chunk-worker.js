@@ -30,7 +30,7 @@ self.onmessage = async (e) => {
 
   await ensureStorage();
 
-  if (type === 'SPLIT_AND_STORE_CHUNKS') {
+  if (type === 'SPLIT_AND_STORE_CHUNKS' || type === 'SPLIT_AND_STORE_SEGMENTS') {
     const { modelBlob, modelName } = payload;
     activeModelName = modelName;
 
@@ -38,7 +38,7 @@ self.onmessage = async (e) => {
       self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Purging previous segments for ${modelName}...` });
       await storage.deleteModelChunks(modelName);
 
-      self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Generating Segment Interval Map & Murmur3 Checksums...` });
+      self.postMessage({ type: 'LOG', category: 'STORAGE', text: 'Generating Segment Interval Map & Murmur3 Checksums...' });
       const t0 = performance.now();
 
       const { manifest, segments } = await ChunkIndexer.splitAndIndex(
@@ -84,15 +84,15 @@ self.onmessage = async (e) => {
     }
   }
 
-  if (type === 'LOAD_CACHED_CHUNKS') {
+  if (type === 'LOAD_CACHED_CHUNKS' || type === 'LOAD_CACHED_SEGMENTS') {
     const { modelName } = payload;
     activeModelName = modelName;
 
     try {
       const manifest = await storage.getManifest(modelName);
-      const chunks = await storage.getModelChunks(modelName);
+      const segments = await storage.getModelChunks(modelName);
 
-      if (!manifest || chunks.length === 0) {
+      if (!manifest || segments.length === 0) {
         self.postMessage({ type: 'CHUNKS_EMPTY', payload: { modelName } });
         return;
       }
@@ -100,17 +100,17 @@ self.onmessage = async (e) => {
       self.postMessage({
         type: 'LOG',
         category: 'STORAGE',
-        text: `Verifying ${chunks.length} segments via Fast Checksum Map...`
+        text: `Verifying ${segments.length} segments via Fast Checksum Map...`
       });
 
       const t0 = performance.now();
-      const unifiedBinary = ChunkIndexer.reassemble(chunks, manifest);
+      const unifiedBinary = ChunkIndexer.reassemble(segments, manifest);
       const verifyTime = (performance.now() - t0).toFixed(1);
 
       self.postMessage({
         type: 'LOG',
         category: 'STORAGE',
-        text: `All ${chunks.length} segments verified and reassembled in ${verifyTime} ms.`
+        text: `All ${segments.length} segments verified and reassembled in ${verifyTime} ms.`
       });
 
       activeManifest = manifest;
@@ -120,7 +120,7 @@ self.onmessage = async (e) => {
         payload: {
           modelName,
           manifest,
-          chunkCount: chunks.length
+          chunkCount: segments.length
         }
       });
 
@@ -146,16 +146,16 @@ async function handleLayerSegmentRequest(layerIndex, modelName) {
 
   for (const idx of segmentIndices) {
     const chunkId = `${modelName}_seg_${idx}`;
-    const chunk = await storage.getChunk(chunkId);
-    if (chunk) {
+    const segment = await storage.getChunk(chunkId);
+    if (segment) {
       computeWorkerPort.postMessage({
         type: 'DELIVER_PAGED_CHUNK',
         payload: {
           index: idx,
-          metadata: chunk.metadata,
-          binary: chunk.binary
+          metadata: segment.metadata,
+          binary: segment.binary
         }
-      }, [chunk.binary]);
+      }, [segment.binary]);
     }
   }
 }
