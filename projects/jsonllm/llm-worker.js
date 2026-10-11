@@ -17,28 +17,21 @@ const SEED_PAIRS = [
   { u: "Hello", b: "Hi there! I am your offline local AI." },
   { u: "How are you?", b: "I am doing great and running offline in your browser." },
   { u: "What is your name?", b: "My name is JSONLLM." },
+  { u: "Your name?", b: "My name is JSONLLM." },
   { u: "Name?", b: "My name is JSONLLM." },
   { u: "Who are you?", b: "I am an offline browser AI." },
-  { u: "Can you help me?", b: "Yes, I can assist with dialogue, HTML, and C code." }
+  { u: "Can you help me?", b: "Yes, I can assist with dialogue, HTML, and C code." },
+  { u: "My name is Sasha", b: "Nice to meet you Sasha! How can I help you?" },
+  { u: "Sasha", b: "Hello Sasha! What are we working on today?" }
 ];
 
-async function trainBaseline(transformer, epochs = 24) {
+async function trainBaseline(transformer, epochs = 32) {
   for (let ep = 0; ep < epochs; ep++) {
     for (const pair of SEED_PAIRS) {
       const fullText = `<user> ${pair.u} <bot> ${pair.b} <eos>`;
       const tokens = transformer.tokenizer.encode(fullText);
-      if (typeof transformer.ensureVocabCapacity === 'function') {
-        transformer.ensureVocabCapacity(transformer.tokenizer.vocabSize);
-      }
-
-      const kvCache = {
-        k: Array.from({ length: transformer.layers }, () => []),
-        v: Array.from({ length: transformer.layers }, () => [])
-      };
-
-      for (let i = 0; i < tokens.length - 1; i++) {
-        transformer.trainPair(tokens.slice(0, i + 1), tokens[i + 1], kvCache, 0.005);
-      }
+      transformer.ensureVocabCapacity(transformer.tokenizer.vocabSize);
+      transformer.trainSequence(tokens, 0.004);
     }
   }
 }
@@ -46,12 +39,14 @@ async function trainBaseline(transformer, epochs = 24) {
 function sampleNextToken(logits, vocabSize, specialsCount, recentTokens = []) {
   const clone = new Float32Array(logits);
 
+  // Mask control tokens so they can never be selected into user output
   clone[0] = -Infinity; // <pad>
   clone[1] = -Infinity; // <bos>
   clone[3] = -Infinity; // <unk>
   clone[4] = -Infinity; // <user>
   clone[5] = -Infinity; // <bot>
 
+  // Repetition penalty on recent word tokens
   for (const id of recentTokens.slice(-6)) {
     if (id >= specialsCount && id < vocabSize) {
       clone[id] -= 2.5;
@@ -63,7 +58,7 @@ function sampleNextToken(logits, vocabSize, specialsCount, recentTokens = []) {
     if (clone[i] > maxL) maxL = clone[i];
   }
 
-  const temp = 0.6;
+  const temp = 0.5; // Lower temperature = more precise grammar
   const candidates = [];
   let sumExp = 0.0;
 
@@ -77,7 +72,7 @@ function sampleNextToken(logits, vocabSize, specialsCount, recentTokens = []) {
   for (const c of candidates) c.prob = c.val / (sumExp || 1.0);
   candidates.sort((a, b) => b.prob - a.prob);
 
-  const kPool = candidates.slice(0, Math.min(4, candidates.length));
+  const kPool = candidates.slice(0, Math.min(3, candidates.length));
   let cumSum = 0.0;
   for (const c of kPool) cumSum += c.prob;
 
@@ -91,7 +86,7 @@ function sampleNextToken(logits, vocabSize, specialsCount, recentTokens = []) {
 
 async function initFreshModel() {
   self.postMessage({ type: 'STATUS', status: 'Training baseline language weights...' });
-  await trainBaseline(engine, 28);
+  await trainBaseline(engine, 36);
   const jsonStr = await JSONLLMCodec.exportToJSONLLM(
     { dim: engine.dim, layers: engine.layers, heads: engine.heads, vocabSize: engine.vocabSize, maxSeqLen: engine.maxSeqLen },
     engine.tokenizer,
@@ -107,7 +102,7 @@ async function initFreshModel() {
   rag = new LocalRAG(64);
   await rag.init(storage);
 
-  engine = new NanoTransformer({ dim: 64, layers: 2, heads: 2, maxSeqLen: 48 });
+  engine = new NanoTransformer({ dim: 64, layers: 2, heads: 2, maxSeqLen: 64 });
 
   const cached = await storage.getModel(activeModelName);
   if (cached) {
@@ -148,10 +143,7 @@ self.onmessage = async (e) => {
 
       const turnPrompt = `<user> ${augmented.trim()} <bot>`;
       const promptTokens = engine.tokenizer.encode(turnPrompt);
-
-      if (typeof engine.ensureVocabCapacity === 'function') {
-        engine.ensureVocabCapacity(engine.tokenizer.vocabSize);
-      }
+      engine.ensureVocabCapacity(engine.tokenizer.vocabSize);
 
       const generated = [...promptTokens];
       const outputWords = [];
@@ -161,12 +153,14 @@ self.onmessage = async (e) => {
         v: Array.from({ length: engine.layers }, () => [])
       };
 
+      // 1. Prefill all prompt tokens
       let lastLogits = null;
       for (let p = 0; p < promptTokens.length; p++) {
         const res = engine.forwardStepWithTape(promptTokens[p], p, kvCache);
         lastLogits = res.logits;
       }
 
+      // 2. Generate autoregressively
       for (let t = 0; t < maxTokens; t++) {
         const nextPos = promptTokens.length + t;
         if (nextPos >= engine.maxSeqLen) break;
@@ -178,7 +172,7 @@ self.onmessage = async (e) => {
           generated
         );
 
-        if (bestToken === 2) break;
+        if (bestToken === 2) break; // <eos>
 
         generated.push(bestToken);
         const word = engine.tokenizer.idToToken.get(bestToken) || '';
