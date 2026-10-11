@@ -145,21 +145,43 @@ export class StorageService {
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction('model_chunks', 'readonly');
       const store = tx.objectStore('model_chunks');
-      const index = store.index('by_model');
-      const req = index.getAll(modelName);
+      const req = store.getAll();
 
       req.onsuccess = () => {
-        const records = req.result || [];
-        records.sort((a, b) => a.metadata.index - b.metadata.index);
+        const allRecords = req.result || [];
+        const records = allRecords.filter((r) => {
+          const m = r.metadata?.modelName || '';
+          return m === modelName || m.startsWith(modelName) || modelName.startsWith(m);
+        });
 
-        const cleanRecords = records.map((r) => {
+        records.sort((a, b) => (a.metadata?.index || 0) - (b.metadata?.index || 0));
+
+        const cleanRecords = records.map((r, idx) => {
           let buf = r.binary;
           if (buf instanceof Uint8Array) {
             buf = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
           } else if (buf instanceof ArrayBuffer) {
             buf = buf.slice(0);
           }
-          return { chunkId: r.chunkId, metadata: r.metadata, binary: buf };
+
+          const total = r.metadata?.totalChunks || records.length;
+          const startLayer = Math.floor((idx / Math.max(1, total)) * 30);
+          const endLayer = Math.floor(((idx + 1) / Math.max(1, total)) * 30);
+
+          const metadata = {
+            ...r.metadata,
+            index: r.metadata?.index ?? idx,
+            totalChunks: total,
+            modelName: r.metadata?.modelName || modelName,
+            chunkHash: r.metadata?.chunkHash || r.metadata?.hash || 'LEGACY_HASH',
+            context: r.metadata?.context || {
+              layerRange: [startLayer, endLayer],
+              canYieldNext: idx + 1 < total,
+              targetNextContext: idx + 1 < total ? `context://chunk/${idx + 1}` : 'context://tail'
+            }
+          };
+
+          return { chunkId: r.chunkId, metadata, binary: buf };
         });
 
         resolve(cleanRecords);
