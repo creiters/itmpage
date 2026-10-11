@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shared-llm-v0.06';
+const CACHE_NAME = 'shared-llm-v0.07';
 const OFFLINE_RESOURCES = [
   './',
   './index.html',
