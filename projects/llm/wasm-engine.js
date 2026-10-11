@@ -74,3 +74,4 @@ export class WasiRuntime {
     return await WebAssembly.instantiate(module, imports);
   }
 }
+
