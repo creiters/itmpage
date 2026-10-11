@@ -11,7 +11,7 @@ self.onmessage = async (e) => {
   if (type === 'INIT_WEBMCP') {
     server = new WebMCPServer({ name: 'browser-native-llm', version: '1.0.0' });
     await server.init();
-    self.postMessage({ type: 'STATUS', status: 'WebMCP Server Ready' });
+    self.postMessage({ type: 'STATUS', status: 'WebMCP JSONLLM Server Ready' });
     return;
   }
 
@@ -38,7 +38,7 @@ self.onmessage = async (e) => {
     self.postMessage({
       type: 'LOG',
       category: 'TRAIN',
-      text: `Starting dataset training: ${datasetText.length} characters, ${epochs} epochs, batch size ${batchSize}.`
+      text: `Training started: ${datasetText.length} characters, ${epochs} epochs, lr=${lr}.`
     });
 
     const tokenizer = server.engine.tokenizer;
@@ -123,43 +123,71 @@ self.onmessage = async (e) => {
     return;
   }
 
-  if (type === 'EXPORT_JSONLLM') {
+  /**
+   * Converts in-memory weights to JSONLLM and stores directly into IndexedDB
+   */
+  if (type === 'CONVERT_TO_JSONLLM_AND_STORE') {
     if (!server) return;
     const modelName = payload?.modelName || 'browser-nano-llm';
 
-    self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Packing model to compressed JSONLLM container...` });
-    const { jsonString, manifest, segments } = await JSONLLMCodec.exportToJSONLLM(server.engine, modelName);
-
-    await server.storage.saveManifest(manifest);
-    await server.storage.batchPutChunks(segments);
-
-    self.postMessage({
-      type: 'EXPORT_JSONLLM_COMPLETE',
-      payload: {
-        jsonString,
-        manifest,
-        segmentsCount: segments.length
-      }
-    });
-    return;
-  }
-
-  if (type === 'IMPORT_JSONLLM') {
-    if (!server) return;
     try {
-      self.postMessage({ type: 'LOG', category: 'STORAGE', text: 'Decoding and dequantizing JSONLLM file...' });
-      const imported = await JSONLLMCodec.importFromJSONLLM(payload.jsonString);
-      server.engine.loadFromJSONLLMPayload(imported);
+      self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Converting "${modelName}" to 4-bit compressed JSONLLM...` });
+      const t0 = performance.now();
+
+      const { jsonString, manifest, segments } = await JSONLLMCodec.convertAndStoreToIndexedDB(
+        server.engine,
+        server.storage,
+        modelName
+      );
+
+      const elapsed = (performance.now() - t0).toFixed(1);
+      self.postMessage({
+        type: 'LOG',
+        category: 'STORAGE',
+        text: `JSONLLM conversion complete in ${elapsed} ms. Stored ${segments.length} SI-Radix 4MB segments in IndexedDB.`
+      });
 
       self.postMessage({
-        type: 'IMPORT_JSONLLM_COMPLETE',
+        type: 'CONVERT_JSONLLM_SUCCESS',
         payload: {
-          config: imported.config,
-          modelName: payload.modelName || 'custom-jsonllm'
+          modelName,
+          jsonString,
+          manifest,
+          segmentsCount: segments.length,
+          compressedSizeBytes: jsonString.length
         }
       });
     } catch (err) {
-      self.postMessage({ type: 'ERROR', message: `Import failed: ${err.message}` });
+      self.postMessage({ type: 'ERROR', message: `Conversion failed: ${err.message}` });
+    }
+    return;
+  }
+
+  /**
+   * Restores an active model from an IndexedDB-stored JSONLLM record
+   */
+  if (type === 'LOAD_JSONLLM_FROM_INDEXEDDB') {
+    if (!server) return;
+    const modelName = payload?.modelName || 'browser-nano-llm';
+
+    try {
+      self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Loading JSONLLM "${modelName}" from IndexedDB...` });
+      const restored = await JSONLLMCodec.loadFromIndexedDB(server.storage, modelName);
+      server.engine.loadFromJSONLLMPayload(restored);
+
+      self.postMessage({
+        type: 'STATUS',
+        status: `Ready: ${modelName} (Loaded from IndexedDB JSONLLM)`
+      });
+      self.postMessage({
+        type: 'LOAD_JSONLLM_SUCCESS',
+        payload: {
+          modelName,
+          config: restored.config
+        }
+      });
+    } catch (err) {
+      self.postMessage({ type: 'ERROR', message: `Failed to load JSONLLM: ${err.message}` });
     }
   }
 };
