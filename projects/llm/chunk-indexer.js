@@ -2,8 +2,8 @@ export class ChunkIndexer {
   static CHUNK_SIZE = 4 * 1024 * 1024; // Strict 4 MB segment boundary
 
   /**
-   * High-speed synchronous MurmurHash3 (32-bit) checksum algorithm.
-   * Eliminates asynchronous WebCrypto digest overhead on large ArrayBuffers.
+   * Synchronous MurmurHash3 (32-bit) checksum algorithm.
+   * Replaces asynchronous SHA-256 to eliminate digest latency on 4 MB segments.
    */
   static fastHash32(buffer, seed = 0x9747b28c) {
     const bytes = new Uint8Array(buffer);
@@ -53,7 +53,7 @@ export class ChunkIndexer {
 
   /**
    * Slices model binary into contiguous 4MB segments and constructs
-   * constant-time O(1) interval mapping tables and layer indexes.
+   * constant-time O(1) interval mapping tables and layer indices.
    */
   static splitAndIndex(modelBlob, modelName, onProgress) {
     return new Promise(async (resolve, reject) => {
@@ -125,6 +125,7 @@ export class ChunkIndexer {
           layerToSegments: Object.fromEntries(invertedIndex)
         };
 
+        // Explicitly returns segments to eliminate undefined property errors
         resolve({ manifest, segments });
       } catch (err) {
         reject(err);
@@ -133,23 +134,28 @@ export class ChunkIndexer {
   }
 
   static findSegmentByOffset(manifest, byteOffset) {
-    if (byteOffset < 0 || byteOffset >= manifest.totalBytes) return null;
+    if (!manifest || byteOffset < 0 || byteOffset >= manifest.totalBytes) return null;
     const idx = Math.floor(byteOffset / manifest.segmentSize);
     return manifest.segmentTable[idx] || null;
   }
 
   static findSegmentsByLayer(manifest, layerIndex) {
+    if (!manifest || !manifest.layerToSegments) return [];
     return manifest.layerToSegments[layerIndex] || [];
   }
 
   static reassemble(orderedSegments, manifest) {
+    if (!orderedSegments || !orderedSegments.length) {
+      throw new Error('SI-Radix reassembly failed: No segments provided.');
+    }
+
     const totalLength = orderedSegments.reduce((acc, s) => acc + s.binary.byteLength, 0);
     const unified = new Uint8Array(totalLength);
 
     for (let i = 0; i < orderedSegments.length; i++) {
       const s = orderedSegments[i];
       if (!s.binary || s.binary.byteLength === 0) {
-        throw new Error(`Detached buffer encountered at SI-Radix segment index ${i}`);
+        throw new Error(`Detached or empty buffer encountered at SI-Radix segment index ${i}`);
       }
 
       const calculatedChecksum = this.fastHash32(s.binary);
