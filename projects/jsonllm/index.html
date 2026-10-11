@@ -2,68 +2,83 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>WebLLM JSON Studio</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="layout">
+    <!-- PWA Hot-Update Toast -->
+    <div id="update-toast" role="alert">
+      <div class="update-toast-content">
+        <div class="update-toast-title">Update Available</div>
+        <div class="update-toast-desc">New JSONLLM engine version ready.</div>
+      </div>
+      <div class="flex-btn-row">
+        <button id="btn-apply-update" class="small-btn">Reload</button>
+        <button id="btn-dismiss-update" class="secondary-btn small-btn">✕</button>
+      </div>
+    </div>
+
+    <!-- App Header -->
     <header class="app-header">
       <div>
         <div class="brand-title">WebLLM JSON Studio</div>
-        <div id="node-label" style="font-size: 0.7rem; color: var(--text-muted);">Node: Initializing...</div>
+        <div id="node-label" class="node-label">Node: Initializing...</div>
       </div>
       <div id="engine-status" class="badge ready">Engine: Standby</div>
     </header>
 
+    <!-- Main Tab Viewport (Fit to Screen) -->
     <div class="view-viewport">
+      
       <!-- 1. Chat Tab -->
       <section id="view-chat" class="app-view active">
         <div id="chat-stream"></div>
         <div class="chat-input-bar">
-          <input type="text" id="input-prompt" placeholder="Message local JSONLLM (Vector RAG enabled)...">
+          <input type="text" id="input-prompt" placeholder="Message local JSONLLM (RAG active)...">
           <button id="btn-send">Send</button>
         </div>
       </section>
 
-      <!-- 2. Train & Generate JSONLLM Tab -->
+      <!-- 2. On-Device Training & JSONLLM Generator -->
       <section id="view-train" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
             <h3>On-Device Training Studio</h3>
-            <span class="field-label">Train your model with full autograd & generate a native .jsonllm package</span>
+            <span class="field-label">Train model with autograd and compile to a native .jsonllm package</span>
             
-            <textarea id="train-text-input" rows="4" style="width: 100%; margin-top: 4px;" placeholder="<user> Hello <bot> Greetings! I am your native JSONLLM model. <eos>"></textarea>
+            <textarea id="train-text-input" class="pin-box" placeholder="<user> Hello <bot> Greetings! I am your native JSONLLM model. <eos>"></textarea>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div class="grid-two-col">
               <div>
                 <span class="field-label">Target Architecture</span>
-                <select id="select-agent-target" style="width: 100%;">
+                <select id="select-agent-target">
                   <option value="dialog" selected>Dialog Agent (64D, 2L)</option>
                   <option value="code">Code Agent (64D, 2L)</option>
                 </select>
               </div>
               <div>
                 <span class="field-label">Epochs</span>
-                <input type="number" id="input-epochs" value="5" min="1" max="50" style="width: 100%;">
+                <input type="number" id="input-epochs" value="5" min="1" max="50">
               </div>
             </div>
 
-            <div style="display: flex; gap: 8px; margin-top: 6px;">
-              <button id="btn-start-training" style="flex: 1;">Start Model Training</button>
-              <button id="btn-generate-jsonllm" class="secondary-btn" style="flex: 1;">Generate & Save JSONLLM</button>
+            <div class="flex-btn-row">
+              <button id="btn-start-training" class="flex-1">Start Model Training</button>
+              <button id="btn-generate-jsonllm" class="secondary-btn flex-1">Generate & Save JSONLLM</button>
             </div>
 
-            <div class="progress-track" style="margin-top: 8px;">
+            <div class="progress-track">
               <div id="train-progress-fill" class="progress-fill"></div>
             </div>
-            <span id="train-progress-text" class="field-label" style="text-align: center; display: block; margin-top: 4px;">Ready to train</span>
+            <span id="train-progress-text" class="status-label">Ready to train</span>
 
-            <div class="telemetry-grid" style="margin-top: 8px;">
+            <div class="telemetry-grid">
               <div class="telemetry-item">
                 <span class="telemetry-val" id="metric-train-loss">0.0000</span>
-                <span class="telemetry-lbl">Cross-Entropy Loss</span>
+                <span class="telemetry-lbl">Loss</span>
               </div>
               <div class="telemetry-item">
                 <span class="telemetry-val" id="metric-train-ppl">0.0</span>
@@ -75,101 +90,108 @@
               </div>
             </div>
 
-            <div style="display: flex; gap: 8px; margin-top: 8px;">
-              <button id="btn-export-file" class="secondary-btn" style="flex: 1;">Download .jsonllm</button>
-              <button id="btn-import-file-btn" class="secondary-btn" style="flex: 1;">Upload .jsonllm</button>
-              <input type="file" id="file-import-input" accept=".json,.jsonllm" style="display: none;">
+            <div class="flex-btn-row">
+              <button id="btn-export-file" class="secondary-btn flex-1">Download .jsonllm</button>
+              <button id="btn-import-file-btn" class="secondary-btn flex-1">Upload .jsonllm</button>
+              <input type="file" id="file-import-input" class="hidden-file-input" accept=".json,.jsonllm">
             </div>
           </div>
         </div>
       </section>
 
-      <!-- 3. Local Vector RAG Tab -->
+      <!-- 3. Local Vector RAG Knowledge Base -->
       <section id="view-rag" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
             <h3>Vector Knowledge Store (RAG)</h3>
-            <span class="field-label">Add reference text to augment prompts via cosine retrieval</span>
+            <span class="field-label">Embed domain text into unit vectors for cosine similarity prompt augmentation</span>
             <input type="text" id="rag-doc-id" placeholder="Document ID" value="guideline_1">
-            <textarea id="rag-doc-text" rows="3" style="width: 100%;" placeholder="Enter reference facts or syntax rules..."></textarea>
+            <textarea id="rag-doc-text" class="pin-box" placeholder="Enter reference facts or syntax rules..."></textarea>
             <button id="btn-index-rag">Index Document</button>
-            <span class="field-label" id="rag-index-status">Store Ready</span>
+            <span class="status-label" id="rag-index-status">Store Ready</span>
           </div>
         </div>
       </section>
 
-      <!-- 4. WebMCP Protocol Tab -->
+      <!-- 4. WebMCP JSON-RPC Client -->
       <section id="view-webmcp" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
-            <h3>WebMCP JSON-RPC Client</h3>
-            <span class="field-label">Execute Model Context Protocol tools and schemas</span>
-            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-              <button id="btn-mcp-init" class="secondary-btn">initialize</button>
-              <button id="btn-mcp-tools" class="secondary-btn">tools/list</button>
-              <button id="btn-mcp-resources" class="secondary-btn">resources/list</button>
+            <h3>WebMCP Protocol Hub</h3>
+            <span class="field-label">Execute Model Context Protocol tools and schemas locally</span>
+            <div class="flex-wrap-row">
+              <button id="btn-mcp-init" class="secondary-btn small-btn">initialize</button>
+              <button id="btn-mcp-tools" class="secondary-btn small-btn">tools/list</button>
+              <button id="btn-mcp-resources" class="secondary-btn small-btn">resources/list</button>
             </div>
-            <textarea id="mcp-request-json" rows="4" style="width: 100%; font-family: monospace;"></textarea>
+            <textarea id="mcp-request-json" class="console-input" placeholder='{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}'></textarea>
             <button id="btn-send-mcp">Execute JSON-RPC</button>
             <span class="field-label">Protocol Response</span>
-            <pre id="mcp-response-json" class="console-box" style="height: 140px;">Awaiting request...</pre>
+            <pre id="mcp-response-json" class="console-box">Awaiting request...</pre>
           </div>
         </div>
       </section>
 
-      <!-- 5. DB View Tab -->
+      <!-- 5. IndexedDB Models Viewer -->
       <section id="view-db" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="card-header-row">
               <h3>IndexedDB JSONLLM Models</h3>
-              <button id="btn-refresh-db" class="secondary-btn">Refresh</button>
+              <button id="btn-refresh-db" class="secondary-btn small-btn">Refresh</button>
             </div>
-            <div style="overflow-x: auto;">
+            <div class="table-container">
               <table class="db-table">
                 <thead>
-                  <tr><th>Model Name</th><th>Size</th><th>Format</th><th>Updated</th></tr>
+                  <tr>
+                    <th>Model Name</th>
+                    <th>Size</th>
+                    <th>Format</th>
+                    <th>Updated</th>
+                  </tr>
                 </thead>
                 <tbody id="db-models-tbody">
-                  <tr><td colspan="4" style="text-align: center;">No models saved.</td></tr>
+                  <tr><td colspan="4" class="table-empty-cell">No models stored.</td></tr>
                 </tbody>
               </table>
             </div>
-            <button id="btn-clear-db" class="danger-btn" style="margin-top: 8px;">Clear All Models & Caches</button>
+            <button id="btn-clear-db" class="danger-btn">Clear All Models & Caches</button>
           </div>
         </div>
       </section>
 
-      <!-- 6. WebRTC Mesh Tab -->
+      <!-- 6. WebRTC Mesh PIN Network -->
       <section id="view-mesh" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
-            <h3>WebRTC P2P Mesh (6-Digit PIN)</h3>
+            <h3>Host Peer Session</h3>
             <button id="btn-host-pin">Generate Host PIN & Offer</button>
-            <textarea id="host-token-out" rows="2" style="width: 100%;" readonly placeholder="Host token..."></textarea>
-            <hr style="border: 0; border-top: 1px solid var(--border);">
-            <textarea id="join-token-in" rows="2" style="width: 100%;" placeholder="Paste remote token..."></textarea>
+            <textarea id="host-token-out" class="pin-box" readonly placeholder="Host token will appear here..."></textarea>
+          </div>
+          <div class="settings-card">
+            <h3>Join Peer Session</h3>
+            <textarea id="join-token-in" class="pin-box" placeholder="Paste remote host/answer token..."></textarea>
             <button id="btn-connect-pin">Connect Peer</button>
-            <div style="text-align: center; margin-top: 4px;">
+            <div class="card-header-row">
               <span class="badge" id="peer-status">0 Peers Connected</span>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- 7. Diagnostics & Logs Tab -->
+      <!-- 7. Diagnostics, Top-K & Event Stream -->
       <section id="view-diagnostics" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <h3>Real-Time Telemetry & Top Candidates</h3>
-              <button id="btn-clear-logs" class="secondary-btn">Clear Logs</button>
+            <div class="card-header-row">
+              <h3>Telemetry & Top Candidates</h3>
+              <button id="btn-clear-logs" class="secondary-btn small-btn">Clear Logs</button>
             </div>
 
             <div class="telemetry-grid">
               <div class="telemetry-item">
                 <span class="telemetry-val" id="metric-tps">0.0</span>
-                <span class="telemetry-lbl">Tokens / sec</span>
+                <span class="telemetry-lbl">Tok / sec</span>
               </div>
               <div class="telemetry-item">
                 <span class="telemetry-val" id="metric-ttft">0 ms</span>
@@ -177,31 +199,52 @@
               </div>
               <div class="telemetry-item">
                 <span class="telemetry-val" id="metric-rag-hits">0</span>
-                <span class="telemetry-lbl">RAG Ingested Docs</span>
+                <span class="telemetry-lbl">RAG Docs</span>
               </div>
             </div>
 
-            <div class="token-topk-container" style="margin-top: 8px;">
+            <div class="token-topk-container">
               <span class="field-label">Top Token Candidates Distribution</span>
-              <div id="token-topk-bars" style="margin-top: 4px;">No active search data.</div>
+              <div id="token-topk-bars">No active search data.</div>
             </div>
 
-            <span class="field-label" style="margin-top: 8px;">Persistent Event Stream</span>
-            <div id="diagnostics-log" class="console-box" style="height: 220px; margin-top: 4px;"></div>
+            <span class="field-label">Persistent Event Stream</span>
+            <div id="diagnostics-log" class="console-box tall"></div>
           </div>
         </div>
       </section>
     </div>
 
-    <!-- Navigation -->
+    <!-- Bottom Thumb Navigation Bar -->
     <nav class="bottom-nav">
-      <button class="nav-tab active" data-target="view-chat"><span>Chat</span></button>
-      <button class="nav-tab" data-target="view-train"><span>Train</span></button>
-      <button class="nav-tab" data-target="view-rag"><span>RAG</span></button>
-      <button class="nav-tab" data-target="view-webmcp"><span>WebMCP</span></button>
-      <button class="nav-tab" data-target="view-db"><span>DB</span></button>
-      <button class="nav-tab" data-target="view-mesh"><span>Mesh</span></button>
-      <button class="nav-tab" data-target="view-diagnostics"><span>Logs</span></button>
+      <button class="nav-tab active" data-target="view-chat">
+        <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+        <span>Chat</span>
+      </button>
+      <button class="nav-tab" data-target="view-train">
+        <svg viewBox="0 0 24 24"><path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/></svg>
+        <span>Train</span>
+      </button>
+      <button class="nav-tab" data-target="view-rag">
+        <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+        <span>RAG</span>
+      </button>
+      <button class="nav-tab" data-target="view-webmcp">
+        <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-5 14H4v-4h11v4zm0-5H4V9h11v4zm5 5h-4V9h4v9z"/></svg>
+        <span>WebMCP</span>
+      </button>
+      <button class="nav-tab" data-target="view-db">
+        <svg viewBox="0 0 24 24"><path d="M12 3C7.58 3 4 4.79 4 7v10c0 2.21 3.58 4 8 4s8-1.79 8-4V7c0-2.21-3.58-4-8-4zm0 2c3.87 0 6 1.5 6 2s-2.13 2-6 2-6-1.5-6-2 2.13-2 6-2zm6 12c0 .5-2.13 2-6 2s-6-1.5-6-2v-2.23c1.61.78 3.72 1.23 6 1.23s4.39-.45 6-1.23V17zm0-4c0 .5-2.13 2-6 2s-6-1.5-6-2v-2.23c1.61.78 3.72 1.23 6 1.23s4.39-.45 6-1.23V13z"/></svg>
+        <span>DB</span>
+      </button>
+      <button class="nav-tab" data-target="view-mesh">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+        <span>Mesh</span>
+      </button>
+      <button class="nav-tab" data-target="view-diagnostics">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-4-4h3V9h2v4h3l-4 4zm-5-10V5h10v2H7z"/></svg>
+        <span>Logs</span>
+      </button>
     </nav>
   </div>
 
