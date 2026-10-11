@@ -1,8 +1,3 @@
-/**
- * storage.js
- * Clean single-record IndexedDB manager for JSONLLM models, Vector RAG docs, and logs
- */
-
 export class StorageService {
   constructor(dbName = 'Clean_JSONLLM_Store', version = 1) {
     this.dbName = dbName;
@@ -16,15 +11,12 @@ export class StorageService {
 
       req.onupgradeneeded = (e) => {
         const db = e.target.result;
-        // Clean single-record storage for JSON models
         if (!db.objectStoreNames.contains('json_models')) {
           db.createObjectStore('json_models', { keyPath: 'modelName' });
         }
-        // Vector RAG document embeddings
         if (!db.objectStoreNames.contains('rag_docs')) {
           db.createObjectStore('rag_docs', { keyPath: 'docId' });
         }
-        // Diagnostics and chat messages
         if (!db.objectStoreNames.contains('chat_history')) {
           db.createObjectStore('chat_history', { keyPath: 'id', autoIncrement: true });
         }
@@ -44,7 +36,6 @@ export class StorageService {
     });
   }
 
-  // Save whole JSONLLM envelope directly as one atomic record
   async putModel(modelName, jsonString) {
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction('json_models', 'readwrite');
@@ -60,7 +51,6 @@ export class StorageService {
     });
   }
 
-  // Retrieve complete JSONLLM envelope
   async getModel(modelName) {
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction('json_models', 'readonly');
@@ -71,7 +61,6 @@ export class StorageService {
     });
   }
 
-  // List all stored models
   async getAllModels() {
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction('json_models', 'readonly');
@@ -102,11 +91,41 @@ export class StorageService {
     });
   }
 
+  async saveMessage(role, text) {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('chat_history', 'readwrite');
+      const store = tx.objectStore('chat_history');
+      const req = store.add({ role, text, timestamp: Date.now() });
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
   async logEvent(category, message) {
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction('event_logs', 'readwrite');
       const store = tx.objectStore('event_logs');
       const req = store.add({ category, message, timestamp: Date.now() });
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async getRecentLogs(limit = 60) {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('event_logs', 'readonly');
+      const store = tx.objectStore('event_logs');
+      const req = store.getAll();
+      req.onsuccess = () => resolve((req.result || []).slice(-limit));
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async clearLogs() {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('event_logs', 'readwrite');
+      const store = tx.objectStore('event_logs');
+      const req = store.clear();
       req.onsuccess = () => resolve(true);
       req.onerror = () => reject(req.error);
     });
