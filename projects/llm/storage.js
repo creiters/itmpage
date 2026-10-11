@@ -124,7 +124,7 @@ export class StorageService {
         };
 
         tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(new Error('Batch segment write aborted.'));
+        tx.onabort = () => reject(new Error('Batch SI-Radix segment commit aborted.'));
 
         for (const chunk of chunks) {
           const req = store.put({
@@ -199,9 +199,9 @@ export class StorageService {
       chunkId: c.chunkId,
       index: c.metadata.index,
       sizeBytes: c.binary.byteLength,
-      checksum: c.metadata.checksum || c.metadata.chunkHash,
-      layerRange: c.metadata.layerRange || c.metadata.context?.layerRange || [0, 0],
-      nextChunkId: c.metadata.contextPointers?.next || c.metadata.nextChunkId
+      checksum: c.metadata.checksum || 'N/A',
+      layerRange: c.metadata.layerRange || [0, 0],
+      nextChunkId: c.metadata.contextPointers?.next || null
     }));
   }
 
