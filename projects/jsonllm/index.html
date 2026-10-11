@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Clean WebLLM Studio</title>
+  <title>vimtoLLM - all space inside! 10 on minus 84.</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -11,7 +11,7 @@
   <div id="layout">
     <header class="app-header">
       <div>
-        <div class="brand-title">WebLLM Studio (Pure FP16 / FP4)</div>
+        <div class="brand-title">vimtoLLM - all space inside! 10 on minus 84.</div>
         <div id="node-label" class="node-label">Node: Initializing...</div>
       </div>
       <div id="engine-status" class="badge ready">Engine: Standby</div>
@@ -23,22 +23,22 @@
       <section id="view-chat" class="app-view active">
         <div id="chat-stream"></div>
         <div class="chat-input-bar">
-          <input type="text" id="input-prompt" placeholder="Message 4M FP4 agent (RAG active)...">
+          <input type="text" id="input-prompt" placeholder="Message vimtoLLM (RAG active)...">
           <button id="btn-send">Send</button>
         </div>
       </section>
 
-      <!-- 2. On-Device Training Tab -->
+      <!-- 2. Train & Dialogues Tab -->
       <section id="view-train" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
-            <h3>4M Parameter Training Studio</h3>
-            <span class="field-label">Train weights using analytical backpropagation & AdamW</span>
-            <textarea id="train-text-input" class="pin-box" placeholder="<user> Hi <bot> Hello! How can I assist you today? <eos>"></textarea>
+            <h3>vimtoLLM Training Studio (4M FP16/FP4)</h3>
+            <span class="field-label">Train model weights using analytical autograd & AdamW</span>
+            <textarea id="train-text-input" class="pin-box" placeholder="<user> Hi <bot> Hello! I am vimtoLLM. All space inside! <eos>"></textarea>
 
             <div class="grid-two-col">
               <div>
-                <span class="field-label">Precision Target</span>
+                <span class="field-label">Quantization Mode</span>
                 <select id="select-quant-mode">
                   <option value="fp4" selected>FP4 (E2M1 Microscaled) - Optimal</option>
                   <option value="q4">Q4 (Q4_0 Block Uniform)</option>
@@ -52,7 +52,7 @@
 
             <div class="flex-btn-row">
               <button id="btn-start-training" class="flex-1">Start Model Training</button>
-              <button id="btn-generate-jsonllm" class="secondary-btn flex-1">Save Model to JSONLLM</button>
+              <button id="btn-generate-jsonllm" class="secondary-btn flex-1">Save vimtoLLM Package</button>
             </div>
 
             <div class="progress-track">
@@ -75,38 +75,31 @@
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      <!-- 3. Dialogue Data Saving Studio (< 2 KB Compact Format) -->
-      <section id="view-dialog-save" class="app-view">
-        <div class="settings-content">
-          <div class="settings-card">
-            <h3>Compact Dialogue Data Studio</h3>
-            <span class="field-label">Save conversational datasets into token-delta compressed .dialog.jsonllm packages</span>
-            
-            <input type="text" id="input-dataset-name" placeholder="Dataset Name" value="general-dialogue-v1">
-            <textarea id="dialog-pairs-input" class="console-input" placeholder='[
-  {"u": "Hi", "b": "Hello! How can I help you today?"},
-  {"u": "Who are you?", "b": "I am an autonomous 4M browser language model."}
-]'></textarea>
-
-            <div class="flex-btn-row">
-              <button id="btn-save-dialog-dataset" class="flex-1">Compress & Save Dataset (< 2 KB)</button>
-              <button id="btn-export-dialog-file" class="secondary-btn flex-1">Export .dialog.jsonllm</button>
-            </div>
-            <span id="dialog-save-status" class="status-label">Ready to serialize</span>
-          </div>
 
           <div class="settings-card">
             <div class="card-header-row">
-              <h3>Stored Dialogue Packages</h3>
-              <button id="btn-refresh-dialog-list" class="secondary-btn small-btn">Refresh</button>
+              <h3>Dialogue Dataset Studio</h3>
+              <span class="badge">&lt; 2 KB Format</span>
             </div>
+            <span class="field-label">Compress conversational turns into token-delta .dialog.jsonllm datasets</span>
+            
+            <input type="text" id="input-dataset-name" placeholder="Dataset Name" value="vimtollm-conversations">
+            <textarea id="dialog-pairs-input" class="console-input" placeholder='[
+  {"u": "Hi", "b": "Hello! I am vimtoLLM - all space inside! 10 on minus 84."},
+  {"u": "What is your name?", "b": "My name is vimtoLLM."}
+]'></textarea>
+
+            <div class="flex-btn-row">
+              <button id="btn-save-dialog-dataset" class="flex-1">Compress & Save Dataset</button>
+              <button id="btn-load-into-training" class="secondary-btn flex-1">Load into Training Corpus</button>
+              <button id="btn-export-dialog-file" class="secondary-btn small-btn">Export File</button>
+            </div>
+            <span id="dialog-save-status" class="status-label">Ready to serialize</span>
+
             <div class="table-container">
               <table class="db-table">
                 <thead>
-                  <tr><th>Dataset</th><th>Turns</th><th>Compressed Size</th><th>Format</th></tr>
+                  <tr><th>Dataset</th><th>Compressed Size</th><th>Format</th><th>Action</th></tr>
                 </thead>
                 <tbody id="db-dialogs-tbody">
                   <tr><td colspan="4" class="status-label">No datasets stored.</td></tr>
@@ -117,41 +110,22 @@
         </div>
       </section>
 
-      <!-- 4. Local Vector RAG Knowledge Base -->
-      <section id="view-rag" class="app-view">
+      <!-- 3. DB & Vector RAG Tab -->
+      <section id="view-db" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
             <h3>Vector Knowledge Store (RAG)</h3>
             <span class="field-label">Embed facts into FP16 unit vectors for real-time prompt augmentation</span>
-            <input type="text" id="rag-doc-id" placeholder="Document ID" value="guideline_1">
-            <textarea id="rag-doc-text" class="pin-box" placeholder="Enter reference facts or syntax rules..."></textarea>
-            <button id="btn-index-rag">Index Document</button>
+            <input type="text" id="rag-doc-id" placeholder="Document ID" value="vimto_spec_1">
+            <textarea id="rag-doc-text" class="pin-box" placeholder="vimtoLLM runs 4M parameters in pure FP16/FP4 across local browser workers."></textarea>
+            
+            <div class="flex-btn-row">
+              <button id="btn-index-rag" class="flex-1">Index Document</button>
+              <button id="btn-test-rag-search" class="secondary-btn flex-1">Test RAG Search</button>
+            </div>
             <span class="status-label" id="rag-index-status">Store Ready</span>
           </div>
-        </div>
-      </section>
 
-      <!-- 5. WebMCP JSON-RPC Client -->
-      <section id="view-webmcp" class="app-view">
-        <div class="settings-content">
-          <div class="settings-card">
-            <h3>WebMCP Protocol Hub</h3>
-            <span class="field-label">Execute Model Context Protocol tools and schemas</span>
-            <div class="flex-wrap-row">
-              <button id="btn-mcp-init" class="secondary-btn small-btn">initialize</button>
-              <button id="btn-mcp-tools" class="secondary-btn small-btn">tools/list</button>
-              <button id="btn-mcp-resources" class="secondary-btn small-btn">resources/list</button>
-            </div>
-            <textarea id="mcp-request-json" class="console-input" placeholder='{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}'></textarea>
-            <button id="btn-send-mcp">Execute JSON-RPC</button>
-            <pre id="mcp-response-json" class="console-box">Awaiting request...</pre>
-          </div>
-        </div>
-      </section>
-
-      <!-- 6. IndexedDB Models & Quota Viewer -->
-      <section id="view-db" class="app-view">
-        <div class="settings-content">
           <div class="settings-card">
             <div class="card-header-row">
               <h3>IndexedDB Model Store</h3>
@@ -172,32 +146,51 @@
         </div>
       </section>
 
-      <!-- 7. WebRTC Mesh Network -->
-      <section id="view-mesh" class="app-view">
+      <!-- 4. Network Tab (WebRTC Mesh & WebMCP) -->
+      <section id="view-network" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
-            <h3>Host Session (Generate PIN)</h3>
-            <button id="btn-host-pin">Generate Host PIN & Offer</button>
-            <textarea id="host-token-out" class="pin-box" readonly placeholder="Host token..."></textarea>
-          </div>
-          <div class="settings-card">
-            <h3>Join Session (Connect via PIN)</h3>
-            <textarea id="join-token-in" class="pin-box" placeholder="Paste remote token..."></textarea>
-            <button id="btn-connect-pin">Connect Peer</button>
             <div class="card-header-row">
+              <h3>WebRTC P2P Mesh (6-Digit PIN)</h3>
               <span class="badge" id="peer-status">0 Peers Connected</span>
             </div>
+            <div class="grid-two-col">
+              <div>
+                <button id="btn-host-pin">Generate Host PIN & Offer</button>
+                <textarea id="host-token-out" class="pin-box" readonly placeholder="Host token..." style="margin-top: 6px;"></textarea>
+              </div>
+              <div>
+                <textarea id="join-token-in" class="pin-box" placeholder="Paste remote token..."></textarea>
+                <button id="btn-connect-pin" style="margin-top: 6px;">Connect Peer</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <h3>WebMCP JSON-RPC Hub</h3>
+            <span class="field-label">Execute Model Context Protocol tools and schemas locally</span>
+            <div class="flex-wrap-row">
+              <button id="btn-mcp-init" class="secondary-btn small-btn">initialize</button>
+              <button id="btn-mcp-tools" class="secondary-btn small-btn">tools/list</button>
+              <button id="btn-mcp-resources" class="secondary-btn small-btn">resources/list</button>
+            </div>
+            <textarea id="mcp-request-json" class="console-input" placeholder='{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}'></textarea>
+            <button id="btn-send-mcp">Execute JSON-RPC</button>
+            <pre id="mcp-response-json" class="console-box">Awaiting request...</pre>
           </div>
         </div>
       </section>
 
-      <!-- 8. Telemetry & Logs -->
+      <!-- 5. Telemetry & Complete Debug Logs Tab -->
       <section id="view-diagnostics" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
             <div class="card-header-row">
-              <h3>Telemetry & Top Candidates</h3>
-              <button id="btn-clear-logs" class="secondary-btn small-btn">Clear Logs</button>
+              <h3>System Telemetry & Top Candidates</h3>
+              <div class="flex-btn-row">
+                <button id="btn-filter-logs" class="secondary-btn small-btn">All Logs</button>
+                <button id="btn-clear-logs" class="secondary-btn small-btn">Clear Logs</button>
+              </div>
             </div>
 
             <div class="telemetry-grid">
@@ -220,22 +213,19 @@
               <div id="token-topk-bars">No active search data.</div>
             </div>
 
-            <span class="field-label">Persistent Event Stream</span>
+            <span class="field-label">Complete Debug Event Stream (All Layers)</span>
             <div id="diagnostics-log" class="console-box tall"></div>
           </div>
         </div>
       </section>
     </div>
 
-    <!-- Bottom Navigation Bar -->
+    <!-- Navigation -->
     <nav class="bottom-nav">
       <button class="nav-tab active" data-target="view-chat"><span>Chat</span></button>
       <button class="nav-tab" data-target="view-train"><span>Train</span></button>
-      <button class="nav-tab" data-target="view-dialog-save"><span>Dialogs</span></button>
-      <button class="nav-tab" data-target="view-rag"><span>RAG</span></button>
-      <button class="nav-tab" data-target="view-webmcp"><span>WebMCP</span></button>
-      <button class="nav-tab" data-target="view-db"><span>DB</span></button>
-      <button class="nav-tab" data-target="view-mesh"><span>Mesh</span></button>
+      <button class="nav-tab" data-target="view-db"><span>DB & RAG</span></button>
+      <button class="nav-tab" data-target="view-network"><span>Network</span></button>
       <button class="nav-tab" data-target="view-diagnostics"><span>Logs</span></button>
     </nav>
   </div>
