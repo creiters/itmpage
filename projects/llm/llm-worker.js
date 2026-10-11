@@ -139,7 +139,6 @@ self.onmessage = async (e) => {
     const exports = wasmInstance.exports;
     exports.init_engine();
 
-    // Constant-time check across the Segment Table
     if (segmentManifest) {
       const activeSegs = ChunkIndexer.findSegmentsByLayer(segmentManifest, 0);
       self.postMessage({
@@ -160,7 +159,6 @@ self.onmessage = async (e) => {
     for (let pos = 0; pos < promptTokens.length + maxGenTokens; pos++) {
       let currentToken = pos < promptTokens.length ? promptTokens[pos] : generatedTokens[pos];
 
-      // Fast embedding lookup
       const embOffset = tensorStart + embedTensor.offset + (currentToken * rowBytes);
       const wasmFloatView = new Float32Array(wasi.memory.buffer);
       const wasmByteView = new Uint8Array(wasi.memory.buffer);
