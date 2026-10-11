@@ -172,7 +172,7 @@ header.app-header {
   color: var(--text-muted);
 }
 
-input[type="text"], select, textarea {
+input[type="text"], input[type="number"], select, textarea {
   background-color: var(--bg-core);
   border: 1px solid var(--border);
   color: var(--text-main);
@@ -225,6 +225,25 @@ button.danger-btn {
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  background-color: var(--bg-core);
+  padding: 18px 12px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s, background-color 0.2s;
+  cursor: pointer;
+}
+
+.drop-zone.dragover {
+  border-color: var(--accent-glow);
+  background-color: rgba(99, 102, 241, 0.08);
 }
 
 .graph-box {
@@ -388,7 +407,7 @@ button:disabled {
 .log-tag.WEBRTC { background-color: #8b5cf6; color: #fff; }
 .log-tag.ERROR { background-color: #ef4444; color: #fff; }
 .log-tag.STORAGE { background-color: #f59e0b; color: #fff; }
-.log-tag.PAGING { background-color: #06b6d4; color: #fff; }
+.log-tag.TRAIN { background-color: #ec4899; color: #fff; }
 
 .bottom-nav {
   height: var(--nav-height);
