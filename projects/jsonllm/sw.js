@@ -1,4 +1,4 @@
-const CACHE_NAME = 'clean-webllm-json-v1';
+const CACHE_NAME = 'webllm-json-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -8,7 +8,6 @@ const ASSETS = [
   './storage.js',
   './jsonllm-codec.js',
   './rag-store.js',
-  './domain-specs.js',
   './nano-engine.js',
   './webmcp-server.js',
   './mesh.js',
