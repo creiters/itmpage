@@ -16,6 +16,7 @@ const btnTrainStep = document.getElementById('btn-train-step');
 const btnSaveWeights = document.getElementById('btn-save-weights');
 const trainMetricsBadge = document.getElementById('train-metrics-badge');
 
+
 // WebMCP UI Selectors
 const mcpRequestJson = document.getElementById('mcp-request-json');
 const mcpResponseJson = document.getElementById('mcp-response-json');
