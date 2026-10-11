@@ -9,9 +9,20 @@
 </head>
 <body>
   <div id="layout">
+    <div id="update-toast" role="alert">
+      <div style="flex:1;">
+        <div style="font-size:0.85rem; font-weight:600;">Update Available</div>
+        <div style="font-size:0.75rem; color:var(--text-muted);">A new version of the app is ready.</div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button id="btn-apply-update" style="padding:6px 12px; min-height:auto;">Reload</button>
+        <button id="btn-dismiss-update" class="secondary-btn" style="padding:6px 10px; min-height:auto;">✕</button>
+      </div>
+    </div>
+
     <header class="app-header">
       <div>
-        <div class="brand-title">Browser LLM & WebMCP</div>
+        <div class="brand-title">Shared LLM & WebMCP</div>
         <div id="node-label" style="font-size: 0.7rem; color: var(--text-muted);">Node: Initializing...</div>
       </div>
       <div id="engine-status" class="badge">Engine: Nano Ready</div>
@@ -63,9 +74,70 @@
         </div>
       </section>
 
-      <!-- Tab 4: IndexedDB Storage Viewer -->
+      <!-- Tab 4: GGUF Model Downloader & Slices -->
+      <section id="view-models" class="app-view">
+        <div class="settings-content">
+          <div class="settings-card">
+            <h3>Download Model</h3>
+            <span class="field-label">Repository & Architecture</span>
+            <select id="select-model">
+              <option value="smollm-135m" selected>SmolLM-135M (~94 MB, ~24 Chunks of 4MB) - Fast</option>
+              <option value="smollm2-360m-itlwas">SmolLM2-360M (~229 MB, ~58 Chunks of 4MB)</option>
+              <option value="llama-3.2-1b">Llama-3.2-1B (~780 MB, ~195 Chunks of 4MB)</option>
+              <option value="qwen2.5-1.5b">Qwen2.5-1.5B (~990 MB, ~248 Chunks of 4MB)</option>
+              <option value="phi-3.5-mini">Phi-3.5-Mini (~2.39 GB, ~598 Chunks of 4MB)</option>
+            </select>
+            <button id="btn-download-split">Fetch & Split to 4MB Merkle Slices</button>
+
+            <div id="progress-container" style="display: none;">
+              <div class="progress-track">
+                <div id="progress-fill" class="progress-fill"></div>
+              </div>
+              <span id="progress-text" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; display: block;">0%</span>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <h3>Merkle DAG & Context Bounds</h3>
+            <div id="graph-manifest" class="graph-box">No 4MB slices found in IndexedDB.</div>
+          </div>
+
+          <div class="settings-card">
+            <h3>Application Maintenance</h3>
+            <button id="btn-check-update" class="secondary-btn">Check for App Updates</button>
+            <span id="update-status-label" style="font-size: 0.75rem; color: var(--text-muted); text-align: center; display: block;">App is up to date</span>
+            <hr style="border: 0; border-top: 1px solid var(--border); margin: 6px 0;">
+            <button id="btn-clear-cache" class="danger-btn">Clear All Cache & Reset Storage</button>
+            <span id="clear-status-label" style="font-size: 0.75rem; color: var(--text-muted); text-align: center; display: block;"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 5: IndexedDB Storage Viewer -->
       <section id="view-db" class="app-view">
         <div class="settings-content">
+          <div class="settings-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <h3>Shared Storage & Quota Manager</h3>
+              <button id="btn-request-persist" class="secondary-btn" style="min-height: 28px; padding: 4px 10px; font-size: 0.75rem;">Request Persist</button>
+            </div>
+            
+            <div class="telemetry-grid" style="margin-top: 6px;">
+              <div class="telemetry-item">
+                <span class="telemetry-val" id="metric-storage-used">0 MB</span>
+                <span class="telemetry-lbl">Storage Used</span>
+              </div>
+              <div class="telemetry-item">
+                <span class="telemetry-val" id="metric-storage-quota">0 MB</span>
+                <span class="telemetry-lbl">Quota Available</span>
+              </div>
+              <div class="telemetry-item">
+                <span class="telemetry-val" id="metric-storage-status">Checking...</span>
+                <span class="telemetry-lbl">Persistence Status</span>
+              </div>
+            </div>
+          </div>
+
           <div class="settings-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <h3>IndexedDB Chunk Store</h3>
@@ -91,7 +163,7 @@
         </div>
       </section>
 
-      <!-- Tab 5: WebRTC Mesh PIN -->
+      <!-- Tab 6: WebRTC Mesh PIN -->
       <section id="view-mesh" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
@@ -106,6 +178,51 @@
           </div>
           <div class="settings-card" style="align-items: center;">
             <span class="badge" id="peer-status">0 Peers Connected</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 7: Diagnostics & Logs -->
+      <section id="view-diagnostics" class="app-view">
+        <div class="settings-content">
+          <div class="settings-card">
+            <h3>Hardware Accelerator Target</h3>
+            <span class="field-label">Select compute execution mode</span>
+            <div style="display: flex; gap: 8px;">
+              <button id="btn-device-cpu" class="secondary-btn" style="flex: 1;">CPU (WASI SIMD)</button>
+              <button id="btn-device-gpu" style="flex: 1;">GPU (WebGPU WGSL)</button>
+            </div>
+            <span id="active-device-label" class="badge" style="width: fit-content; margin-top: 4px;">Active Backend: Detecting...</span>
+          </div>
+
+          <div class="settings-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <h3>Real-Time Telemetry</h3>
+              <button id="btn-clear-logs" style="min-height: 28px; padding: 4px 10px; font-size: 0.75rem;" class="secondary-btn">Clear Logs</button>
+            </div>
+
+            <div class="telemetry-grid">
+              <div class="telemetry-item">
+                <span class="telemetry-val" id="metric-tps">0.0</span>
+                <span class="telemetry-lbl">Tokens / sec</span>
+              </div>
+              <div class="telemetry-item">
+                <span class="telemetry-val" id="metric-ttft">0 ms</span>
+                <span class="telemetry-lbl">TTFT</span>
+              </div>
+              <div class="telemetry-item">
+                <span class="telemetry-val" id="metric-active-slices">0</span>
+                <span class="telemetry-lbl">Active Slices</span>
+              </div>
+            </div>
+
+            <div class="token-topk-container">
+              <span class="field-label">Top Token Candidates Distribution</span>
+              <div id="token-topk-bars">No active search data.</div>
+            </div>
+
+            <span class="field-label" style="margin-top: 6px;">Persistent Event Stream</span>
+            <div id="diagnostics-log" class="console-box"></div>
           </div>
         </div>
       </section>
@@ -125,6 +242,10 @@
         <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-5 14H4v-4h11v4zm0-5H4V9h11v4zm5 5h-4V9h4v9z"/></svg>
         <span>WebMCP</span>
       </button>
+      <button class="nav-tab" data-target="view-models">
+        <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+        <span>Models</span>
+      </button>
       <button class="nav-tab" data-target="view-db">
         <svg viewBox="0 0 24 24"><path d="M12 3C7.58 3 4 4.79 4 7v10c0 2.21 3.58 4 8 4s8-1.79 8-4V7c0-2.21-3.58-4-8-4zm0 2c3.87 0 6 1.5 6 2s-2.13 2-6 2-6-1.5-6-2 2.13-2 6-2zm6 12c0 .5-2.13 2-6 2s-6-1.5-6-2v-2.23c1.61.78 3.72 1.23 6 1.23s4.39-.45 6-1.23V17zm0-4c0 .5-2.13 2-6 2s-6-1.5-6-2v-2.23c1.61.78 3.72 1.23 6 1.23s4.39-.45 6-1.23V13z"/></svg>
         <span>DB View</span>
@@ -132,6 +253,10 @@
       <button class="nav-tab" data-target="view-mesh">
         <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
         <span>Mesh</span>
+      </button>
+      <button class="nav-tab" data-target="view-diagnostics">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-4-4h3V9h2v4h3l-4 4zm-5-10V5h10v2H7z"/></svg>
+        <span>Logs</span>
       </button>
     </nav>
   </div>
