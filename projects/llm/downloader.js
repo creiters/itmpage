@@ -1,31 +1,31 @@
 export class HuggingFaceDownloader {
   static MODEL_MAP = {
     'smollm-135m': {
-      title: 'SmolLM-135M (~94 MB, ~24 Chunks of 4MB) - Ultra Fast',
+      title: 'SmolLM-135M (~94 MB, ~24 Segments of 4MB) - Ultra Fast',
       repo: 'Muqiann/SmolLM-135M-Q4_K_M-GGUF',
       filename: 'smollm-135m-q4_k_m.gguf',
       approxBytes: 94000000
     },
     'smollm2-360m-itlwas': {
-      title: 'SmolLM2-360M (itlwas) (~229 MB, ~58 Chunks of 4MB)',
+      title: 'SmolLM2-360M (itlwas) (~229 MB, ~58 Segments of 4MB)',
       repo: 'itlwas/SmolLM2-360M-Q4_K_M-GGUF',
       filename: 'smollm2-360m-q4_k_m.gguf',
       approxBytes: 229388000
     },
     'llama-3.2-1b': {
-      title: 'Llama-3.2-1B (~780 MB, ~195 Chunks of 4MB)',
+      title: 'Llama-3.2-1B (~780 MB, ~195 Segments of 4MB)',
       repo: 'bartowski/Llama-3.2-1B-Instruct-GGUF',
       filename: 'Llama-3.2-1B-Instruct-Q4_K_M.gguf',
       approxBytes: 780000000
     },
     'qwen2.5-1.5b': {
-      title: 'Qwen2.5-1.5B (~990 MB, ~248 Chunks of 4MB)',
+      title: 'Qwen2.5-1.5B (~990 MB, ~248 Segments of 4MB)',
       repo: 'bartowski/Qwen2.5-1.5B-Instruct-GGUF',
       filename: 'Qwen2.5-1.5B-Instruct-Q4_K_M.gguf',
       approxBytes: 990000000
     },
     'phi-3.5-mini': {
-      title: 'Phi-3.5-Mini (~2.39 GB, ~598 Chunks of 4MB)',
+      title: 'Phi-3.5-Mini (~2.39 GB, ~598 Segments of 4MB)',
       repo: 'bartowski/Phi-3.5-mini-instruct-GGUF',
       filename: 'Phi-3.5-mini-instruct-Q4_K_M.gguf',
       approxBytes: 2390000000
