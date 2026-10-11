@@ -1,9 +1,8 @@
 export class ChunkIndexer {
-  static CHUNK_SIZE = 4 * 1024 * 1024; // Strict 4 MB segment boundary
+  static CHUNK_SIZE = 4 * 1024 * 1024; // 4 MB segment boundary[span_22](start_span)[span_22](end_span)
 
   /**
    * Synchronous MurmurHash3 (32-bit) checksum algorithm.
-   * Replaces asynchronous SHA-256 to eliminate digest latency on 4 MB segments.
    */
   static fastHash32(buffer, seed = 0x9747b28c) {
     const bytes = new Uint8Array(buffer);
@@ -125,7 +124,6 @@ export class ChunkIndexer {
           layerToSegments: Object.fromEntries(invertedIndex)
         };
 
-        // Explicitly returns segments to eliminate undefined property errors
         resolve({ manifest, segments });
       } catch (err) {
         reject(err);
