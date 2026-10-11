@@ -298,7 +298,7 @@ if (btnRequestPersist) {
 if (storage.broadcast) {
   storage.broadcast.onmessage = async (event) => {
     const { type, modelName, count } = event.data;
-    if (type === 'CHUNKS_UPDATED') {
+    if (type === 'SEGMENTS_UPDATED') {
       await appendLog('STORAGE', `Segment sync: ${count} segments updated for ${modelName}.`);
       await updateStorageMetrics();
       await renderDatabaseView();
@@ -332,7 +332,7 @@ async function renderDatabaseView() {
       <td>${c.chunkId}</td>
       <td>L${c.layerRange[0]}-L${c.layerRange[1]}</td>
       <td>${(c.sizeBytes / 1024 / 1024).toFixed(2)} MB</td>
-      <td>${c.hash}</td>
+      <td>${c.checksum}</td>
     </tr>
   `
     )
