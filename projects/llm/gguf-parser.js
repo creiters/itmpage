@@ -1,5 +1,5 @@
 export class GGUFParser {
-  static GGUF_MAGIC = 0x46554747; // 'GGUF'
+  static GGUF_MAGIC = 0x46554747; // 'GGUF[span_23](start_span)'[span_23](end_span)
 
   constructor(arrayBuffer) {
     this.buffer = arrayBuffer;
