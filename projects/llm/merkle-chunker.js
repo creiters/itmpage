@@ -1,9 +1,6 @@
 export class MerkleChunker {
   static CHUNK_SIZE = 4 * 1024 * 1024; // 4 MB boundary
 
-  /**
-   * Computes SHA-256 hash string for an ArrayBuffer or TypedArray
-   */
   static async sha256(buffer) {
     if (!buffer || buffer.byteLength === 0) return 'EMPTY_BUFFER';
     const digest = await crypto.subtle.digest('SHA-256', buffer);
@@ -12,9 +9,6 @@ export class MerkleChunker {
       .join('');
   }
 
-  /**
-   * Builds a binary Merkle tree over an array of leaf hash strings
-   */
   static async buildMerkleTree(leafHashes) {
     if (!leafHashes || leafHashes.length === 0) {
       return { rootHash: 'EMPTY_ROOT', treeLevels: [] };
@@ -42,16 +36,12 @@ export class MerkleChunker {
     };
   }
 
-  /**
-   * Splits a model blob into 4 MB contextual envelopes bound by a Merkle tree
-   */
   static async splitToMerkleChunks(modelBlob, modelName, onProgress) {
     const totalBytes = modelBlob.size;
     const totalChunks = Math.ceil(totalBytes / this.CHUNK_SIZE);
     const rawChunks = [];
     const leafHashes = [];
 
-    // 1. Slice and calculate leaf hashes
     for (let index = 0; index < totalChunks; index++) {
       const start = index * this.CHUNK_SIZE;
       const end = Math.min(start + this.CHUNK_SIZE, totalBytes);
@@ -67,11 +57,9 @@ export class MerkleChunker {
       }
     }
 
-    // 2. Compute root hash
     const { rootHash } = await this.buildMerkleTree(leafHashes);
     const finalizedChunks = [];
 
-    // 3. Assemble envelopes with context DAG links
     for (let i = 0; i < totalChunks; i++) {
       const item = rawChunks[i];
       const nextChunkId = i + 1 < totalChunks ? `${modelName}_chunk_4mb_${i + 1}` : null;
@@ -99,10 +87,7 @@ export class MerkleChunker {
         }
       };
 
-      finalizedChunks.push({
-        metadata,
-        binary: item.binary
-      });
+      finalizedChunks.push({ metadata, binary: item.binary });
 
       if (onProgress) {
         onProgress({ phase: 'linking', current: i + 1, total: totalChunks });
@@ -112,9 +97,6 @@ export class MerkleChunker {
     return { rootHash, chunks: finalizedChunks };
   }
 
-  /**
-   * Verifies individual chunk hashes and reassembles them into linear memory
-   */
   static async reassemble(orderedChunks, expectedRoot = null) {
     if (!orderedChunks || orderedChunks.length === 0) {
       throw new Error('Reassembly failed: No chunks provided.');
@@ -133,9 +115,7 @@ export class MerkleChunker {
       const calculatedHash = await this.sha256(c.binary);
 
       if (calculatedHash !== expectedHash) {
-        throw new Error(
-          `Data corruption detected at chunk index ${i} (expected ${expectedHash.slice(0, 8)}, got ${calculatedHash.slice(0, 8)})`
-        );
+        throw new Error(`Data corruption detected at chunk index ${i}`);
       }
 
       leafHashes.push(calculatedHash);
@@ -155,21 +135,5 @@ export class MerkleChunker {
     }
 
     return unifiedBuffer.buffer;
-  }
-
-  /**
-   * Bundles a single chunk and its contextual metadata into an exportable binary
-   */
-  static exportChunkEnvelope(chunkRecord) {
-    const metaString = JSON.stringify(chunkRecord.metadata);
-    const metaBytes = new TextEncoder().encode(metaString);
-    const totalSize = 4 + metaBytes.byteLength + chunkRecord.binary.byteLength;
-    const outputBuffer = new Uint8Array(totalSize);
-
-    new DataView(outputBuffer.buffer).setUint32(0, metaBytes.byteLength, true);
-    outputBuffer.set(metaBytes, 4);
-    outputBuffer.set(new Uint8Array(chunkRecord.binary), 4 + metaBytes.byteLength);
-
-    return new Blob([outputBuffer], { type: 'application/octet-stream' });
   }
 }
