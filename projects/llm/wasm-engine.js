@@ -1,6 +1,6 @@
 export class WasiRuntime {
-  constructor(memoryPages = 2048) {
-    this.memory = new WebAssembly.Memory({ initial: 256, maximum: memoryPages });
+  constructor(initialPages = 4096, maxPages = 8192) {
+    this.memory = new WebAssembly.Memory({ initial: initialPages, maximum: maxPages });
   }
 
   createImports(logHandler) {
@@ -48,14 +48,14 @@ export class WasiRuntime {
         fd_seek: () => 0,
         fd_close: () => 0,
         proc_exit: (status) => {
-          if (logHandler) logHandler(`[WASI] Process exited with status code: ${status}`);
+          if (logHandler) logHandler(`[WASI] Process exited with status: ${status}`);
           return 0;
         }
       },
       env: {
         memory: this.memory,
         abort: () => {
-          if (logHandler) logHandler('[WASM] Abort execution called.');
+          if (logHandler) logHandler('[WASM] Abort called.');
         }
       }
     };
