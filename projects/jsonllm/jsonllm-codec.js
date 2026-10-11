@@ -1,13 +1,12 @@
 /**
  * jsonllm-codec.js
- * 4-Bit Block Quantization (Q4_0), Deflate Streams, and SI-Radix Checkpointing
+ * Clean 4-bit block quantization (Q4_0) and Deflate Base64 packaging
  */
-
-import { ChunkIndexer } from './chunk-indexer.js';
 
 export class JSONLLMCodec {
   static BLOCK_SIZE = 32;
 
+  // Quantize Float32Array to 4-bit nibbles (Q4_0)
   static quantizeQ4(floatArray) {
     const totalBlocks = Math.ceil(floatArray.length / this.BLOCK_SIZE);
     const scales = new Float32Array(totalBlocks);
@@ -41,6 +40,7 @@ export class JSONLLMCodec {
     return { scales, mins, packedBytes, len: floatArray.length };
   }
 
+  // Dequantize 4-bit nibbles back to Float32Array
   static dequantizeQ4(scales, mins, packedBytes, originalLength) {
     const out = new Float32Array(originalLength);
     const totalBlocks = scales.length;
@@ -62,19 +62,25 @@ export class JSONLLMCodec {
   }
 
   static async compress(buffer) {
-    const cs = new CompressionStream('deflate');
-    const writer = cs.writable.getWriter();
-    writer.write(buffer);
-    writer.close();
-    return await new Response(cs.readable).arrayBuffer();
+    if (typeof CompressionStream !== 'undefined') {
+      const cs = new CompressionStream('deflate');
+      const writer = cs.writable.getWriter();
+      writer.write(buffer);
+      writer.close();
+      return await new Response(cs.readable).arrayBuffer();
+    }
+    return buffer;
   }
 
   static async decompress(buffer) {
-    const ds = new DecompressionStream('deflate');
-    const writer = ds.writable.getWriter();
-    writer.write(buffer);
-    writer.close();
-    return await new Response(ds.readable).arrayBuffer();
+    if (typeof DecompressionStream !== 'undefined') {
+      const ds = new DecompressionStream('deflate');
+      const writer = ds.writable.getWriter();
+      writer.write(buffer);
+      writer.close();
+      return await new Response(ds.readable).arrayBuffer();
+    }
+    return buffer;
   }
 
   static bytesToBase64(bytes) {
@@ -90,9 +96,10 @@ export class JSONLLMCodec {
     return bytes;
   }
 
-  static async exportToJSONLLM(engine, modelName = 'browser-nano-llm') {
+  // Package complete in-memory model directly into a clean JSON string
+  static async exportToJSONLLM(config, weights) {
     const tensors = {};
-    for (const [name, arr] of Object.entries(engine.weights)) {
+    for (const [name, arr] of Object.entries(weights)) {
       const { scales, mins, packedBytes, len } = this.quantizeQ4(arr);
       const deflated = await this.compress(packedBytes.buffer);
       tensors[name] = {
@@ -104,45 +111,18 @@ export class JSONLLMCodec {
     }
 
     const payload = {
-      format: 'jsonllm/v1',
-      modelName,
+      format: 'jsonllm/clean-v2',
       createdAt: new Date().toISOString(),
-      config: {
-        dim: engine.dim,
-        layers: engine.layers,
-        heads: engine.heads,
-        vocabSize: engine.vocabSize,
-        maxSeqLen: engine.maxSeqLen,
-        stepCount: engine.stepCount
-      },
-      tokenizer: {
-        tokenToId: Object.fromEntries(engine.tokenizer.tokenToId),
-        idToToken: Object.fromEntries(engine.tokenizer.idToToken)
-      },
+      config,
       tensors
     };
-
-    const jsonString = JSON.stringify(payload);
-    const segments = ChunkIndexer.slicePayload(jsonString, modelName);
-    const manifest = {
-      modelName,
-      totalBytes: jsonString.length,
-      totalChunks: segments.length,
-      segments: segments.map((s) => ({
-        segmentId: s.segmentId,
-        index: s.index,
-        checksum: s.checksum,
-        bytes: s.payload.length
-      }))
-    };
-
-    return { jsonString, manifest, segments };
+    return JSON.stringify(payload);
   }
 
+  // Restore clean float tensors from JSON string
   static async importFromJSONLLM(jsonString) {
     const parsed = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
     const weights = {};
-
     for (const [name, meta] of Object.entries(parsed.tensors)) {
       const deflated = this.base64ToBytes(meta.d);
       const decompressed = await this.decompress(deflated.buffer);
@@ -153,38 +133,6 @@ export class JSONLLMCodec {
         meta.l
       );
     }
-
-    return {
-      config: parsed.config,
-      tokenizer: parsed.tokenizer,
-      weights
-    };
-  }
-
-  static async convertAndStoreToIndexedDB(engine, storage, modelName) {
-    const { jsonString, manifest, segments } = await this.exportToJSONLLM(engine, modelName);
-
-    // Save complete envelope record
-    await storage.putModel(modelName, jsonString);
-
-    // Commit 4MB SI-Radix segment partitions in IndexedDB
-    await storage.batchSaveSegments(segments);
-
-    return { jsonString, manifest, segments };
-  }
-
-  static async loadFromIndexedDB(storage, modelName) {
-    let jsonString = await storage.getModel(modelName);
-
-    // Fall back to assembling 4MB SI-Radix segments
-    if (!jsonString) {
-      const segments = await storage.getSegmentsByModel(modelName);
-      if (!segments || !segments.length) {
-        throw new Error(`Model ${modelName} not found in IndexedDB.`);
-      }
-      jsonString = ChunkIndexer.reassemble(segments);
-    }
-
-    return await this.importFromJSONLLM(jsonString);
+    return { config: parsed.config, weights };
   }
 }
