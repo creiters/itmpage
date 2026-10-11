@@ -130,18 +130,18 @@ self.onmessage = async (e) => {
 
     self.postMessage({ type: 'LOG', category: 'STORAGE', text: 'Building SI-Radix Segment Interval Index...' });
 
-    const { manifest, chunks } = await ChunkIndexer.splitAndIndex(
+    const { manifest, segments } = await ChunkIndexer.splitAndIndex(
       modelBlob,
       modelName,
       (progress) => self.postMessage({ type: 'INDEX_PROGRESS', progress })
     );
 
     await server.storage.saveManifest(manifest);
-    await server.storage.batchPutChunks(chunks);
+    await server.storage.batchPutChunks(segments);
 
     self.postMessage({
       type: 'SAVE_COMPLETE',
-      payload: { manifest, chunksCount: chunks.length }
+      payload: { manifest, chunksCount: segments.length }
     });
   }
 };
