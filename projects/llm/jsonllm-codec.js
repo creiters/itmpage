@@ -3,6 +3,9 @@ import { ChunkIndexer } from './chunk-indexer.js';
 export class JSONLLMCodec {
   static FORMAT_VERSION = 'jsonllm/v1';
 
+  /**
+   * Block Quantization: Converts Float32Array to 4-bit nibbles (Q4_0)
+   */
   static quantizeQ4(floatArray, blockSize = 32) {
     const len = floatArray.length;
     const numBlocks = Math.ceil(len / blockSize);
@@ -49,6 +52,9 @@ export class JSONLLMCodec {
     };
   }
 
+  /**
+   * Dequantizes 4-bit nibbles back to full precision Float32Array
+   */
   static dequantizeQ4(quantData, blockSize = 32) {
     const { numElements, scales, mins, packedBytes } = quantData;
     const out = new Float32Array(numElements);
@@ -78,6 +84,9 @@ export class JSONLLMCodec {
     return out;
   }
 
+  /**
+   * Deflate compression stream to Base64 string
+   */
   static async compressBytesToBase64(bytes) {
     if (typeof CompressionStream !== 'undefined') {
       const cs = new CompressionStream('deflate');
@@ -104,6 +113,9 @@ export class JSONLLMCodec {
     return { base64: btoa(binary), compressed: false };
   }
 
+  /**
+   * Base64 to decompressed bytes via DecompressionStream
+   */
   static async decompressBase64ToBytes(base64Str, wasCompressed = true) {
     const binary = atob(base64Str);
     const bytes = new Uint8Array(binary.length);
@@ -125,7 +137,11 @@ export class JSONLLMCodec {
     return bytes;
   }
 
-  static async exportToJSONLLM(modelInstance, modelName = 'browser-nano-llm') {
+  /**
+   * Converts a model instance to a JSONLLM envelope, slices it via SI-Radix,
+   * and saves it to IndexedDB.
+   */
+  static async convertAndStoreToIndexedDB(modelInstance, storageService, modelName = 'browser-nano-llm') {
     const config = {
       dim: modelInstance.dim,
       layers: modelInstance.layers,
@@ -168,23 +184,39 @@ export class JSONLLMCodec {
     const jsonString = JSON.stringify(jsonllmObject);
     const jsonBlob = new Blob([jsonString], { type: 'application/json' });
 
+    // Build SI-Radix 4 MB segments from the serialized JSON
     const { manifest, segments } = await ChunkIndexer.splitAndIndex(jsonBlob, modelName);
 
+    // Persist full JSON record, manifest, and segment slices into IndexedDB
+    await storageService.putJSONLLM({
+      modelName,
+      format: this.FORMAT_VERSION,
+      createdAt: jsonllmObject.createdAt,
+      config,
+      jsonString
+    });
+
+    await storageService.saveManifest(manifest);
+    await storageService.batchPutChunks(segments);
+
     return {
+      jsonllmObject,
       jsonString,
-      jsonBlob,
       manifest,
       segments
     };
   }
 
-  static async importFromJSONLLM(jsonllmInput) {
-    const payload = typeof jsonllmInput === 'string' ? JSON.parse(jsonllmInput) : jsonllmInput;
-
-    if (!payload.format || !payload.format.startsWith('jsonllm')) {
-      throw new Error(`Invalid format identifier: ${payload.format}`);
+  /**
+   * Rehydrates a model instance from an IndexedDB-stored JSONLLM package
+   */
+  static async loadFromIndexedDB(storageService, modelName) {
+    const record = await storageService.getJSONLLM(modelName);
+    if (!record || !record.jsonString) {
+      throw new Error(`JSONLLM record for "${modelName}" not found in IndexedDB.`);
     }
 
+    const payload = JSON.parse(record.jsonString);
     const { config, tokenizer, compressedTensors } = payload;
     const restoredWeights = {};
 
