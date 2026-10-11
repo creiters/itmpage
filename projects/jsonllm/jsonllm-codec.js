@@ -1,3 +1,10 @@
+/**
+ * jsonllm-codec.js
+ * 4-Bit Block Quantization (Q4_0), Deflate Streams, and SI-Radix Checkpointing
+ */
+
+import { ChunkIndexer } from './chunk-indexer.js';
+
 export class JSONLLMCodec {
   static BLOCK_SIZE = 32;
 
@@ -83,9 +90,9 @@ export class JSONLLMCodec {
     return bytes;
   }
 
-  static async exportToJSONLLM(config, weights) {
+  static async exportToJSONLLM(engine, modelName = 'browser-nano-llm') {
     const tensors = {};
-    for (const [name, arr] of Object.entries(weights)) {
+    for (const [name, arr] of Object.entries(engine.weights)) {
       const { scales, mins, packedBytes, len } = this.quantizeQ4(arr);
       const deflated = await this.compress(packedBytes.buffer);
       tensors[name] = {
@@ -98,16 +105,44 @@ export class JSONLLMCodec {
 
     const payload = {
       format: 'jsonllm/v1',
+      modelName,
       createdAt: new Date().toISOString(),
-      config,
+      config: {
+        dim: engine.dim,
+        layers: engine.layers,
+        heads: engine.heads,
+        vocabSize: engine.vocabSize,
+        maxSeqLen: engine.maxSeqLen,
+        stepCount: engine.stepCount
+      },
+      tokenizer: {
+        tokenToId: Object.fromEntries(engine.tokenizer.tokenToId),
+        idToToken: Object.fromEntries(engine.tokenizer.idToToken)
+      },
       tensors
     };
-    return JSON.stringify(payload);
+
+    const jsonString = JSON.stringify(payload);
+    const segments = ChunkIndexer.slicePayload(jsonString, modelName);
+    const manifest = {
+      modelName,
+      totalBytes: jsonString.length,
+      totalChunks: segments.length,
+      segments: segments.map((s) => ({
+        segmentId: s.segmentId,
+        index: s.index,
+        checksum: s.checksum,
+        bytes: s.payload.length
+      }))
+    };
+
+    return { jsonString, manifest, segments };
   }
 
   static async importFromJSONLLM(jsonString) {
     const parsed = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
     const weights = {};
+
     for (const [name, meta] of Object.entries(parsed.tensors)) {
       const deflated = this.base64ToBytes(meta.d);
       const decompressed = await this.decompress(deflated.buffer);
@@ -118,6 +153,38 @@ export class JSONLLMCodec {
         meta.l
       );
     }
-    return { config: parsed.config, weights };
+
+    return {
+      config: parsed.config,
+      tokenizer: parsed.tokenizer,
+      weights
+    };
+  }
+
+  static async convertAndStoreToIndexedDB(engine, storage, modelName) {
+    const { jsonString, manifest, segments } = await this.exportToJSONLLM(engine, modelName);
+
+    // Save complete envelope record
+    await storage.putModel(modelName, jsonString);
+
+    // Commit 4MB SI-Radix segment partitions in IndexedDB
+    await storage.batchSaveSegments(segments);
+
+    return { jsonString, manifest, segments };
+  }
+
+  static async loadFromIndexedDB(storage, modelName) {
+    let jsonString = await storage.getModel(modelName);
+
+    // Fall back to assembling 4MB SI-Radix segments
+    if (!jsonString) {
+      const segments = await storage.getSegmentsByModel(modelName);
+      if (!segments || !segments.length) {
+        throw new Error(`Model ${modelName} not found in IndexedDB.`);
+      }
+      jsonString = ChunkIndexer.reassemble(segments);
+    }
+
+    return await this.importFromJSONLLM(jsonString);
   }
 }
