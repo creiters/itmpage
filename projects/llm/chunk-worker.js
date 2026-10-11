@@ -41,7 +41,7 @@ self.onmessage = async (e) => {
       self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Generating Segment Interval Map & Murmur3 Checksums...` });
       const t0 = performance.now();
 
-      const { manifest, chunks } = await ChunkIndexer.splitAndIndex(
+      const { manifest, segments } = await ChunkIndexer.splitAndIndex(
         modelBlob,
         modelName,
         (progress) => self.postMessage({ type: 'CHUNK_PROGRESS', progress })
@@ -51,21 +51,21 @@ self.onmessage = async (e) => {
       self.postMessage({
         type: 'LOG',
         category: 'STORAGE',
-        text: `Indexed ${chunks.length} segments in ${indexElapsed} ms (${(modelBlob.size / 1024 / 1024).toFixed(1)} MB).`
+        text: `Indexed ${segments.length} segments in ${indexElapsed} ms (${(modelBlob.size / 1024 / 1024).toFixed(1)} MB).`
       });
 
       await storage.saveManifest(manifest);
-      await storage.batchPutChunks(chunks);
+      await storage.batchPutChunks(segments);
 
       activeManifest = manifest;
-      const unifiedBinary = ChunkIndexer.reassemble(chunks, manifest);
+      const unifiedBinary = ChunkIndexer.reassemble(segments, manifest);
 
       self.postMessage({
         type: 'SPLIT_COMPLETE',
         payload: {
           modelName,
           manifest,
-          chunkCount: chunks.length
+          chunkCount: segments.length
         }
       });
 
