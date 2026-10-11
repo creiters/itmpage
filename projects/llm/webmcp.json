@@ -44,7 +44,7 @@
     },
     {
       "name": "mesh_dispatch_compute",
-      "description": "Dispatches computation across WebRTC PIN channels",
+      "description": "Dispatches computation across WebRTC mesh PIN channels",
       "inputSchema": {
         "type": "object",
         "properties": {
