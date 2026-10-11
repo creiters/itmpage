@@ -3,7 +3,7 @@ import { MerkleChunker } from './merkle-chunker.js';
 import { HuggingFaceDownloader } from './downloader.js';
 import { MeshCoordinator } from './mesh.js';
 
-// 1. Service Worker & Application Update Lifecycle
+// 1. Service Worker & Update Lifecycle
 let newWorkerWaiting = null;
 let refreshing = false;
 
@@ -70,7 +70,7 @@ if (btnDismissUpdate) {
   });
 }
 
-// 2. Identity & DOM References
+// 2. Identity & DOM Selectors
 const nodeId = 'Node_' + Math.random().toString(36).substring(2, 7);
 const nodeLabel = document.getElementById('node-label');
 if (nodeLabel) nodeLabel.textContent = `Node ID: ${nodeId}`;
@@ -94,6 +94,26 @@ const btnConnectPin = document.getElementById('btn-connect-pin');
 const btnClearCache = document.getElementById('btn-clear-cache');
 const clearStatusLabel = document.getElementById('clear-status-label');
 
+// Diagnostics & Telemetry Elements
+const metricTPS = document.getElementById('metric-tps');
+const metricTTFT = document.getElementById('metric-ttft');
+const tokenTopKBars = document.getElementById('token-topk-bars');
+const diagnosticsLog = document.getElementById('diagnostics-log');
+const btnClearLogs = document.getElementById('btn-clear-logs');
+
+function appendLog(text) {
+  if (!diagnosticsLog) return;
+  const time = new Date().toLocaleTimeString();
+  diagnosticsLog.textContent += `[${time}] ${text}\n`;
+  diagnosticsLog.scrollTop = diagnosticsLog.scrollHeight;
+}
+
+if (btnClearLogs) {
+  btnClearLogs.addEventListener('click', () => {
+    if (diagnosticsLog) diagnosticsLog.textContent = '';
+  });
+}
+
 // 3. Tab Routing
 const navTabs = document.querySelectorAll('.nav-tab');
 const appViews = document.querySelectorAll('.app-view');
@@ -115,7 +135,7 @@ navTabs.forEach((tab) => {
   });
 });
 
-// 4. Persistence & Dedicated Worker Initialization
+// 4. Persistence & Worker Setup
 const storage = new StorageService();
 await storage.init();
 
@@ -126,7 +146,7 @@ const worker = new Worker('./llm-worker.js', { type: 'module' });
 let currentChunks = [];
 let pendingMeshChunk = null;
 
-// 5. Cache Validation and Engine Bootstrap
+// 5. Engine Bootstrapping
 async function loadSlicesFromCache() {
   const modelKey = selectModel.value;
   currentChunks = await storage.getModelChunks(modelKey);
@@ -136,14 +156,13 @@ async function loadSlicesFromCache() {
     const storedRoot = await storage.getSystemKey(`${modelKey}_merkle_root`);
 
     if (currentChunks.length !== expectedTotal) {
-      if (engineStatus) {
-        engineStatus.textContent = `Incomplete: ${currentChunks.length}/${expectedTotal} chunks. Please download again.`;
-      }
+      if (engineStatus) engineStatus.textContent = `Incomplete: ${currentChunks.length}/${expectedTotal} chunks. Please download again.`;
+      appendLog(`Incomplete chunks found: ${currentChunks.length}/${expectedTotal}`);
       return;
     }
 
     updateDAGManifest(currentChunks, storedRoot);
-    if (engineStatus) engineStatus.textContent = `Reassembling ${currentChunks.length} chunks via Merkle DAG...`;
+    appendLog(`Reassembling ${currentChunks.length} chunks from IndexedDB...`);
 
     try {
       const unifiedBuffer = await MerkleChunker.reassemble(currentChunks, storedRoot);
@@ -151,16 +170,15 @@ async function loadSlicesFromCache() {
         type: 'INIT_ENGINE',
         payload: { wasmBinary: unifiedBuffer, modelName: modelKey }
       });
+      appendLog('Merkle verification passed. Weights sent to Worker.');
     } catch (err) {
       if (engineStatus) engineStatus.textContent = 'Assembly Failed: ' + err.message;
-      console.error(err);
+      appendLog('Assembly Error: ' + err.message);
     }
   } else {
-    if (engineStatus) engineStatus.textContent = 'Engine: Standalone Mode (No Slices)';
-    worker.postMessage({
-      type: 'INIT_ENGINE',
-      payload: { modelName: 'Standalone Engine' }
-    });
+    if (engineStatus) engineStatus.textContent = 'Engine: Standalone Mode';
+    worker.postMessage({ type: 'INIT_ENGINE', payload: { modelName: 'Standalone Engine' } });
+    appendLog('No local chunks. Running standalone.');
   }
 }
 await loadSlicesFromCache();
@@ -169,7 +187,7 @@ selectModel.addEventListener('change', async () => {
   await loadSlicesFromCache();
 });
 
-// 6. WebRTC Mesh Protocol Integration
+// 6. WebRTC Mesh Protocol
 const mesh = new MeshCoordinator(
   nodeId,
   async (msg, peerKey, channel) => {
@@ -208,17 +226,16 @@ const mesh = new MeshCoordinator(
   }
 );
 
-// 7. Download & 4 MB Merkle Chunking Pipeline
+// 7. Download & 4 MB Merkle Chunking
 btnDownloadSplit.addEventListener('click', async () => {
   const modelKey = selectModel.value;
   btnDownloadSplit.disabled = true;
   if (progressContainer) progressContainer.style.display = 'block';
 
   try {
-    // Purge stale/mixed chunks before downloading new ones
     await storage.deleteModelChunks(modelKey);
+    appendLog(`Starting download: ${modelKey}`);
 
-    if (engineStatus) engineStatus.textContent = `Downloading ${modelKey}...`;
     const downloadResult = await HuggingFaceDownloader.fetchStream(
       modelKey,
       ({ loaded, total, percent }) => {
@@ -229,7 +246,7 @@ btnDownloadSplit.addEventListener('click', async () => {
       }
     );
 
-    if (engineStatus) engineStatus.textContent = 'Building 4MB Merkle Tree & Context Links...';
+    appendLog('Download completed. Building Merkle DAG...');
     const { rootHash, chunks } = await MerkleChunker.splitToMerkleChunks(
       downloadResult.blob,
       modelKey,
@@ -242,7 +259,6 @@ btnDownloadSplit.addEventListener('click', async () => {
 
     await storage.setSystemKey(`${modelKey}_merkle_root`, rootHash);
 
-    if (engineStatus) engineStatus.textContent = 'Saving 4MB chunks to IndexedDB...';
     for (const chunk of chunks) {
       await storage.putChunk(chunk);
     }
@@ -250,19 +266,18 @@ btnDownloadSplit.addEventListener('click', async () => {
     currentChunks = chunks;
     updateDAGManifest(chunks, rootHash);
 
-    if (engineStatus) engineStatus.textContent = 'Verifying Merkle root & reassembling memory...';
     const binary = await MerkleChunker.reassemble(chunks, rootHash);
-
     worker.postMessage({
       type: 'INIT_ENGINE',
       payload: { wasmBinary: binary, modelName: modelKey }
     });
 
     if (progressText) progressText.textContent = `Ready! Merkle Root: ${rootHash.slice(0, 10)}... (4MB verified)`;
+    appendLog(`Saved ${chunks.length} chunks. Merkle Root: ${rootHash}`);
   } catch (err) {
     if (engineStatus) engineStatus.textContent = 'Operation Error: ' + err.message;
     if (progressText) progressText.textContent = err.message;
-    console.error(err);
+    appendLog('Download/Slice Error: ' + err.message);
   } finally {
     btnDownloadSplit.disabled = false;
   }
@@ -277,32 +292,14 @@ function updateDAGManifest(chunks, rootHash) {
     <strong>Blocks:</strong> ${chunks.length} × 4MB Nodes<br>
     <strong>Context Links:</strong> ${first.context.targetNextContext}<br>
     <strong>Layer Spans:</strong> 0 to 30 mapped<br>
-    <strong>Engine:</strong> Multi-Block Coroutine
+    <strong>Engine:</strong> Static Alloc + KV Caching
   `;
 }
 
-// 8. Standalone Envelope Exporter
-if (btnExportSlice) {
-  btnExportSlice.addEventListener('click', () => {
-    if (!currentChunks.length) return alert('No active 4MB slices found.');
-    const slice = currentChunks[0];
-    const envelope = MerkleChunker.exportChunkEnvelope(slice);
-    const blobUrl = URL.createObjectURL(envelope);
-
-    const anchor = document.createElement('a');
-    anchor.href = blobUrl;
-    anchor.download = `${slice.metadata.chunkId}.envelope.bin`;
-    anchor.click();
-    URL.revokeObjectURL(blobUrl);
-  });
-}
-
-// 9. Clear All Cache & Reset Storage
+// 8. Clear Cache
 if (btnClearCache) {
   btnClearCache.addEventListener('click', async () => {
-    const confirmPurge = confirm(
-      'Are you sure you want to clear all cache?\n\nThis will remove all downloaded 4MB model slices, IndexedDB history, and offline service worker caches.'
-    );
+    const confirmPurge = confirm('Are you sure you want to clear all cache?');
     if (!confirmPurge) return;
 
     btnClearCache.disabled = true;
@@ -310,7 +307,6 @@ if (btnClearCache) {
 
     try {
       await storage.clearAll();
-
       if ('caches' in window) {
         const cacheNames = await caches.keys();
         await Promise.all(cacheNames.map((name) => caches.delete(name)));
@@ -320,28 +316,25 @@ if (btnClearCache) {
       currentChunks = [];
       if (graphManifest) graphManifest.innerHTML = 'No 4MB slices found in IndexedDB.';
 
-      worker.postMessage({
-        type: 'INIT_ENGINE',
-        payload: { modelName: 'Standalone Engine' }
-      });
+      worker.postMessage({ type: 'INIT_ENGINE', payload: { modelName: 'Standalone Engine' } });
+      appendLog('Cache and storage purged.');
 
       if (clearStatusLabel) {
         clearStatusLabel.style.color = '#10b981';
-        clearStatusLabel.textContent = 'Cache cleared successfully. Reloading...';
+        clearStatusLabel.textContent = 'Cache cleared. Reloading...';
       }
-
       setTimeout(() => window.location.reload(), 750);
     } catch (err) {
       if (clearStatusLabel) {
         clearStatusLabel.style.color = '#ef4444';
-        clearStatusLabel.textContent = 'Failed to clear cache: ' + err.message;
+        clearStatusLabel.textContent = 'Failed: ' + err.message;
       }
       btnClearCache.disabled = false;
     }
   });
 }
 
-// 10. Chat Stream Coordination
+// 9. Chat Stream & Telemetry Listener
 let currentBubble = null;
 
 function renderMessage(role, text) {
@@ -364,9 +357,33 @@ function updateAssistantBubble(text) {
 }
 
 worker.onmessage = (e) => {
-  const { type, status, fullText, done, message } = e.data;
+  const { type, status, fullText, done, message, text, tps, ttft, topCandidates } = e.data;
+
   if (type === 'STATUS' && engineStatus) engineStatus.textContent = `Engine: ${status}`;
   if (type === 'ERROR' && engineStatus) engineStatus.textContent = message;
+  if (type === 'LOG') appendLog(text);
+
+  if (type === 'TELEMETRY') {
+    if (metricTPS) metricTPS.textContent = tps;
+    if (metricTTFT) metricTTFT.textContent = `${ttft} ms`;
+
+    if (tokenTopKBars && topCandidates) {
+      tokenTopKBars.innerHTML = topCandidates
+        .map(
+          (c) => `
+        <div class="topk-bar-row">
+          <span class="topk-label">${c.word.replace(/\s+/g, '␣')}</span>
+          <div class="topk-track">
+            <div class="topk-fill" style="width: ${Math.max(10, Math.min(100, (parseFloat(c.logit) + 20) * 2.5))}%"></div>
+          </div>
+          <span style="font-size: 0.65rem; color: var(--text-muted); width: 35px; text-align: right;">${c.logit}</span>
+        </div>
+      `
+        )
+        .join('');
+    }
+  }
+
   if (type === 'TOKEN') {
     updateAssistantBubble(fullText);
     if (done) storage.saveMessage('assistant', fullText);
@@ -399,12 +416,13 @@ inputPrompt.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') executeChat();
 });
 
-// 11. WebRTC Mesh PIN Controls
+// 10. WebRTC PIN Controls
 if (btnHostPin) {
   btnHostPin.addEventListener('click', async () => {
     const pin = mesh.createPin();
     const token = await mesh.generateHostToken(pin);
     if (hostTokenOut) hostTokenOut.value = token;
+    appendLog(`Generated WebRTC Host PIN token: ${pin}`);
   });
 }
 
@@ -418,11 +436,14 @@ if (btnConnectPin) {
       if (raw.sdp.type === 'offer') {
         const answer = await mesh.acceptTokenAndCreateAnswer(input);
         if (joinTokenIn) joinTokenIn.value = answer;
+        appendLog('Processed WebRTC offer; generated answer token.');
       } else if (raw.sdp.type === 'answer') {
         await mesh.finalizeHostConnection(input);
+        appendLog('Finalized WebRTC peer connection.');
       }
     } catch (err) {
       alert('Signaling Handshake Failed: ' + err.message);
+      appendLog('WebRTC Error: ' + err.message);
     }
   });
 }
