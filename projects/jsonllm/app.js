@@ -199,6 +199,7 @@ webmcpWorker.onmessage = async (e) => {
 };
 
 // 5. Chat Trigger
+// Replace function executeChat() in app.js:
 function executeChat() {
   const text = inputPrompt.value.trim();
   if (!text) return;
@@ -210,13 +211,10 @@ function executeChat() {
   inputPrompt.value = '';
   chatStream.scrollTop = chatStream.scrollHeight;
 
-  const delegated = mesh.dispatchCompute(text);
-  if (delegated) {
-    appendLog('WEBRTC', `Dispatched compute to peer ${delegated.peerKey}`);
-  } else {
-    llmWorker.postMessage({ type: 'INFER', payload: { prompt: text, maxTokens: 48 } });
-  }
+  // Always invoke local LLM worker unless a remote peer actively requests computation
+  llmWorker.postMessage({ type: 'INFER', payload: { prompt: text, maxTokens: 48 } });
 }
+
 
 btnSend.addEventListener('click', executeChat);
 inputPrompt.addEventListener('keydown', (e) => {
