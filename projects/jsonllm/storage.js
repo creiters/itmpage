@@ -1,11 +1,13 @@
+/**
+ * storage.js
+ * Clean single-record IndexedDB manager for JSONLLM models, Vector RAG docs, and logs
+ */
+
 export class StorageService {
-  constructor(dbName = 'Custom_JSONLLM_Store', version = 1) {
+  constructor(dbName = 'Clean_JSONLLM_Store', version = 1) {
     this.dbName = dbName;
     this.version = version;
     this.db = null;
-    this.broadcast = typeof BroadcastChannel !== 'undefined'
-      ? new BroadcastChannel('jsonllm-storage-sync')
-      : null;
   }
 
   async init() {
@@ -14,15 +16,17 @@ export class StorageService {
 
       req.onupgradeneeded = (e) => {
         const db = e.target.result;
-        if (!db.objectStoreNames.contains('models')) {
-          db.createObjectStore('models', { keyPath: 'modelName' });
+        // Clean single-record storage for JSON models
+        if (!db.objectStoreNames.contains('json_models')) {
+          db.createObjectStore('json_models', { keyPath: 'modelName' });
         }
-        if (!db.objectStoreNames.contains('model_segments')) {
-          const segStore = db.createObjectStore('model_segments', { keyPath: 'segmentId' });
-          segStore.createIndex('by_model', 'modelName', { unique: false });
+        // Vector RAG document embeddings
+        if (!db.objectStoreNames.contains('rag_docs')) {
+          db.createObjectStore('rag_docs', { keyPath: 'docId' });
         }
-        if (!db.objectStoreNames.contains('rag_documents')) {
-          db.createObjectStore('rag_documents', { keyPath: 'docId' });
+        // Diagnostics and chat messages
+        if (!db.objectStoreNames.contains('chat_history')) {
+          db.createObjectStore('chat_history', { keyPath: 'id', autoIncrement: true });
         }
         if (!db.objectStoreNames.contains('event_logs')) {
           db.createObjectStore('event_logs', { keyPath: 'id', autoIncrement: true });
@@ -40,56 +44,38 @@ export class StorageService {
     });
   }
 
+  // Save whole JSONLLM envelope directly as one atomic record
   async putModel(modelName, jsonString) {
     return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('models', 'readwrite');
-      const store = tx.objectStore('models');
-      const req = store.put({ modelName, jsonString, timestamp: Date.now() });
+      const tx = this.db.transaction('json_models', 'readwrite');
+      const store = tx.objectStore('json_models');
+      const req = store.put({
+        modelName,
+        jsonString,
+        bytes: jsonString.length,
+        updated: Date.now()
+      });
       req.onsuccess = () => resolve(true);
       req.onerror = () => reject(req.error);
     });
   }
 
+  // Retrieve complete JSONLLM envelope
   async getModel(modelName) {
     return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('models', 'readonly');
-      const store = tx.objectStore('models');
+      const tx = this.db.transaction('json_models', 'readonly');
+      const store = tx.objectStore('json_models');
       const req = store.get(modelName);
       req.onsuccess = () => resolve(req.result ? req.result.jsonString : null);
       req.onerror = () => reject(req.error);
     });
   }
 
-  async batchSaveSegments(segments) {
+  // List all stored models
+  async getAllModels() {
     return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('model_segments', 'readwrite');
-      const store = tx.objectStore('model_segments');
-      for (const seg of segments) {
-        store.put(seg);
-      }
-      tx.oncomplete = () => {
-        if (this.broadcast) this.broadcast.postMessage({ type: 'SEGMENTS_UPDATED' });
-        resolve(true);
-      };
-      tx.onerror = () => reject(tx.error);
-    });
-  }
-
-  async getSegmentsByModel(modelName) {
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('model_segments', 'readonly');
-      const store = tx.objectStore('model_segments');
-      const index = store.index('by_model');
-      const req = index.getAll(modelName);
-      req.onsuccess = () => resolve((req.result || []).sort((a, b) => a.index - b.index));
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  async getAllSegments() {
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('model_segments', 'readonly');
-      const store = tx.objectStore('model_segments');
+      const tx = this.db.transaction('json_models', 'readonly');
+      const store = tx.objectStore('json_models');
       const req = store.getAll();
       req.onsuccess = () => resolve(req.result || []);
       req.onerror = () => reject(req.error);
@@ -98,8 +84,8 @@ export class StorageService {
 
   async putRAGDoc(record) {
     return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('rag_documents', 'readwrite');
-      const store = tx.objectStore('rag_documents');
+      const tx = this.db.transaction('rag_docs', 'readwrite');
+      const store = tx.objectStore('rag_docs');
       const req = store.put(record);
       req.onsuccess = () => resolve(true);
       req.onerror = () => reject(req.error);
@@ -108,8 +94,8 @@ export class StorageService {
 
   async getAllRAGDocs() {
     return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('rag_documents', 'readonly');
-      const store = tx.objectStore('rag_documents');
+      const tx = this.db.transaction('rag_docs', 'readonly');
+      const store = tx.objectStore('rag_docs');
       const req = store.getAll();
       req.onsuccess = () => resolve(req.result || []);
       req.onerror = () => reject(req.error);
@@ -126,23 +112,13 @@ export class StorageService {
     });
   }
 
-  async getRecentLogs(limit = 60) {
+  async clearAll() {
     return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('event_logs', 'readonly');
-      const store = tx.objectStore('event_logs');
-      const req = store.getAll();
-      req.onsuccess = () => resolve((req.result || []).slice(-limit));
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  async clearLogs() {
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('event_logs', 'readwrite');
-      const store = tx.objectStore('event_logs');
-      const req = store.clear();
-      req.onsuccess = () => resolve(true);
-      req.onerror = () => reject(req.error);
+      const stores = ['json_models', 'rag_docs', 'chat_history', 'event_logs'];
+      const tx = this.db.transaction(stores, 'readwrite');
+      for (const s of stores) tx.objectStore(s).clear();
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
     });
   }
 }
