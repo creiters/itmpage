@@ -11,18 +11,14 @@ export class StorageService {
 
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
-
         if (!db.objectStoreNames.contains('chat_history')) {
           db.createObjectStore('chat_history', { keyPath: 'id', autoIncrement: true });
         }
-
         if (!db.objectStoreNames.contains('model_chunks')) {
           const chunkStore = db.createObjectStore('model_chunks', { keyPath: 'chunkId' });
           chunkStore.createIndex('by_model', 'metadata.modelName', { unique: false });
           chunkStore.createIndex('by_index', 'metadata.index', { unique: false });
-          chunkStore.createIndex('by_hash', 'metadata.chunkHash', { unique: false });
         }
-
         if (!db.objectStoreNames.contains('system_state')) {
           db.createObjectStore('system_state', { keyPath: 'key' });
         }
@@ -82,7 +78,6 @@ export class StorageService {
         const records = req.result || [];
         records.sort((a, b) => a.metadata.index - b.metadata.index);
 
-        // Defensive clone to prevent buffer detachment
         const cleanRecords = records.map((r) => {
           let buf = r.binary;
           if (buf instanceof Uint8Array) {
@@ -90,11 +85,7 @@ export class StorageService {
           } else if (buf instanceof ArrayBuffer) {
             buf = buf.slice(0);
           }
-          return {
-            chunkId: r.chunkId,
-            metadata: r.metadata,
-            binary: buf
-          };
+          return { chunkId: r.chunkId, metadata: r.metadata, binary: buf };
         });
 
         resolve(cleanRecords);
@@ -147,16 +138,11 @@ export class StorageService {
     return new Promise((resolve, reject) => {
       const storeNames = ['chat_history', 'model_chunks', 'system_state'];
       const tx = this.db.transaction(storeNames, 'readwrite');
-
       storeNames.forEach((name) => {
-        if (this.db.objectStoreNames.contains(name)) {
-          tx.objectStore(name).clear();
-        }
+        if (this.db.objectStoreNames.contains(name)) tx.objectStore(name).clear();
       });
-
       tx.oncomplete = () => resolve(true);
       tx.onerror = () => reject(tx.error);
     });
   }
 }
-
