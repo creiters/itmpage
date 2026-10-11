@@ -76,11 +76,31 @@ const inputPrompt = document.getElementById('input-prompt');
 const btnSend = document.getElementById('btn-send');
 const engineStatus = document.getElementById('engine-status');
 
+// Training & JSONLLM Studio Elements
+const dropZone = document.getElementById('drop-zone');
+const fileDatasetInput = document.getElementById('file-dataset-input');
+const btnBrowseFile = document.getElementById('btn-browse-file');
+const datasetSizeBadge = document.getElementById('dataset-size-badge');
 const trainTextInput = document.getElementById('train-text-input');
-const btnTrainStep = document.getElementById('btn-train-step');
-const btnSaveWeights = document.getElementById('btn-save-weights');
-const trainMetricsBadge = document.getElementById('train-metrics-badge');
 
+const inputEpochs = document.getElementById('input-epochs');
+const inputLr = document.getElementById('input-lr');
+const inputBatch = document.getElementById('input-batch');
+const inputSeqlen = document.getElementById('input-seqlen');
+const btnStartTraining = document.getElementById('btn-start-training');
+const btnStopTraining = document.getElementById('btn-stop-training');
+
+const btnExportJsonllm = document.getElementById('btn-export-jsonllm');
+const btnImportJsonllmBtn = document.getElementById('btn-import-jsonllm-btn');
+const fileJsonllmImport = document.getElementById('file-jsonllm-import');
+
+const metricTrainLoss = document.getElementById('metric-train-loss');
+const metricTrainPpl = document.getElementById('metric-train-ppl');
+const metricTrainSpeed = document.getElementById('metric-train-speed');
+const trainProgressFill = document.getElementById('train-progress-fill');
+const trainProgressText = document.getElementById('train-progress-text');
+
+// WebMCP Protocol Elements
 const mcpRequestJson = document.getElementById('mcp-request-json');
 const mcpResponseJson = document.getElementById('mcp-response-json');
 const btnSendMcp = document.getElementById('btn-send-mcp');
@@ -89,6 +109,7 @@ const btnMcpTools = document.getElementById('btn-mcp-tools');
 const btnMcpResources = document.getElementById('btn-mcp-resources');
 const btnMcpSample = document.getElementById('btn-mcp-sample');
 
+// Model & Storage Elements
 const selectModel = document.getElementById('select-model');
 const btnDownloadSplit = document.getElementById('btn-download-split');
 const progressContainer = document.getElementById('progress-container');
@@ -106,16 +127,17 @@ const metricStorageQuota = document.getElementById('metric-storage-quota');
 const metricStorageStatus = document.getElementById('metric-storage-status');
 const btnRequestPersist = document.getElementById('btn-request-persist');
 
+// Hardware & Mesh Elements
 const btnDeviceCpu = document.getElementById('btn-device-cpu');
 const btnDeviceGpu = document.getElementById('btn-device-gpu');
 const activeDeviceLabel = document.getElementById('active-device-label');
-
 const peerStatus = document.getElementById('peer-status');
 const hostTokenOut = document.getElementById('host-token-out');
 const joinTokenIn = document.getElementById('join-token-in');
 const btnHostPin = document.getElementById('btn-host-pin');
 const btnConnectPin = document.getElementById('btn-connect-pin');
 
+// Telemetry Elements
 const metricTPS = document.getElementById('metric-tps');
 const metricTTFT = document.getElementById('metric-ttft');
 const metricActiveSlices = document.getElementById('metric-active-slices');
@@ -123,6 +145,9 @@ const tokenTopKBars = document.getElementById('token-topk-bars');
 const diagnosticsLog = document.getElementById('diagnostics-log');
 const btnClearLogs = document.getElementById('btn-clear-logs');
 
+let loadedDatasetText = '';
+
+// Navigation Switching
 const navTabs = document.querySelectorAll('.nav-tab');
 const appViews = document.querySelectorAll('.app-view');
 
@@ -178,6 +203,7 @@ if (btnClearLogs) {
   });
 }
 
+// Background Worker Pipeline
 const chunkWorker = new Worker('./chunk-worker.js', { type: 'module' });
 const computeWorker = new Worker('./llm-worker.js', { type: 'module' });
 const webmcpWorker = new Worker('./webmcp-worker.js', { type: 'module' });
@@ -203,6 +229,7 @@ async function initComputeEngineWasm() {
 }
 await initComputeEngineWasm();
 
+// Chunk Worker Event Listener
 chunkWorker.onmessage = async (e) => {
   const { type, payload, message, category, text, progress } = e.data;
 
@@ -212,10 +239,10 @@ chunkWorker.onmessage = async (e) => {
     await appendLog('ERROR', message);
   } else if (type === 'CHUNK_PROGRESS') {
     if (progressFill) progressFill.style.width = `${progress.percent}%`;
-    if (progressText) progressText.textContent = `Indexing segments: ${progress.current}/${progress.total} (${progress.percent}%)`;
+    if (progressText) progressText.textContent = `Indexing SI-Radix: ${progress.current}/${progress.total} (${progress.percent}%)`;
   } else if (type === 'SPLIT_COMPLETE' || type === 'CHUNKS_READY') {
     if (engineStatus) engineStatus.textContent = `Engine: Loaded (${payload.chunkCount} Segments)`;
-    if (progressText) progressText.textContent = `SI-Radix Ready: ${payload.chunkCount} segments mapped O(1).`;
+    if (progressText) progressText.textContent = `SI-Radix Ready: ${payload.chunkCount} segments mapped.`;
     updateSegmentManifest(payload.manifest, payload.modelName);
     if (metricActiveSlices) metricActiveSlices.textContent = `${payload.chunkCount}`;
     await renderDatabaseView();
@@ -227,6 +254,7 @@ chunkWorker.onmessage = async (e) => {
   }
 };
 
+// WebMCP Worker Event Listener
 webmcpWorker.onmessage = async (e) => {
   const { type, status, payload } = e.data;
 
@@ -245,12 +273,6 @@ webmcpWorker.onmessage = async (e) => {
   }
 
   if (type === 'TRAIN_PROGRESS') {
-    const metricTrainLoss = document.getElementById('metric-train-loss');
-    const metricTrainPpl = document.getElementById('metric-train-ppl');
-    const metricTrainSpeed = document.getElementById('metric-train-speed');
-    const trainProgressFill = document.getElementById('train-progress-fill');
-    const trainProgressText = document.getElementById('train-progress-text');
-
     if (metricTrainLoss) metricTrainLoss.textContent = payload.loss.toFixed(4);
     if (metricTrainPpl) metricTrainPpl.textContent = payload.perplexity.toFixed(1);
     if (metricTrainSpeed) metricTrainSpeed.textContent = payload.tokensPerSec;
@@ -260,23 +282,143 @@ webmcpWorker.onmessage = async (e) => {
       trainProgressText.textContent = `Epoch ${payload.epoch}/${payload.totalEpochs} (${payload.step}/${payload.totalStepsInEpoch}) — ${payload.progressPct}%`;
     }
   } else if (type === 'TRAIN_FINISHED') {
-    const btnStartTraining = document.getElementById('btn-start-training');
-    const btnStopTraining = document.getElementById('btn-stop-training');
-    const trainProgressText = document.getElementById('train-progress-text');
-
-    if (btnStartTraining) btnStartTraining.disabled = false;
-    if (btnStopTraining) btnStopTraining.disabled = true;
+    btnStartTraining.disabled = false;
+    btnStopTraining.disabled = true;
     if (trainProgressText) {
       trainProgressText.textContent = `Completed ${payload.totalSteps} steps in ${payload.elapsedSec}s.`;
     }
     await appendLog('TRAIN', `Training completed: ${payload.totalSteps} steps in ${payload.elapsedSec}s.`);
-  } else if (type === 'SAVE_COMPLETE') {
-    alert(`Model serialized into ${payload.chunksCount} SI-Radix segments!`);
+  } else if (type === 'EXPORT_JSONLLM_COMPLETE') {
+    // Offer JSONLLM download as file
+    const blob = new Blob([payload.jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'model.jsonllm';
+    a.click();
+    URL.revokeObjectURL(url);
+
+    alert(`Exported model to JSONLLM with ${payload.segmentsCount} SI-Radix segments!`);
     await renderDatabaseView();
     await updateStorageMetrics();
+  } else if (type === 'IMPORT_JSONLLM_COMPLETE') {
+    if (engineStatus) engineStatus.textContent = `Engine: Loaded (${payload.modelName})`;
+    alert(`Successfully imported JSONLLM model: ${payload.modelName}`);
+    await appendLog('STORAGE', `Imported JSONLLM model: ${payload.modelName}`);
   }
 };
 
+// Training Dataset Ingestion
+if (btnBrowseFile && fileDatasetInput) {
+  btnBrowseFile.addEventListener('click', () => fileDatasetInput.click());
+  fileDatasetInput.addEventListener('change', async (e) => {
+    await processUploadedFiles(e.target.files);
+  });
+}
+
+if (dropZone) {
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+  });
+
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('dragover');
+  });
+
+  dropZone.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if (e.dataTransfer && e.dataTransfer.files) {
+      await processUploadedFiles(e.dataTransfer.files);
+    }
+  });
+}
+
+async function processUploadedFiles(files) {
+  if (!files || !files.length) return;
+  let concatenated = '';
+
+  for (const file of files) {
+    const text = await file.text();
+    concatenated += `\n${text}`;
+  }
+
+  loadedDatasetText = (loadedDatasetText + '\n' + concatenated).trim();
+  trainTextInput.value = loadedDatasetText;
+
+  const approxTokens = Math.round(loadedDatasetText.length / 4);
+  if (datasetSizeBadge) {
+    datasetSizeBadge.textContent = `${files.length} files • ~${approxTokens} tokens`;
+  }
+  await appendLog('TRAIN', `Loaded ${files.length} files into training buffer (~${approxTokens} tokens).`);
+}
+
+// Training Execution Controls
+if (btnStartTraining) {
+  btnStartTraining.addEventListener('click', () => {
+    const text = trainTextInput.value.trim();
+    if (!text) {
+      alert('Upload files or paste text corpus before starting training.');
+      return;
+    }
+
+    const epochs = parseInt(inputEpochs.value) || 3;
+    const lr = parseFloat(inputLr.value) || 0.001;
+    const batchSize = parseInt(inputBatch.value) || 8;
+    const seqLen = parseInt(inputSeqlen.value) || 48;
+
+    btnStartTraining.disabled = true;
+    btnStopTraining.disabled = false;
+    trainProgressFill.style.width = '0%';
+    trainProgressText.textContent = 'Preparing sequence batches...';
+
+    webmcpWorker.postMessage({
+      type: 'START_DATASET_TRAINING',
+      payload: {
+        datasetText: text,
+        epochs,
+        batchSize,
+        lr,
+        seqLen
+      }
+    });
+  });
+}
+
+if (btnStopTraining) {
+  btnStopTraining.addEventListener('click', () => {
+    webmcpWorker.postMessage({ type: 'STOP_TRAINING' });
+    btnStopTraining.disabled = true;
+    btnStartTraining.disabled = false;
+  });
+}
+
+// JSONLLM Export & Import Triggers
+if (btnExportJsonllm) {
+  btnExportJsonllm.addEventListener('click', () => {
+    webmcpWorker.postMessage({
+      type: 'EXPORT_JSONLLM',
+      payload: { modelName: 'browser-nano-llm' }
+    });
+  });
+}
+
+if (btnImportJsonllmBtn && fileJsonllmImport) {
+  btnImportJsonllmBtn.addEventListener('click', () => fileJsonllmImport.click());
+  fileJsonllmImport.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const text = await file.text();
+    webmcpWorker.postMessage({
+      type: 'IMPORT_JSONLLM',
+      payload: { jsonString: text, modelName: file.name.replace(/\.[^/.]+$/, '') }
+    });
+  });
+}
+
+// Database View & Quota
 async function updateStorageMetrics() {
   const quota = await storage.getStorageQuota();
   const isPersisted = await storage.isPersistenceGranted();
@@ -381,7 +523,7 @@ btnDownloadSplit.addEventListener('click', async () => {
       }
     );
 
-    await appendLog('STORAGE', 'Download complete. Passing to SI-Radix Segment Engine...');
+    await appendLog('STORAGE', 'Download complete. Slicing into SI-Radix Segments...');
     chunkWorker.postMessage({
       type: 'SPLIT_AND_STORE_CHUNKS',
       payload: {
@@ -402,27 +544,12 @@ function updateSegmentManifest(manifest, modelName) {
     <strong>Model:</strong> ${modelName}<br>
     <strong>Index Structure:</strong> SI-Radix Segment Interval Table<br>
     <strong>Segments:</strong> ${manifest.totalSegments} × 4MB Segments<br>
-    <strong>Resolution:</strong> O(1) Direct Offset Arithmetic Lookup<br>
-    <strong>Verification:</strong> Murmur3 32-bit Checksum Vector
+    <strong>Resolution:</strong> O(1) Direct Offset Lookup<br>
+    <strong>Checksums:</strong> Murmur3 32-bit Vector
   `;
 }
 
-if (btnTrainStep) {
-  btnTrainStep.addEventListener('click', () => {
-    const text = trainTextInput.value.trim();
-    if (!text) return alert('Enter training text.');
-    btnTrainStep.disabled = true;
-    trainMetricsBadge.textContent = 'Training step in progress...';
-    webmcpWorker.postMessage({ type: 'START_DATASET_TRAINING', payload: { datasetText: text, epochs: 1, batchSize: 4 } });
-  });
-}
-
-if (btnSaveWeights) {
-  btnSaveWeights.addEventListener('click', () => {
-    webmcpWorker.postMessage({ type: 'SAVE_MODEL_TO_SI_RADIX', payload: { modelName: 'browser-nano-llm' } });
-  });
-}
-
+// WebMCP Buttons
 if (btnMcpInit) {
   btnMcpInit.addEventListener('click', () => {
     mcpRequestJson.value = JSON.stringify({
@@ -481,6 +608,7 @@ if (btnSendMcp) {
   });
 }
 
+// Hardware Dispatch
 if (btnDeviceCpu) {
   btnDeviceCpu.addEventListener('click', () => {
     computeWorker.postMessage({ type: 'SET_DEVICE', payload: { device: 'CPU' } });
@@ -499,6 +627,7 @@ if (btnDeviceGpu) {
   });
 }
 
+// Storage Reset
 if (btnClearCache) {
   btnClearCache.addEventListener('click', async () => {
     const confirmPurge = confirm('Clear all storage, segments, logs, and caches?');
@@ -532,6 +661,7 @@ if (btnClearCache) {
   });
 }
 
+// Chat Flow
 let currentBubble = null;
 
 function renderMessage(role, text) {
@@ -614,6 +744,7 @@ inputPrompt.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') executeChat();
 });
 
+// Mesh Setup
 const mesh = new MeshCoordinator(
   nodeId,
   async (msg, peerKey, channel) => {
