@@ -13,7 +13,6 @@ self.onmessage = async (e) => {
     return;
   }
 
-  // Handle standard JSON-RPC WebMCP call
   if (type === 'WEBMCP_REQUEST') {
     if (!server) {
       self.postMessage({
@@ -30,7 +29,6 @@ self.onmessage = async (e) => {
     return;
   }
 
-  // Model Training Dispatch
   if (type === 'TRAIN_STEP') {
     if (!server) return;
     const { text, lr = 0.001 } = payload;
@@ -43,7 +41,6 @@ self.onmessage = async (e) => {
     return;
   }
 
-  // Persist Current Weights as 4MB Merkle Slices
   if (type === 'SAVE_MODEL_TO_MERKLE') {
     if (!server) return;
     const modelBinary = server.engine.serializeToMerkleArray();
