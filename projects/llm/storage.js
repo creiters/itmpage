@@ -3,6 +3,9 @@ export class StorageService {
     this.dbName = dbName;
     this.version = version;
     this.db = null;
+    this.broadcast = typeof BroadcastChannel !== 'undefined' 
+      ? new BroadcastChannel('shared-storage-sync') 
+      : null;
   }
 
   async init() {
@@ -43,64 +46,88 @@ export class StorageService {
     });
   }
 
-  async logEvent(category, message, details = null) {
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('event_logs', 'readwrite');
-      const store = tx.objectStore('event_logs');
-      const entry = {
-        timestamp: Date.now(),
-        category,
-        message,
-        details: details ? JSON.stringify(details) : null
+  /**
+   * Best Practice 1: Request persistent storage permission to prevent OS eviction
+   */
+  async requestPersistence() {
+    if (navigator.storage && navigator.storage.persist) {
+      const isPersisted = await navigator.storage.persist();
+      return isPersisted;
+    }
+    return false;
+  }
+
+  async isPersistenceGranted() {
+    if (navigator.storage && navigator.storage.persisted) {
+      return await navigator.storage.persisted();
+    }
+    return false;
+  }
+
+  /**
+   * Best Practice 2: Query real-time device storage quota and usage
+   */
+  async getStorageQuota() {
+    if (navigator.storage && navigator.storage.estimate) {
+      const { usage, quota } = await navigator.storage.estimate();
+      return {
+        usageBytes: usage || 0,
+        quotaBytes: quota || 0,
+        usageMB: ((usage || 0) / (1024 * 1024)).toFixed(1),
+        quotaMB: ((quota || 0) / (1024 * 1024)).toFixed(1),
+        percentUsed: quota ? ((usage / quota) * 100).toFixed(1) : '0'
       };
-      const req = store.add(entry);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
+    }
+    return { usageBytes: 0, quotaBytes: 0, usageMB: '0', quotaMB: '0', percentUsed: '0' };
   }
 
-  async getRecentLogs(limit = 100) {
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('event_logs', 'readonly');
-      const store = tx.objectStore('event_logs');
-      const req = store.getAll();
-
-      req.onsuccess = () => {
-        const logs = req.result || [];
-        logs.sort((a, b) => b.timestamp - a.timestamp);
-        resolve(logs.slice(0, limit));
-      };
-      req.onerror = () => reject(req.error);
-    });
+  /**
+   * Best Practice 3: Cross-context Mutual Exclusion via Web Locks API
+   */
+  async withLock(lockName, fn) {
+    if (navigator.locks) {
+      return await navigator.locks.request(lockName, fn);
+    }
+    return await fn();
   }
 
-  async clearLogs() {
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('event_logs', 'readwrite');
-      const store = tx.objectStore('event_logs');
-      const req = store.clear();
-      req.onsuccess = () => resolve(true);
-      req.onerror = () => reject(req.error);
-    });
-  }
+  /**
+   * Best Practice 4: Single-transaction batch chunk write with broadcast notifications
+   */
+  async batchPutChunks(chunks, onProgress) {
+    return this.withLock('db-write-lock', async () => {
+      return new Promise((resolve, reject) => {
+        const tx = this.db.transaction('model_chunks', 'readwrite');
+        const store = tx.objectStore('model_chunks');
+        let completed = 0;
 
-  async saveMessage(role, text) {
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('chat_history', 'readwrite');
-      const store = tx.objectStore('chat_history');
-      const req = store.add({ role, text, timestamp: Date.now() });
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-  }
+        tx.oncomplete = () => {
+          if (this.broadcast) {
+            this.broadcast.postMessage({
+              type: 'CHUNKS_UPDATED',
+              count: chunks.length,
+              modelName: chunks[0]?.metadata?.modelName
+            });
+          }
+          resolve(true);
+        };
 
-  async getMessages() {
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('chat_history', 'readonly');
-      const store = tx.objectStore('chat_history');
-      const req = store.getAll();
-      req.onsuccess = () => resolve(req.result || []);
-      req.onerror = () => reject(req.error);
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(new Error('Batch chunk transaction aborted (quota exceeded or timeout).'));
+
+        for (const chunk of chunks) {
+          const req = store.put({
+            chunkId: chunk.metadata.chunkId,
+            metadata: chunk.metadata,
+            binary: chunk.binary
+          });
+
+          req.onsuccess = () => {
+            completed++;
+            if (onProgress) onProgress(completed, chunks.length);
+          };
+        }
+      });
     });
   }
 
@@ -113,7 +140,17 @@ export class StorageService {
         metadata: chunkRecord.metadata,
         binary: chunkRecord.binary
       });
-      req.onsuccess = () => resolve(req.result);
+
+      req.onsuccess = () => {
+        if (this.broadcast) {
+          this.broadcast.postMessage({
+            type: 'CHUNK_ADDED',
+            chunkId: chunkRecord.metadata.chunkId,
+            modelName: chunkRecord.metadata.modelName
+          });
+        }
+        resolve(req.result);
+      };
       req.onerror = () => reject(req.error);
     });
   }
@@ -123,6 +160,7 @@ export class StorageService {
       const tx = this.db.transaction('model_chunks', 'readonly');
       const store = tx.objectStore('model_chunks');
       const req = store.get(chunkId);
+
       req.onsuccess = () => {
         if (!req.result) return resolve(null);
         let buf = req.result.binary;
@@ -173,7 +211,7 @@ export class StorageService {
             index: r.metadata?.index ?? idx,
             totalChunks: total,
             modelName: r.metadata?.modelName || modelName,
-            chunkHash: r.metadata?.chunkHash || r.metadata?.hash || 'LEGACY_HASH',
+            chunkHash: r.metadata?.chunkHash || r.metadata?.hash || 'HASH',
             context: r.metadata?.context || {
               layerRange: [startLayer, endLayer],
               canYieldNext: idx + 1 < total,
@@ -203,21 +241,86 @@ export class StorageService {
   }
 
   async deleteModelChunks(modelName) {
-    return new Promise((resolve, reject) => {
-      const tx = this.db.transaction('model_chunks', 'readwrite');
-      const store = tx.objectStore('model_chunks');
-      const index = store.index('by_model');
-      const req = index.openKeyCursor(IDBKeyRange.only(modelName));
+    return this.withLock('db-write-lock', async () => {
+      return new Promise((resolve, reject) => {
+        const tx = this.db.transaction('model_chunks', 'readwrite');
+        const store = tx.objectStore('model_chunks');
+        const index = store.index('by_model');
+        const req = index.openKeyCursor(IDBKeyRange.only(modelName));
 
-      req.onsuccess = (e) => {
-        const cursor = e.target.result;
-        if (cursor) {
-          store.delete(cursor.primaryKey);
-          cursor.continue();
-        } else {
-          resolve(true);
-        }
+        req.onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (cursor) {
+            store.delete(cursor.primaryKey);
+            cursor.continue();
+          } else {
+            if (this.broadcast) {
+              this.broadcast.postMessage({ type: 'MODEL_PURGED', modelName });
+            }
+            resolve(true);
+          }
+        };
+        req.onerror = () => reject(req.error);
+      });
+    });
+  }
+
+  async logEvent(category, message, details = null) {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('event_logs', 'readwrite');
+      const store = tx.objectStore('event_logs');
+      const req = store.add({
+        timestamp: Date.now(),
+        category,
+        message,
+        details: details ? JSON.stringify(details) : null
+      });
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async getRecentLogs(limit = 100) {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('event_logs', 'readonly');
+      const store = tx.objectStore('event_logs');
+      const req = store.getAll();
+
+      req.onsuccess = () => {
+        const logs = req.result || [];
+        logs.sort((a, b) => b.timestamp - a.timestamp);
+        resolve(logs.slice(0, limit));
       };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async clearLogs() {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('event_logs', 'readwrite');
+      const store = tx.objectStore('event_logs');
+      const req = store.clear();
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async saveMessage(role, text) {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('chat_history', 'readwrite');
+      const store = tx.objectStore('chat_history');
+      const req = store.add({ role, text, timestamp: Date.now() });
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async getMessages() {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('chat_history', 'readonly');
+      const store = tx.objectStore('chat_history');
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
       req.onerror = () => reject(req.error);
     });
   }
@@ -243,14 +346,19 @@ export class StorageService {
   }
 
   async clearAll() {
-    return new Promise((resolve, reject) => {
-      const storeNames = ['chat_history', 'model_chunks', 'system_state', 'event_logs'];
-      const tx = this.db.transaction(storeNames, 'readwrite');
-      storeNames.forEach((name) => {
-        if (this.db.objectStoreNames.contains(name)) tx.objectStore(name).clear();
+    return this.withLock('db-write-lock', async () => {
+      return new Promise((resolve, reject) => {
+        const storeNames = ['chat_history', 'model_chunks', 'system_state', 'event_logs'];
+        const tx = this.db.transaction(storeNames, 'readwrite');
+        storeNames.forEach((name) => {
+          if (this.db.objectStoreNames.contains(name)) tx.objectStore(name).clear();
+        });
+        tx.oncomplete = () => {
+          if (this.broadcast) this.broadcast.postMessage({ type: 'ALL_STORAGE_CLEARED' });
+          resolve(true);
+        };
+        tx.onerror = () => reject(tx.error);
       });
-      tx.oncomplete = () => resolve(true);
-      tx.onerror = () => reject(tx.error);
     });
   }
 }
