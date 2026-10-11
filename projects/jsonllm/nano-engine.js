@@ -3,18 +3,18 @@ export class NanoTokenizer {
     this.vocabSize = vocabSize;
     this.tokenToId = new Map();
     this.idToToken = new Map();
+    this.specials = ['<pad>', '<bos>', '<eos>', '<unk>', '<user>', '<bot>'];
     this.buildVocab();
   }
 
   buildVocab() {
-    const specials = ['<pad>', '<bos>', '<eos>', '<unk>', '<user>', '<bot>'];
-    specials.forEach((t, i) => {
+    this.specials.forEach((t, i) => {
       this.tokenToId.set(t, i);
       this.idToToken.set(i, t);
     });
 
-    let cur = specials.length;
-    // Map printable ASCII characters (32..126)
+    let cur = this.specials.length;
+    // Map standard printable ASCII space (32) to ~ (126)
     for (let c = 32; c <= 126 && cur < this.vocabSize; c++) {
       const ch = String.fromCharCode(c);
       this.tokenToId.set(ch, cur);
@@ -30,7 +30,7 @@ export class NanoTokenizer {
 
     while (cursor < text.length) {
       let matched = false;
-      for (const spec of ['<pad>', '<bos>', '<eos>', '<unk>', '<user>', '<bot>']) {
+      for (const spec of this.specials) {
         if (text.startsWith(spec, cursor)) {
           tokens.push(this.tokenToId.get(spec));
           cursor += spec.length;
@@ -49,10 +49,14 @@ export class NanoTokenizer {
 
   decode(tokens) {
     if (!tokens || !tokens.length) return '';
-    return tokens
-      .filter((id) => id > 3) // Exclude control tokens from final text
-      .map((id) => this.idToToken.get(id) || '')
-      .join('');
+    let out = '';
+    for (const id of tokens) {
+      // Filter special control tokens out of natural text stream
+      if (id >= this.specials.length) {
+        out += this.idToToken.get(id) || '';
+      }
+    }
+    return out;
   }
 }
 
@@ -117,7 +121,7 @@ export class NanoTransformer {
     const tape = { pos, tokenId, layers: [] };
     const x = new Float32Array(this.dim);
 
-    const safeTok = Math.min(tokenId, this.vocabSize - 1);
+    const safeTok = Math.max(0, Math.min(tokenId, this.vocabSize - 1));
     const embOffset = safeTok * this.dim;
     for (let i = 0; i < this.dim; i++) x[i] = this.weights.wte[embOffset + i];
     tape.xInit = new Float32Array(x);
@@ -148,7 +152,7 @@ export class NanoTransformer {
       layerTape.k = k;
       layerTape.v = v;
 
-      // Save to KV-cache
+      // Populate KV Cache
       kvCache.k[l][pos] = k;
       kvCache.v[l][pos] = v;
 
@@ -160,7 +164,7 @@ export class NanoTransformer {
 
         for (let t = 0; t <= pos; t++) {
           const histK = kvCache.k[l][t];
-          if (!histK) continue; // Boundary guard
+          if (!histK) continue;
 
           let score = 0.0;
           for (let d = 0; d < this.headDim; d++) {
@@ -178,7 +182,7 @@ export class NanoTransformer {
           sumExp += weights[t];
         }
         for (let t = 0; t <= pos; t++) {
-          weights[t] /= sumExp;
+          weights[t] /= (sumExp || 1.0);
           const histV = kvCache.v[l][t];
           if (!histV) continue;
 
@@ -247,7 +251,7 @@ export class NanoTransformer {
     return { logits, tape };
   }
 
-  trainSequence(tokenIds, lr = 0.003) {
+  trainSequence(tokenIds, lr = 0.0035) {
     if (tokenIds.length < 2) return 0.0;
     this.stepCount++;
 
@@ -276,7 +280,7 @@ export class NanoTransformer {
         probs[i] = Math.exp(logits[i] - maxLogit);
         sumExp += probs[i];
       }
-      for (let i = 0; i < this.vocabSize; i++) probs[i] /= sumExp;
+      for (let i = 0; i < this.vocabSize; i++) probs[i] /= (sumExp || 1.0);
 
       const loss = -Math.log(Math.max(1e-7, probs[targetId]));
       totalLoss += loss;
@@ -301,7 +305,7 @@ export class NanoTransformer {
       }
     }
 
-    // AdamW update
+    // AdamW
     const b1 = 0.9, b2 = 0.999, eps = 1e-8, decay = 0.01;
     for (const key in this.weights) {
       const W = this.weights[key];
