@@ -1,3 +1,5 @@
+import { HalfFloatArray } from './jsonllm-codec.js';
+
 export class LocalRAG {
   constructor(dim = 64) {
     this.dim = dim;
@@ -9,7 +11,7 @@ export class LocalRAG {
   }
 
   embed(text) {
-    const vec = new Float32Array(this.dim);
+    const vec = new HalfFloatArray(this.dim);
     const cleaned = text.toLowerCase().trim();
     if (!cleaned) return vec;
 
@@ -41,7 +43,7 @@ export class LocalRAG {
   }
 
   async indexDocument(docId, text, metadata = {}) {
-    const vector = Array.from(this.embed(text));
+    const vector = Array.from(this.embed(text)).map((v) => Number(v.toFixed(4)));
     return await this.storage.putRAGDoc({ docId, text, metadata, vector });
   }
 
@@ -52,7 +54,7 @@ export class LocalRAG {
 
     const scored = docs.map((d) => ({
       ...d,
-      score: this.cosineSimilarity(queryVec, new Float32Array(d.vector))
+      score: this.cosineSimilarity(queryVec, new HalfFloatArray(d.vector))
     }));
 
     scored.sort((a, b) => b.score - a.score);
