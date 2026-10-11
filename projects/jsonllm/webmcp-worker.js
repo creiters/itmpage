@@ -1,3 +1,7 @@
+/**
+ * webmcp-worker.js - On-Device Training & WebMCP Server Worker
+ */
+
 import { NanoTransformer } from './nano-engine.js';
 import { StorageService } from './storage.js';
 import { LocalRAG } from './rag-store.js';
@@ -10,11 +14,10 @@ let engine = null;
 let storage = null;
 let rag = null;
 let server = null;
-let tokenizer = null;
 
 (async () => {
   const spec = DOMAIN_SPECS.dialog;
-  tokenizer = new DomainTokenizer(spec);
+  const tokenizer = new DomainTokenizer(spec);
   engine = new NanoTransformer({ ...spec, vocabSize: tokenizer.vocabSize });
 
   storage = new StorageService();
@@ -23,7 +26,7 @@ let tokenizer = null;
   await rag.init(storage);
 
   server = new WebMCPServer(engine, storage, rag, ChunkIndexer, JSONLLMCodec);
-  self.postMessage({ type: 'STATUS', status: 'WebMCP Ready' });
+  self.postMessage({ type: 'STATUS', status: 'WebMCP Server Ready' });
 })();
 
 self.onmessage = async (e) => {
@@ -42,8 +45,20 @@ self.onmessage = async (e) => {
 
     const tokens = tok.encode(text);
     let loss = 0;
-    for (let ep = 0; ep < epochs; ep++) {
+
+    for (let ep = 1; ep <= epochs; ep++) {
       loss = engine.trainStep(tokens, lr);
+      self.postMessage({
+        type: 'TRAIN_PROGRESS',
+        payload: {
+          epoch: ep,
+          totalEpochs: epochs,
+          loss,
+          perplexity: Math.exp(Math.min(10, loss)),
+          progressPct: Math.round((ep / epochs) * 100)
+        }
+      });
+      await new Promise((r) => setTimeout(r, 0)); // Yield to event loop
     }
 
     const jsonStr = await JSONLLMCodec.exportToJSONLLM(spec, engine.weights);
@@ -54,8 +69,30 @@ self.onmessage = async (e) => {
     self.postMessage({
       type: 'TRAIN_DONE',
       loss: loss.toFixed(4),
-      ppl: Math.exp(loss).toFixed(2),
+      ppl: Math.exp(Math.min(10, loss)).toFixed(2),
       sizeKb: (jsonStr.length / 1024).toFixed(1)
+    });
+  }
+
+  if (type === 'EXPORT_JSONLLM') {
+    const { modelName } = payload;
+    const jsonString = await storage.getModel(modelName);
+    self.postMessage({
+      type: 'EXPORT_JSONLLM_COMPLETE',
+      payload: { modelName, jsonString }
+    });
+  }
+
+  if (type === 'IMPORT_JSONLLM') {
+    const { jsonString, modelName } = payload;
+    const decoded = await JSONLLMCodec.importFromJSONLLM(jsonString);
+    await storage.putModel(modelName, jsonString);
+    const slices = ChunkIndexer.slicePayload(jsonString, modelName);
+    await storage.batchSaveSegments(slices);
+
+    self.postMessage({
+      type: 'IMPORT_JSONLLM_COMPLETE',
+      payload: { modelName, config: decoded.config }
     });
   }
 };
