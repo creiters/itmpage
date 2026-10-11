@@ -1,7 +1,3 @@
-/**
- * storage.js - Production IndexedDB Service with Dedicated Dialogue Storage
- */
-
 export class StorageService {
   constructor(dbName = 'Clean_JSONLLM_Store', version = 2) {
     this.dbName = dbName;
@@ -81,7 +77,6 @@ export class StorageService {
     });
   }
 
-  // Dialogue Dataset Operations (< 2 KB payloads)
   async putDialogueDataset(datasetName, jsonPayload) {
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction('dialogue_datasets', 'readwrite');
