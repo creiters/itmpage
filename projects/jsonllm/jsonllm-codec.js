@@ -1,9 +1,3 @@
-/**
- * jsonllm-codec.js - Pure FP16 (Half-Precision) & FP4 / Q4 Quantizer
- * Includes compact dialogue dataset serialization for ultra-low storage footprints.
- */
-
-// Native Float16Array with zero-dependency IEEE 754-2008 half-precision fallback
 export const HalfFloatArray = typeof Float16Array !== 'undefined'
   ? Float16Array
   : class HalfFloatArrayPolyfill extends Uint16Array {
@@ -44,7 +38,6 @@ export const HalfFloatArray = typeof Float16Array !== 'undefined'
       }
     };
 
-// Precomputed FP4 E2M1 Grid
 const FP4_GRID = [
   0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0,
   -0.0, -0.5, -1.0, -1.5, -2.0, -3.0, -4.0, -6.0
@@ -60,7 +53,6 @@ for (let b = 0; b < 256; b++) {
 export class JSONLLMCodec {
   static BLOCK_SIZE = 32;
 
-  // FP4 E2M1 Microscaled Block Quantization
   static quantizeFP4(halfArray) {
     const totalBlocks = Math.ceil(halfArray.length / this.BLOCK_SIZE);
     const scales = new HalfFloatArray(totalBlocks);
@@ -124,7 +116,6 @@ export class JSONLLMCodec {
     return out;
   }
 
-  // Q4_0 Integer Block Quantization
   static quantizeQ4(halfArray) {
     const totalBlocks = Math.ceil(halfArray.length / this.BLOCK_SIZE);
     const scales = new HalfFloatArray(totalBlocks);
@@ -178,7 +169,6 @@ export class JSONLLMCodec {
     return out;
   }
 
-  // Deflate Compression & Base64 Stream Helpers
   static async compress(buffer) {
     if (typeof CompressionStream !== 'undefined') {
       const cs = new CompressionStream('deflate');
@@ -219,14 +209,11 @@ export class JSONLLMCodec {
     return bytes;
   }
 
-  // Compact Dialogue Dataset Serializer (< 2 KB for dozens of conversations)
   static async exportDialogueDataset(tokenizer, dialoguePairs) {
-    // Delta-encode token pairs into Uint16 sequences
     const tokenSequences = [];
     for (const pair of dialoguePairs) {
       const uTokens = tokenizer.encode(pair.u);
       const bTokens = tokenizer.encode(pair.b);
-      // Format: [len_u, ...uTokens, len_b, ...bTokens]
       const packed = [uTokens.length, ...uTokens, bTokens.length, ...bTokens];
       tokenSequences.push(packed);
     }
@@ -250,7 +237,6 @@ export class JSONLLMCodec {
     const decompressed = await this.decompress(bytes.buffer);
     const flat = new Uint16Array(decompressed);
 
-    // Sync dictionary
     if (parsed.vocab) {
       for (const [word, id] of Object.entries(parsed.vocab)) {
         tokenizer.tokenToId.set(word, id);
@@ -278,7 +264,6 @@ export class JSONLLMCodec {
     return pairs;
   }
 
-  // Export 4M Model Weights
   static async exportToJSONLLM(config, tokenizer, weights, mode = 'fp4') {
     const tensors = {};
 
