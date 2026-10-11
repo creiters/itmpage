@@ -9,7 +9,6 @@
 </head>
 <body>
   <div id="layout">
-    <!-- Update Toast -->
     <div id="update-toast" role="alert">
       <div style="flex:1;">
         <div style="font-size:0.85rem; font-weight:600;">Update Available</div>
@@ -131,8 +130,21 @@
       <section id="view-diagnostics" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
+            <h3>Transformer Execution Flow</h3>
+            <div class="flow-diagram">
+              <div class="flow-step">1. BPE Tokenizer + Prompt Embeddings</div>
+              <div class="flow-arrow">▼</div>
+              <div class="flow-step">2. WASI SIMD Fused Dot Product (Q4_K_M inline)</div>
+              <div class="flow-arrow">▼</div>
+              <div class="flow-step">3. 30× Transformer Blocks (Native C WASM Module)</div>
+              <div class="flow-arrow">▼</div>
+              <div class="flow-step">4. Top-K Filtered Logits Selection</div>
+            </div>
+          </div>
+
+          <div class="settings-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <h3>Complete App Event Logs</h3>
+              <h3>Real-Time Telemetry</h3>
               <button id="btn-clear-logs" style="min-height: 28px; padding: 4px 10px; font-size: 0.75rem;" class="secondary-btn">Clear Logs</button>
             </div>
 
@@ -146,8 +158,8 @@
                 <span class="telemetry-lbl">TTFT</span>
               </div>
               <div class="telemetry-item">
-                <span class="telemetry-val" id="metric-active-slices">0</span>
-                <span class="telemetry-lbl">Active Slices</span>
+                <span class="telemetry-val">30 / 30</span>
+                <span class="telemetry-lbl">Active Layers</span>
               </div>
             </div>
 
