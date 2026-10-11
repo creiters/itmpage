@@ -1,5 +1,5 @@
 import { WebMCPServer } from './webmcp-server.js';
-import { ChunkIndexer } from './chunk-indexer.js';
+import { JSONLLMCodec } from './jsonllm-codec.js';
 
 let server = null;
 let isTrainingActive = false;
@@ -10,7 +10,7 @@ self.onmessage = async (e) => {
   if (type === 'INIT_WEBMCP') {
     server = new WebMCPServer({ name: 'browser-native-llm', version: '1.0.0' });
     await server.init();
-    self.postMessage({ type: 'STATUS', status: 'WebMCP Server Ready' });
+    self.postMessage({ type: 'STATUS', status: 'WebMCP JSONLLM Server Ready' });
     return;
   }
 
@@ -37,7 +37,7 @@ self.onmessage = async (e) => {
     self.postMessage({
       type: 'LOG',
       category: 'TRAIN',
-      text: `Starting dataset training: ${datasetText.length} characters, ${epochs} epochs, batch size ${batchSize}.`
+      text: `Training started: ${datasetText.length} characters, ${epochs} epochs, lr=${lr}.`
     });
 
     const tokenizer = server.engine.tokenizer;
@@ -101,7 +101,7 @@ self.onmessage = async (e) => {
       self.postMessage({
         type: 'LOG',
         category: 'TRAIN',
-        text: `Epoch ${epoch}/${epochs} completed. Mean Loss: ${(epochLoss / sequences.length).toFixed(4)}`
+        text: `Epoch ${epoch}/${epochs} finished. Mean Loss: ${(epochLoss / sequences.length).toFixed(4)}`
       });
     }
 
@@ -118,30 +118,49 @@ self.onmessage = async (e) => {
 
   if (type === 'STOP_TRAINING') {
     isTrainingActive = false;
-    self.postMessage({ type: 'LOG', category: 'TRAIN', text: 'Training interrupted.' });
+    self.postMessage({ type: 'LOG', category: 'TRAIN', text: 'Training cancelled.' });
     return;
   }
 
-  if (type === 'SAVE_MODEL_TO_SI_RADIX') {
+  // Export current engine to JSONLLM and partition to SI-Radix segments
+  if (type === 'EXPORT_JSONLLM') {
     if (!server) return;
-    const modelBinary = server.engine.serializeToSegmentArray();
-    const modelBlob = new Blob([modelBinary], { type: 'application/octet-stream' });
     const modelName = payload?.modelName || 'browser-nano-llm';
 
-    self.postMessage({ type: 'LOG', category: 'STORAGE', text: 'Building SI-Radix Segment Interval Index...' });
-
-    const { manifest, segments } = await ChunkIndexer.splitAndIndex(
-      modelBlob,
-      modelName,
-      (progress) => self.postMessage({ type: 'INDEX_PROGRESS', progress })
-    );
+    self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Packing model to compressed JSONLLM container...` });
+    const { jsonString, manifest, segments } = await JSONLLMCodec.exportToJSONLLM(server.engine, modelName);
 
     await server.storage.saveManifest(manifest);
     await server.storage.batchPutChunks(segments);
 
     self.postMessage({
-      type: 'SAVE_COMPLETE',
-      payload: { manifest, chunksCount: segments.length }
+      type: 'EXPORT_JSONLLM_COMPLETE',
+      payload: {
+        jsonString,
+        manifest,
+        segmentsCount: segments.length
+      }
     });
+    return;
+  }
+
+  // Import JSONLLM file and load into engine
+  if (type === 'IMPORT_JSONLLM') {
+    if (!server) return;
+    try {
+      self.postMessage({ type: 'LOG', category: 'STORAGE', text: 'Decoding and dequantizing JSONLLM file...' });
+      const imported = await JSONLLMCodec.importFromJSONLLM(payload.jsonString);
+      server.engine.loadFromJSONLLMPayload(imported);
+
+      self.postMessage({
+        type: 'IMPORT_JSONLLM_COMPLETE',
+        payload: {
+          config: imported.config,
+          modelName: payload.modelName || 'custom-jsonllm'
+        }
+      });
+    } catch (err) {
+      self.postMessage({ type: 'ERROR', message: `Import failed: ${err.message}` });
+    }
   }
 };
