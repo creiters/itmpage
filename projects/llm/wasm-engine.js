@@ -1,10 +1,16 @@
 export class WasiRuntime {
   constructor(initialPages = 4096, maxPages = 8192) {
     this.memory = new WebAssembly.Memory({ initial: initialPages, maximum: maxPages });
+    this.activeDevice = 'CPU'; // 'CPU' or 'GPU'
+  }
+
+  setDevice(device) {
+    this.activeDevice = device;
   }
 
   createImports(logHandler) {
     const mem = this.memory;
+    const self = this;
 
     return {
       wasi_snapshot_preview1: {
@@ -55,8 +61,10 @@ export class WasiRuntime {
       env: {
         memory: this.memory,
         abort: () => {
-          if (logHandler) logHandler('[WASM] Abort called.');
-        }
+          if (logHandler) logHandler('[WASM] Execution halted.');
+        },
+        // Custom WASI device query hook
+        get_active_device: () => (self.activeDevice === 'GPU' ? 1 : 0)
       }
     };
   }
