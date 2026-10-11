@@ -1,8 +1,3 @@
-/**
- * mesh.js
- * Serverless WebRTC DataChannel Mesh with 6-Digit PIN Exchange
- */
-
 export class MeshCoordinator {
   constructor(nodeId, onMessage, onPeerChange) {
     this.nodeId = nodeId;
