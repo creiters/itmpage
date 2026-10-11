@@ -1,9 +1,9 @@
 export class ChunkIndexer {
-  static CHUNK_SIZE = 4 * 1024 * 1024; // 4 MB boundary[span_4](start_span)[span_4](end_span)
+  static CHUNK_SIZE = 4 * 1024 * 1024; // Strict 4 MB segment boundary[span_2](start_span)[span_2](end_span)
 
   /**
-   * High-speed, non-cryptographic MurmurHash3 (32-bit)
-   * ~50x faster than async SHA-256 on 4MB ArrayBuffers
+   * Synchronous MurmurHash3 (32-bit) verification
+   * Bypasses WebCrypto digest latency on large ArrayBuffers
    */
   static fastHash32(buffer, seed = 0x9747b28c) {
     const bytes = new Uint8Array(buffer);
@@ -52,18 +52,18 @@ export class ChunkIndexer {
   }
 
   /**
-   * Builds an O(1) Segment Interval Index & Inverted Term Index
+   * Builds O(1) Segment Interval Map and Inverted Layer Index
    */
   static splitAndIndex(modelBlob, modelName, onProgress) {
     return new Promise(async (resolve, reject) => {
       try {
         const totalBytes = modelBlob.size;
-        const totalChunks = Math.ceil(totalBytes / ChunkIndexer.CHUNK_SIZE);
-        const chunks = [];
+        const totalSegments = Math.ceil(totalBytes / ChunkIndexer.CHUNK_SIZE);
+        const segments = [];
         const segmentTable = [];
         const invertedIndex = new Map();
 
-        for (let i = 0; i < totalChunks; i++) {
+        for (let i = 0; i < totalSegments; i++) {
           const start = i * ChunkIndexer.CHUNK_SIZE;
           const end = Math.min(start + ChunkIndexer.CHUNK_SIZE, totalBytes);
           const slice = modelBlob.slice(start, end);
@@ -77,14 +77,14 @@ export class ChunkIndexer {
             chunkId: `${modelName}_seg_${i}`,
             modelName,
             index: i,
-            totalChunks,
+            totalSegments,
             byteOffset: start,
             byteLength: binary.byteLength,
             checksum,
             layerRange: [layerStart, layerEnd],
             contextPointers: {
               prev: i > 0 ? `${modelName}_seg_${i - 1}` : null,
-              next: i + 1 < totalChunks ? `${modelName}_seg_${i + 1}` : null
+              next: i + 1 < totalSegments ? `${modelName}_seg_${i + 1}` : null
             }
           };
 
@@ -98,20 +98,19 @@ export class ChunkIndexer {
             checksum
           });
 
-          // Inverted index for layer-based chunk resolution
           for (let l = layerStart; l <= layerEnd; l++) {
             if (!invertedIndex.has(l)) invertedIndex.set(l, []);
             invertedIndex.get(l).push(i);
           }
 
-          chunks.push({ metadata, binary });
+          segments.push({ metadata, binary });
 
           if (onProgress) {
             onProgress({
-              phase: 'indexing',
+              phase: 'si-radix-indexing',
               current: i + 1,
-              total: totalChunks,
-              percent: (((i + 1) / totalChunks) * 100).toFixed(1)
+              total: totalSegments,
+              percent: (((i + 1) / totalSegments) * 100).toFixed(1)
             });
           }
         }
@@ -119,58 +118,49 @@ export class ChunkIndexer {
         const manifest = {
           modelName,
           totalBytes,
-          chunkSize: ChunkIndexer.CHUNK_SIZE,
-          totalSegments: totalChunks,
+          segmentSize: ChunkIndexer.CHUNK_SIZE,
+          totalSegments,
           segmentTable,
           layerToSegments: Object.fromEntries(invertedIndex)
         };
 
-        resolve({ manifest, chunks });
+        resolve({ manifest, segments });
       } catch (err) {
         reject(err);
       }
     });
   }
 
-  /**
-   * O(1) Lookup: Resolves chunk index directly from linear byte offset
-   */
   static findSegmentByOffset(manifest, byteOffset) {
     if (byteOffset < 0 || byteOffset >= manifest.totalBytes) return null;
-    const idx = Math.floor(byteOffset / manifest.chunkSize);
+    const idx = Math.floor(byteOffset / manifest.segmentSize);
     return manifest.segmentTable[idx] || null;
   }
 
-  /**
-   * O(1) Lookup: Resolves chunk indices containing target transformer layer
-   */
   static findSegmentsByLayer(manifest, layerIndex) {
     return manifest.layerToSegments[layerIndex] || [];
   }
 
-  /**
-   * Fast In-Memory Reassembly with Synchronous Murmur3 Verification
-   */
-  static reassemble(orderedChunks, manifest) {
-    const totalLength = orderedChunks.reduce((acc, c) => acc + c.binary.byteLength, 0);
+  static reassemble(orderedSegments, manifest) {
+    const totalLength = orderedSegments.reduce((acc, s) => acc + s.binary.byteLength, 0);
     const unified = new Uint8Array(totalLength);
 
-    for (let i = 0; i < orderedChunks.length; i++) {
-      const c = orderedChunks[i];
-      if (!c.binary || c.binary.byteLength === 0) {
-        throw new Error(`Detached or empty buffer at segment index ${i}`);
+    for (let i = 0; i < orderedSegments.length; i++) {
+      const s = orderedSegments[i];
+      if (!s.binary || s.binary.byteLength === 0) {
+        throw new Error(`Detached buffer at SI-Radix segment index ${i}`);
       }
 
-      const calculatedChecksum = this.fastHash32(c.binary);
-      const expectedChecksum = c.metadata.checksum;
+      const calculatedChecksum = this.fastHash32(s.binary);
+      const expectedChecksum = s.metadata.checksum;
 
       if (calculatedChecksum !== expectedChecksum) {
         throw new Error(
-          `Checksum mismatch at segment ${i} (expected ${expectedChecksum}, got ${calculatedChecksum})`
+          `SI-Radix Checksum mismatch at segment ${i} (expected ${expectedChecksum}, got ${calculatedChecksum})`
         );
       }
 
-      unified.set(new Uint8Array(c.binary), c.metadata.byteOffset);
+      unified.set(new Uint8Array(s.binary), s.metadata.byteOffset);
     }
 
     return unified.buffer;
