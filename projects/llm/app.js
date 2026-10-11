@@ -2,6 +2,9 @@ import { StorageService } from './storage.js';
 import { HuggingFaceDownloader } from './downloader.js';
 import { MeshCoordinator } from './mesh.js';
 
+// ============================================================================
+// 1. Service Worker & PWA Update Lifecycle Management[span_0](start_span)[span_0](end_span)
+// ============================================================================
 let newWorkerWaiting = null;
 let refreshing = false;
 
@@ -31,22 +34,24 @@ if ('serviceWorker' in navigator) {
     if (btnCheckUpdate) {
       btnCheckUpdate.addEventListener('click', async () => {
         btnCheckUpdate.disabled = true;
-        if (updateStatusLabel) updateStatusLabel.textContent = 'Checking server for updates...';
+        if (updateStatusLabel) updateStatusLabel.textContent = 'Checking server for revisions...';
         try {
           await reg.update();
           setTimeout(() => {
             if (!newWorkerWaiting && updateStatusLabel) {
-              updateStatusLabel.textContent = 'No updates found. Running latest version.';
+              updateStatusLabel.textContent = 'No updates found. Running latest revision.';
             }
             btnCheckUpdate.disabled = false;
           }, 800);
         } catch (err) {
-          if (updateStatusLabel) updateStatusLabel.textContent = 'Failed: ' + err.message;
+          if (updateStatusLabel) updateStatusLabel.textContent = 'Failed to check: ' + err.message;
           btnCheckUpdate.disabled = false;
         }
       });
     }
-  }).catch(console.error);
+  }).catch((err) => {
+    console.error('Service Worker registration failed:', err);
+  });
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!refreshing) {
@@ -61,21 +66,27 @@ if (btnApplyUpdate) {
     if (newWorkerWaiting) newWorkerWaiting.postMessage({ type: 'SKIP_WAITING' });
   });
 }
+
 if (btnDismissUpdate) {
   btnDismissUpdate.addEventListener('click', () => {
     if (updateToast) updateToast.classList.remove('show');
   });
 }
 
+// ============================================================================
+// 2. Identity & DOM References[span_1](start_span)[span_1](end_span)
+// ============================================================================
 const nodeId = 'Node_' + Math.random().toString(36).substring(2, 7);
 const nodeLabel = document.getElementById('node-label');
 if (nodeLabel) nodeLabel.textContent = `Node ID: ${nodeId}`;
 
+// Chat Interface Elements[span_2](start_span)[span_2](end_span)
 const chatStream = document.getElementById('chat-stream');
 const inputPrompt = document.getElementById('input-prompt');
 const btnSend = document.getElementById('btn-send');
 const engineStatus = document.getElementById('engine-status');
 
+// Training & Dataset Ingestion Elements
 const dropZone = document.getElementById('drop-zone');
 const fileDatasetInput = document.getElementById('file-dataset-input');
 const btnBrowseFile = document.getElementById('btn-browse-file');
@@ -99,6 +110,7 @@ const metricTrainSpeed = document.getElementById('metric-train-speed');
 const trainProgressFill = document.getElementById('train-progress-fill');
 const trainProgressText = document.getElementById('train-progress-text');
 
+// WebMCP Protocol Elements
 const mcpRequestJson = document.getElementById('mcp-request-json');
 const mcpResponseJson = document.getElementById('mcp-response-json');
 const btnSendMcp = document.getElementById('btn-send-mcp');
@@ -107,6 +119,7 @@ const btnMcpTools = document.getElementById('btn-mcp-tools');
 const btnMcpResources = document.getElementById('btn-mcp-resources');
 const btnMcpSample = document.getElementById('btn-mcp-sample');
 
+// Model Downloader & SI-Radix Segment Elements
 const selectModel = document.getElementById('select-model');
 const btnDownloadSplit = document.getElementById('btn-download-split');
 const progressContainer = document.getElementById('progress-container');
@@ -116,6 +129,7 @@ const graphManifest = document.getElementById('graph-manifest');
 const btnClearCache = document.getElementById('btn-clear-cache');
 const clearStatusLabel = document.getElementById('clear-status-label');
 
+// Storage Quota & Segment Table Elements
 const btnRefreshDb = document.getElementById('btn-refresh-db');
 const dbChunksTbody = document.getElementById('db-chunks-tbody');
 const dbSummaryBadge = document.getElementById('db-summary-badge');
@@ -124,15 +138,18 @@ const metricStorageQuota = document.getElementById('metric-storage-quota');
 const metricStorageStatus = document.getElementById('metric-storage-status');
 const btnRequestPersist = document.getElementById('btn-request-persist');
 
+// Hardware Accelerator & WebRTC Mesh Elements[span_3](start_span)[span_3](end_span)
 const btnDeviceCpu = document.getElementById('btn-device-cpu');
 const btnDeviceGpu = document.getElementById('btn-device-gpu');
 const activeDeviceLabel = document.getElementById('active-device-label');
+
 const peerStatus = document.getElementById('peer-status');
 const hostTokenOut = document.getElementById('host-token-out');
 const joinTokenIn = document.getElementById('join-token-in');
 const btnHostPin = document.getElementById('btn-host-pin');
 const btnConnectPin = document.getElementById('btn-connect-pin');
 
+// Telemetry & Diagnostic Console Elements[span_4](start_span)[span_4](end_span)
 const metricTPS = document.getElementById('metric-tps');
 const metricTTFT = document.getElementById('metric-ttft');
 const metricActiveSlices = document.getElementById('metric-active-slices');
@@ -142,6 +159,9 @@ const btnClearLogs = document.getElementById('btn-clear-logs');
 
 let loadedDatasetText = '';
 
+// ============================================================================
+// 3. Navigation View Routing (Mobile-First View Switcher)[span_5](start_span)[span_5](end_span)
+// ============================================================================
 const navTabs = document.querySelectorAll('.nav-tab');
 const appViews = document.querySelectorAll('.app-view');
 
@@ -156,6 +176,9 @@ navTabs.forEach((tab) => {
       else view.classList.remove('active');
     });
 
+    if (targetId === 'view-chat' && chatStream) {
+      chatStream.scrollTop = chatStream.scrollHeight;
+    }
     if (targetId === 'view-db') {
       await renderDatabaseView();
       await updateStorageMetrics();
@@ -163,6 +186,9 @@ navTabs.forEach((tab) => {
   });
 });
 
+// ============================================================================
+// 4. Persistence Service & Diagnostic Event Logging[span_6](start_span)[span_6](end_span)
+// ============================================================================
 const storage = new StorageService();
 await storage.init();
 
@@ -197,16 +223,26 @@ if (btnClearLogs) {
   });
 }
 
+// Restore prior chat session history[span_7](start_span)[span_7](end_span)
+const pastMessages = await storage.getMessages();
+pastMessages.forEach((m) => renderMessage(m.role, m.text));
+
+// ============================================================================
+// 5. Background Worker Pipeline & Inter-Worker MessageChannel[span_8](start_span)[span_8](end_span)
+// ============================================================================
 const chunkWorker = new Worker('./chunk-worker.js', { type: 'module' });
 const computeWorker = new Worker('./llm-worker.js', { type: 'module' });
 const webmcpWorker = new Worker('./webmcp-worker.js', { type: 'module' });
 
+// Establish a dedicated zero-copy MessageChannel between the IO and Compute workers[span_9](start_span)[span_9](end_span)
 const channel = new MessageChannel();
 chunkWorker.postMessage({ type: 'CONNECT_COMPUTE_PORT' }, [channel.port1]);
 computeWorker.postMessage({ type: 'CONNECT_CHUNK_PORT' }, [channel.port2]);
 
+// Initialize WebMCP Background Hub
 webmcpWorker.postMessage({ type: 'INIT_WEBMCP' });
 
+// Compile & initialize C-WASM compute kernel[span_10](start_span)[span_10](end_span)
 async function initComputeEngineWasm() {
   try {
     const res = await fetch('./engine.wasm');
@@ -217,11 +253,12 @@ async function initComputeEngineWasm() {
       payload: { engineWasmBinary: wasmBinary, modelName: selectModel.value }
     });
   } catch (err) {
-    console.warn('WASM engine load bypassed:', err.message);
+    console.warn('WASM engine compilation bypassed:', err.message);
   }
 }
 await initComputeEngineWasm();
 
+// Listen for SI-Radix Chunk Worker Events
 chunkWorker.onmessage = async (e) => {
   const { type, payload, message, category, text, progress } = e.data;
 
@@ -231,10 +268,12 @@ chunkWorker.onmessage = async (e) => {
     await appendLog('ERROR', message);
   } else if (type === 'CHUNK_PROGRESS') {
     if (progressFill) progressFill.style.width = `${progress.percent}%`;
-    if (progressText) progressText.textContent = `Indexing SI-Radix: ${progress.current}/${progress.total} (${progress.percent}%)`;
+    if (progressText) {
+      progressText.textContent = `Indexing SI-Radix: ${progress.current}/${progress.total} (${progress.percent}%)`;
+    }
   } else if (type === 'SPLIT_COMPLETE' || type === 'CHUNKS_READY') {
     if (engineStatus) engineStatus.textContent = `Engine: Loaded (${payload.chunkCount} Segments)`;
-    if (progressText) progressText.textContent = `SI-Radix Ready: ${payload.chunkCount} segments mapped.`;
+    if (progressText) progressText.textContent = `SI-Radix Ready: ${payload.chunkCount} segments mapped O(1).`;
     updateSegmentManifest(payload.manifest, payload.modelName);
     if (metricActiveSlices) metricActiveSlices.textContent = `${payload.chunkCount}`;
     await renderDatabaseView();
@@ -246,6 +285,7 @@ chunkWorker.onmessage = async (e) => {
   }
 };
 
+// Listen for WebMCP & Dataset Training Events
 webmcpWorker.onmessage = async (e) => {
   const { type, status, payload } = e.data;
 
@@ -273,31 +313,30 @@ webmcpWorker.onmessage = async (e) => {
       trainProgressText.textContent = `Epoch ${payload.epoch}/${payload.totalEpochs} (${payload.step}/${payload.totalStepsInEpoch}) — ${payload.progressPct}%`;
     }
   } else if (type === 'TRAIN_FINISHED') {
-    btnStartTraining.disabled = false;
-    btnStopTraining.disabled = true;
+    if (btnStartTraining) btnStartTraining.disabled = false;
+    if (btnStopTraining) btnStopTraining.disabled = true;
     if (trainProgressText) {
       trainProgressText.textContent = `Completed ${payload.totalSteps} steps in ${payload.elapsedSec}s.`;
     }
     await appendLog('TRAIN', `Training completed: ${payload.totalSteps} steps in ${payload.elapsedSec}s.`);
-  } else if (type === 'EXPORT_JSONLLM_COMPLETE') {
-    const blob = new Blob([payload.jsonString], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'model.jsonllm';
-    a.click();
-    URL.revokeObjectURL(url);
-
-    alert(`Exported model to JSONLLM with ${payload.segmentsCount} SI-Radix segments!`);
+  } else if (type === 'CONVERT_JSONLLM_SUCCESS') {
+    if (btnExportJsonllm) btnExportJsonllm.disabled = false;
+    alert(
+      `Successfully converted and stored "${payload.modelName}" in IndexedDB!\n` +
+      `Segments: ${payload.segmentsCount} (4MB blocks)\n` +
+      `Compressed Size: ${(payload.compressedSizeBytes / 1024 / 1024).toFixed(2)} MB`
+    );
     await renderDatabaseView();
     await updateStorageMetrics();
-  } else if (type === 'IMPORT_JSONLLM_COMPLETE') {
-    if (engineStatus) engineStatus.textContent = `Engine: Loaded (${payload.modelName})`;
-    alert(`Successfully imported JSONLLM model: ${payload.modelName}`);
-    await appendLog('STORAGE', `Imported JSONLLM model: ${payload.modelName}`);
+  } else if (type === 'LOAD_JSONLLM_SUCCESS') {
+    alert(`Loaded model "${payload.modelName}" from IndexedDB.`);
+    await renderDatabaseView();
   }
 };
 
+// ============================================================================
+// 6. Dataset Ingestion & AdamW Training Studio
+// ============================================================================
 if (btnBrowseFile && fileDatasetInput) {
   btnBrowseFile.addEventListener('click', () => fileDatasetInput.click());
   fileDatasetInput.addEventListener('change', async (e) => {
@@ -382,15 +421,18 @@ if (btnStopTraining) {
   });
 }
 
+// Convert model weights to 4-bit compressed JSONLLM and store in IndexedDB
 if (btnExportJsonllm) {
   btnExportJsonllm.addEventListener('click', () => {
+    btnExportJsonllm.disabled = true;
     webmcpWorker.postMessage({
-      type: 'EXPORT_JSONLLM',
+      type: 'CONVERT_TO_JSONLLM_AND_STORE',
       payload: { modelName: 'browser-nano-llm' }
     });
   });
 }
 
+// Import JSONLLM file and restore directly into memory & IndexedDB
 if (btnImportJsonllmBtn && fileJsonllmImport) {
   btnImportJsonllmBtn.addEventListener('click', () => fileJsonllmImport.click());
   fileJsonllmImport.addEventListener('change', async (e) => {
@@ -398,13 +440,95 @@ if (btnImportJsonllmBtn && fileJsonllmImport) {
     if (!file) return;
 
     const text = await file.text();
-    webmcpWorker.postMessage({
-      type: 'IMPORT_JSONLLM',
-      payload: { jsonString: text, modelName: file.name.replace(/\.[^/.]+$/, '') }
-    });
+    const modelName = file.name.replace(/\.[^/.]+$/, '');
+
+    try {
+      const parsed = JSON.parse(text);
+      await storage.putJSONLLM({
+        modelName,
+        format: parsed.format,
+        createdAt: parsed.createdAt || new Date().toISOString(),
+        config: parsed.config,
+        jsonString: text
+      });
+
+      webmcpWorker.postMessage({
+        type: 'LOAD_JSONLLM_FROM_INDEXEDDB',
+        payload: { modelName }
+      });
+
+      await appendLog('STORAGE', `Imported ${file.name} directly into IndexedDB jsonllm_models store.`);
+      await renderDatabaseView();
+    } catch (err) {
+      alert(`Invalid JSONLLM container: ${err.message}`);
+    }
   });
 }
 
+// ============================================================================
+// 7. WebMCP JSON-RPC Client Presets & Dispatch
+// ============================================================================
+if (btnMcpInit) {
+  btnMcpInit.addEventListener('click', () => {
+    mcpRequestJson.value = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: { protocolVersion: '2024-11-05', clientInfo: { name: 'browser-ui', version: '1.0' } }
+    }, null, 2);
+  });
+}
+
+if (btnMcpTools) {
+  btnMcpTools.addEventListener('click', () => {
+    mcpRequestJson.value = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'tools/list',
+      params: {}
+    }, null, 2);
+  });
+}
+
+if (btnMcpResources) {
+  btnMcpResources.addEventListener('click', () => {
+    mcpRequestJson.value = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 3,
+      method: 'resources/list',
+      params: {}
+    }, null, 2);
+  });
+}
+
+if (btnMcpSample) {
+  btnMcpSample.addEventListener('click', () => {
+    mcpRequestJson.value = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 4,
+      method: 'sampling/createMessage',
+      params: {
+        messages: [{ role: 'user', content: { type: 'text', text: 'Hello model' } }],
+        maxTokens: 32
+      }
+    }, null, 2);
+  });
+}
+
+if (btnSendMcp) {
+  btnSendMcp.addEventListener('click', () => {
+    try {
+      const parsed = JSON.parse(mcpRequestJson.value);
+      webmcpWorker.postMessage({ type: 'WEBMCP_REQUEST', payload: parsed });
+    } catch (err) {
+      alert('Invalid JSON in request: ' + err.message);
+    }
+  });
+}
+
+// ============================================================================
+// 8. Shared Storage Quota & SI-Radix Segment Management[span_11](start_span)[span_11](end_span)
+// ============================================================================
 async function updateStorageMetrics() {
   const quota = await storage.getStorageQuota();
   const isPersisted = await storage.isPersistenceGranted();
@@ -535,82 +659,7 @@ function updateSegmentManifest(manifest, modelName) {
   `;
 }
 
-if (btnMcpInit) {
-  btnMcpInit.addEventListener('click', () => {
-    mcpRequestJson.value = JSON.stringify({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'initialize',
-      params: { protocolVersion: '2024-11-05', clientInfo: { name: 'browser-ui', version: '1.0' } }
-    }, null, 2);
-  });
-}
-
-if (btnMcpTools) {
-  btnMcpTools.addEventListener('click', () => {
-    mcpRequestJson.value = JSON.stringify({
-      jsonrpc: '2.0',
-      id: 2,
-      method: 'tools/list',
-      params: {}
-    }, null, 2);
-  });
-}
-
-if (btnMcpResources) {
-  btnMcpResources.addEventListener('click', () => {
-    mcpRequestJson.value = JSON.stringify({
-      jsonrpc: '2.0',
-      id: 3,
-      method: 'resources/list',
-      params: {}
-    }, null, 2);
-  });
-}
-
-if (btnMcpSample) {
-  btnMcpSample.addEventListener('click', () => {
-    mcpRequestJson.value = JSON.stringify({
-      jsonrpc: '2.0',
-      id: 4,
-      method: 'sampling/createMessage',
-      params: {
-        messages: [{ role: 'user', content: { type: 'text', text: 'Hello model' } }],
-        maxTokens: 32
-      }
-    }, null, 2);
-  });
-}
-
-if (btnSendMcp) {
-  btnSendMcp.addEventListener('click', () => {
-    try {
-      const parsed = JSON.parse(mcpRequestJson.value);
-      webmcpWorker.postMessage({ type: 'WEBMCP_REQUEST', payload: parsed });
-    } catch (err) {
-      alert('Invalid JSON: ' + err.message);
-    }
-  });
-}
-
-if (btnDeviceCpu) {
-  btnDeviceCpu.addEventListener('click', () => {
-    computeWorker.postMessage({ type: 'SET_DEVICE', payload: { device: 'CPU' } });
-    if (activeDeviceLabel) activeDeviceLabel.textContent = 'Active Backend: CPU (WASI SIMD)';
-    btnDeviceCpu.classList.remove('secondary-btn');
-    btnDeviceGpu.classList.add('secondary-btn');
-  });
-}
-
-if (btnDeviceGpu) {
-  btnDeviceGpu.addEventListener('click', () => {
-    computeWorker.postMessage({ type: 'SET_DEVICE', payload: { device: 'GPU' } });
-    if (activeDeviceLabel) activeDeviceLabel.textContent = 'Active Backend: GPU (WebGPU WGSL)';
-    btnDeviceGpu.classList.remove('secondary-btn');
-    btnDeviceCpu.classList.add('secondary-btn');
-  });
-}
-
+// Clear Storage & Hard Reset[span_12](start_span)[span_12](end_span)
 if (btnClearCache) {
   btnClearCache.addEventListener('click', async () => {
     const confirmPurge = confirm('Clear all storage, segments, logs, and caches?');
@@ -644,6 +693,30 @@ if (btnClearCache) {
   });
 }
 
+// ============================================================================
+// 9. Hardware Accelerator Controls (CPU / GPU)
+// ============================================================================
+if (btnDeviceCpu) {
+  btnDeviceCpu.addEventListener('click', () => {
+    computeWorker.postMessage({ type: 'SET_DEVICE', payload: { device: 'CPU' } });
+    if (activeDeviceLabel) activeDeviceLabel.textContent = 'Active Backend: CPU (WASI SIMD)';
+    btnDeviceCpu.classList.remove('secondary-btn');
+    btnDeviceGpu.classList.add('secondary-btn');
+  });
+}
+
+if (btnDeviceGpu) {
+  btnDeviceGpu.addEventListener('click', () => {
+    computeWorker.postMessage({ type: 'SET_DEVICE', payload: { device: 'GPU' } });
+    if (activeDeviceLabel) activeDeviceLabel.textContent = 'Active Backend: GPU (WebGPU WGSL)';
+    btnDeviceGpu.classList.remove('secondary-btn');
+    btnDeviceCpu.classList.add('secondary-btn');
+  });
+}
+
+// ============================================================================
+// 10. Chat Stream & Telemetry Listener[span_13](start_span)[span_13](end_span)
+// ============================================================================
 let currentBubble = null;
 
 function renderMessage(role, text) {
@@ -709,6 +782,7 @@ async function executeChat() {
   currentBubble = null;
   await storage.saveMessage('user', text);
 
+  // Distribute over mesh if connected, otherwise execute locally[span_14](start_span)[span_14](end_span)
   const delegated = mesh.dispatchCompute(text);
   if (delegated) {
     updateAssistantBubble(`[Mesh] Task dispatched to peer: ${delegated.peerKey}`);
@@ -726,6 +800,9 @@ inputPrompt.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') executeChat();
 });
 
+// ============================================================================
+// 11. Serverless WebRTC Data Mesh (PIN Exchange)[span_15](start_span)[span_15](end_span)
+// ============================================================================
 const mesh = new MeshCoordinator(
   nodeId,
   async (msg, peerKey, channel) => {
@@ -780,4 +857,5 @@ if (btnConnectPin) {
   });
 }
 
+// Initial evaluation of quota parameters
 updateStorageMetrics();
