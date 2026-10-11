@@ -1,0 +1,60 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schema/2024-11-05/server.json",
+  "name": "browser-jsonllm-server",
+  "version": "1.0.0",
+  "description": "Browser-native Model Context Protocol server powered by SI-Radix JSONLLM",
+  "capabilities": {
+    "tools": {
+      "listChanged": false
+    },
+    "resources": {
+      "subscribe": false,
+      "listChanged": false
+    },
+    "sampling": {}
+  },
+  "tools": [
+    {
+      "name": "train_model_step",
+      "description": "Run an on-device backpropagation training step with AdamW on arbitrary text",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string", "description": "Training corpus" },
+          "learningRate": { "type": "number", "default": 0.001 }
+        },
+        "required": ["text"]
+      }
+    },
+    {
+      "name": "save_model_si_radix",
+      "description": "Export in-memory model weights to 4MB SI-Radix indexed slices in IndexedDB",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "modelName": { "type": "string", "default": "browser-nano-llm" }
+        }
+      }
+    },
+    {
+      "name": "inspect_storage_quota",
+      "description": "Returns current persistent storage usage and browser quota in megabytes",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ],
+  "resources": [
+    {
+      "uri": "jsonllm://models/active",
+      "name": "Active In-Memory Model Topology",
+      "mimeType": "application/json"
+    },
+    {
+      "uri": "jsonllm://storage/segments",
+      "name": "SI-Radix Partition Table",
+      "mimeType": "application/json"
+    }
+  ]
+}
