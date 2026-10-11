@@ -1,5 +1,6 @@
 /**
- * llm-worker.js - Small JSONLLM Inference & RAG Retrieval Engine
+ * llm-worker.js
+ * Background Inference & Vector RAG Worker for Clean JSONLLM
  */
 
 import { DOMAIN_SPECS, DomainTokenizer } from './domain-specs.js';
@@ -14,8 +15,7 @@ let currentDomain = 'dialog';
 let tokenizer = null;
 let engine = null;
 
-// Intent classification heuristic
-function classifyIntent(text) {
+function classify(text) {
   if (/<(!doctype|html|div|p|body|head|span|button|main)/i.test(text)) return 'html5';
   if (/(#include|int\s+main|printf|void|char\*|struct\b)/.test(text)) return 'clang';
   return 'dialog';
@@ -26,15 +26,16 @@ async function switchModel(domain) {
   const spec = DOMAIN_SPECS[domain];
   tokenizer = new DomainTokenizer(spec);
 
-  const saved = await storage.getModel(spec.modelName);
-  if (saved) {
-    const dec = await JSONLLMCodec.importFromJSONLLM(saved);
+  // Directly load full JSON string from single-record IndexedDB
+  const savedJson = await storage.getModel(spec.modelName);
+  if (savedJson) {
+    const dec = await JSONLLMCodec.importFromJSONLLM(savedJson);
     if (!engine) engine = new NanoTransformer({ ...spec, vocabSize: tokenizer.vocabSize });
     engine.swapWeights({ ...spec, vocabSize: tokenizer.vocabSize }, dec.weights);
   } else {
     engine = new NanoTransformer({ ...spec, vocabSize: tokenizer.vocabSize });
     const corpus = domain === 'dialog'
-      ? "<user> Hello <bot> Greetings! I am your small browser model. <eos>"
+      ? "<user> Hello <bot> Greetings! I am your clean JSON browser model. <eos>"
       : domain === 'clang'
       ? "#include <stdio.h>\nint main() { printf(\"OK\"); return 0; }"
       : "<!DOCTYPE html><html><body><main></main></body></html>";
@@ -52,7 +53,7 @@ async function switchModel(domain) {
   rag = new LocalRAG(64);
   await rag.init(storage);
 
-  await rag.indexDocument('rag_init', 'Small browser-native models learn local syntax and dialogue.');
+  await rag.indexDocument('rag_init', 'Clean WebLLM JSON models run directly in browser tabs.');
   await switchModel('dialog');
 
   self.postMessage({ type: 'STATUS', status: 'Ready: agent-dialog' });
@@ -63,7 +64,7 @@ self.onmessage = async (e) => {
 
   if (type === 'INFER') {
     const { prompt, maxTokens = 32 } = payload;
-    const target = classifyIntent(prompt);
+    const target = classify(prompt);
 
     if (target !== currentDomain) {
       await switchModel(target);
