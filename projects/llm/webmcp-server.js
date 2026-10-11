@@ -16,9 +16,6 @@ export class WebMCPServer {
     return this;
   }
 
-  /**
-   * Main JSON-RPC 2.0 WebMCP message dispatcher
-   */
   async handleMessage(request) {
     if (!request || request.jsonrpc !== '2.0') {
       return this.errorResponse(request?.id, -32600, 'Invalid Request: missing jsonrpc: "2.0"');
@@ -33,7 +30,7 @@ export class WebMCPServer {
 
         case 'notifications/initialized':
           this.initialized = true;
-          return null; // Notifications return no response
+          return null;
 
         case 'tools/list':
           return this.handleToolsList(id);
