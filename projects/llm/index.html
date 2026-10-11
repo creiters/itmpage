@@ -101,6 +101,29 @@
       <!-- Tab 4: IndexedDB Storage & Chunk Viewer -->
       <section id="view-db" class="app-view">
         <div class="settings-content">
+<!-- Inside <section id="view-db"> inside .settings-content -->
+<div class="settings-card">
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h3>Shared Storage & Quota Manager</h3>
+    <button id="btn-request-persist" class="secondary-btn" style="min-height: 28px; padding: 4px 10px; font-size: 0.75rem;">Request Persist</button>
+  </div>
+  
+  <div class="telemetry-grid" style="margin-top: 6px;">
+    <div class="telemetry-item">
+      <span class="telemetry-val" id="metric-storage-used">0 MB</span>
+      <span class="telemetry-lbl">Storage Used</span>
+    </div>
+    <div class="telemetry-item">
+      <span class="telemetry-val" id="metric-storage-quota">0 MB</span>
+      <span class="telemetry-lbl">Quota Available</span>
+    </div>
+    <div class="telemetry-item">
+      <span class="telemetry-val" id="metric-storage-status">Checking...</span>
+      <span class="telemetry-lbl">Persistence Status</span>
+    </div>
+  </div>
+</div>
+
           <div class="settings-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <h3>IndexedDB Chunk Store</h3>
