@@ -1,6 +1,6 @@
 /**
- * jsonllm-codec.js - Pure FP16 Codec Supporting Both FP4 (E2M1) and Q4 (Q4_0)
- * Completely eliminates Float32Array across all allocation paths.
+ * jsonllm-codec.js - Pure FP16 (Half-Precision) & FP4 / Q4 Quantizer
+ * Includes compact dialogue dataset serialization for ultra-low storage footprints.
  */
 
 // Native Float16Array with zero-dependency IEEE 754-2008 half-precision fallback
@@ -44,13 +44,12 @@ export const HalfFloatArray = typeof Float16Array !== 'undefined'
       }
     };
 
-// Precomputed FP4 E2M1 Unpack Table (16 normalized grid points)
+// Precomputed FP4 E2M1 Grid
 const FP4_GRID = [
   0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0,
   -0.0, -0.5, -1.0, -1.5, -2.0, -3.0, -4.0, -6.0
 ];
 
-// Precomputed 256-entry byte lookup table for double-nibble fast unpacking
 const FP4_BYTE_LUT_LOW = new HalfFloatArray(256);
 const FP4_BYTE_LUT_HIGH = new HalfFloatArray(256);
 for (let b = 0; b < 256; b++) {
@@ -61,9 +60,7 @@ for (let b = 0; b < 256; b++) {
 export class JSONLLMCodec {
   static BLOCK_SIZE = 32;
 
-  // ==========================================
-  // 1. FP4 (E2M1) Quantization & Dequantization
-  // ==========================================
+  // FP4 E2M1 Microscaled Block Quantization
   static quantizeFP4(halfArray) {
     const totalBlocks = Math.ceil(halfArray.length / this.BLOCK_SIZE);
     const scales = new HalfFloatArray(totalBlocks);
@@ -89,12 +86,10 @@ export class JSONLLMCodec {
 
         const q0 = this._findClosestFP4(v0);
         const q1 = this._findClosestFP4(v1);
-
         packedBytes[byteIdx++] = (q1 << 4) | (q0 & 0x0f);
       }
     }
-
-    return { scales, packedBytes, len: halfArray.length, type: 'fp4_e2m1' };
+    return { scales, packedBytes, len: halfArray.length, type: 'fp4' };
   }
 
   static _findClosestFP4(val) {
@@ -129,9 +124,7 @@ export class JSONLLMCodec {
     return out;
   }
 
-  // ==========================================
-  // 2. Q4 (Q4_0) Quantization & Dequantization
-  // ==========================================
+  // Q4_0 Integer Block Quantization
   static quantizeQ4(halfArray) {
     const totalBlocks = Math.ceil(halfArray.length / this.BLOCK_SIZE);
     const scales = new HalfFloatArray(totalBlocks);
@@ -157,15 +150,12 @@ export class JSONLLMCodec {
       for (let i = 0; i < this.BLOCK_SIZE; i += 2) {
         const v0 = start + i < halfArray.length ? halfArray[start + i] : minVal;
         const v1 = start + i + 1 < halfArray.length ? halfArray[start + i + 1] : minVal;
-
         const q0 = Math.max(0, Math.min(15, Math.round((v0 - minVal) / scale)));
         const q1 = Math.max(0, Math.min(15, Math.round((v1 - minVal) / scale)));
-
         packedBytes[byteIdx++] = (q1 << 4) | (q0 & 0x0f);
       }
     }
-
-    return { scales, mins, packedBytes, len: halfArray.length, type: 'q4_0' };
+    return { scales, mins, packedBytes, len: halfArray.length, type: 'q4' };
   }
 
   static dequantizeQ4(scales, mins, packedBytes, originalLength) {
@@ -177,24 +167,18 @@ export class JSONLLMCodec {
     for (let b = 0; b < totalBlocks && outIdx < originalLength; b++) {
       const scale = scales[b];
       const minVal = mins[b];
-
       for (let i = 0; i < this.BLOCK_SIZE / 2 && outIdx < originalLength; i++) {
         const byte = packedBytes[byteIdx++];
-        const q0 = byte & 0x0f;
-        const q1 = (byte >> 4) & 0x0f;
-
-        out[outIdx++] = q0 * scale + minVal;
+        out[outIdx++] = (byte & 0x0f) * scale + minVal;
         if (outIdx < originalLength) {
-          out[outIdx++] = q1 * scale + minVal;
+          out[outIdx++] = ((byte >> 4) & 0x0f) * scale + minVal;
         }
       }
     }
     return out;
   }
 
-  // ==========================================
-  // 3. Compression & JSON Packaging
-  // ==========================================
+  // Deflate Compression & Base64 Stream Helpers
   static async compress(buffer) {
     if (typeof CompressionStream !== 'undefined') {
       const cs = new CompressionStream('deflate');
@@ -235,6 +219,66 @@ export class JSONLLMCodec {
     return bytes;
   }
 
+  // Compact Dialogue Dataset Serializer (< 2 KB for dozens of conversations)
+  static async exportDialogueDataset(tokenizer, dialoguePairs) {
+    // Delta-encode token pairs into Uint16 sequences
+    const tokenSequences = [];
+    for (const pair of dialoguePairs) {
+      const uTokens = tokenizer.encode(pair.u);
+      const bTokens = tokenizer.encode(pair.b);
+      // Format: [len_u, ...uTokens, len_b, ...bTokens]
+      const packed = [uTokens.length, ...uTokens, bTokens.length, ...bTokens];
+      tokenSequences.push(packed);
+    }
+
+    const flatArray = new Uint16Array(tokenSequences.flat());
+    const compressed = await this.compress(flatArray.buffer);
+
+    const payload = {
+      format: 'jsonllm/dialog-v3',
+      createdAt: new Date().toISOString(),
+      pairCount: dialoguePairs.length,
+      vocab: Object.fromEntries(tokenizer.tokenToId),
+      data: this.bytesToBase64(new Uint8Array(compressed))
+    };
+    return JSON.stringify(payload);
+  }
+
+  static async importDialogueDataset(jsonString, tokenizer) {
+    const parsed = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
+    const bytes = this.base64ToBytes(parsed.data);
+    const decompressed = await this.decompress(bytes.buffer);
+    const flat = new Uint16Array(decompressed);
+
+    // Sync dictionary
+    if (parsed.vocab) {
+      for (const [word, id] of Object.entries(parsed.vocab)) {
+        tokenizer.tokenToId.set(word, id);
+        tokenizer.idToToken.set(id, word);
+      }
+      tokenizer.vocabSize = Math.max(tokenizer.vocabSize, tokenizer.tokenToId.size);
+    }
+
+    const pairs = [];
+    let idx = 0;
+    while (idx < flat.length) {
+      const uLen = flat[idx++];
+      const uToks = Array.from(flat.subarray(idx, idx + uLen));
+      idx += uLen;
+
+      const bLen = flat[idx++];
+      const bToks = Array.from(flat.subarray(idx, idx + bLen));
+      idx += bLen;
+
+      pairs.push({
+        u: tokenizer.decode(uToks),
+        b: tokenizer.decode(bToks)
+      });
+    }
+    return pairs;
+  }
+
+  // Export 4M Model Weights
   static async exportToJSONLLM(config, tokenizer, weights, mode = 'fp4') {
     const tensors = {};
 
@@ -262,7 +306,7 @@ export class JSONLLMCodec {
     }
 
     const payload = {
-      format: 'jsonllm/v2-pure16',
+      format: 'jsonllm/v3-pure16',
       quantMode: mode,
       createdAt: new Date().toISOString(),
       config,
@@ -272,7 +316,6 @@ export class JSONLLMCodec {
       },
       tensors
     };
-
     return JSON.stringify(payload);
   }
 
