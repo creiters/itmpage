@@ -1,18 +1,24 @@
-const CACHE_NAME = 'shared-llm-v6';
+const CACHE_NAME = 'shared-llm-v8';
 const ASSETS = [
   './',
   './index.html',
   './style.css',
   './manifest.json',
+  './webmcp.json',
   './app.js',
   './storage.js',
   './merkle-chunker.js',
   './downloader.js',
   './mesh.js',
-  './wasm-engine.js',
-  './gguf-parser.js',
   './tokenizer.js',
+  './gguf-parser.js',
+  './gpu-kernel.js',
+  './wasm-engine.js',
+  './nano-engine.js',
+  './webmcp-server.js',
+  './chunk-worker.js',
   './llm-worker.js',
+  './webmcp-worker.js',
   './engine.wasm'
 ];
 
