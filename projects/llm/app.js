@@ -76,7 +76,6 @@ const inputPrompt = document.getElementById('input-prompt');
 const btnSend = document.getElementById('btn-send');
 const engineStatus = document.getElementById('engine-status');
 
-// Training & JSONLLM Studio Elements
 const dropZone = document.getElementById('drop-zone');
 const fileDatasetInput = document.getElementById('file-dataset-input');
 const btnBrowseFile = document.getElementById('btn-browse-file');
@@ -100,7 +99,6 @@ const metricTrainSpeed = document.getElementById('metric-train-speed');
 const trainProgressFill = document.getElementById('train-progress-fill');
 const trainProgressText = document.getElementById('train-progress-text');
 
-// WebMCP Protocol Elements
 const mcpRequestJson = document.getElementById('mcp-request-json');
 const mcpResponseJson = document.getElementById('mcp-response-json');
 const btnSendMcp = document.getElementById('btn-send-mcp');
@@ -109,7 +107,6 @@ const btnMcpTools = document.getElementById('btn-mcp-tools');
 const btnMcpResources = document.getElementById('btn-mcp-resources');
 const btnMcpSample = document.getElementById('btn-mcp-sample');
 
-// Model & Storage Elements
 const selectModel = document.getElementById('select-model');
 const btnDownloadSplit = document.getElementById('btn-download-split');
 const progressContainer = document.getElementById('progress-container');
@@ -127,7 +124,6 @@ const metricStorageQuota = document.getElementById('metric-storage-quota');
 const metricStorageStatus = document.getElementById('metric-storage-status');
 const btnRequestPersist = document.getElementById('btn-request-persist');
 
-// Hardware & Mesh Elements
 const btnDeviceCpu = document.getElementById('btn-device-cpu');
 const btnDeviceGpu = document.getElementById('btn-device-gpu');
 const activeDeviceLabel = document.getElementById('active-device-label');
@@ -137,7 +133,6 @@ const joinTokenIn = document.getElementById('join-token-in');
 const btnHostPin = document.getElementById('btn-host-pin');
 const btnConnectPin = document.getElementById('btn-connect-pin');
 
-// Telemetry Elements
 const metricTPS = document.getElementById('metric-tps');
 const metricTTFT = document.getElementById('metric-ttft');
 const metricActiveSlices = document.getElementById('metric-active-slices');
@@ -147,7 +142,6 @@ const btnClearLogs = document.getElementById('btn-clear-logs');
 
 let loadedDatasetText = '';
 
-// Navigation Switching
 const navTabs = document.querySelectorAll('.nav-tab');
 const appViews = document.querySelectorAll('.app-view');
 
@@ -203,7 +197,6 @@ if (btnClearLogs) {
   });
 }
 
-// Background Worker Pipeline
 const chunkWorker = new Worker('./chunk-worker.js', { type: 'module' });
 const computeWorker = new Worker('./llm-worker.js', { type: 'module' });
 const webmcpWorker = new Worker('./webmcp-worker.js', { type: 'module' });
@@ -229,7 +222,6 @@ async function initComputeEngineWasm() {
 }
 await initComputeEngineWasm();
 
-// Chunk Worker Event Listener
 chunkWorker.onmessage = async (e) => {
   const { type, payload, message, category, text, progress } = e.data;
 
@@ -254,7 +246,6 @@ chunkWorker.onmessage = async (e) => {
   }
 };
 
-// WebMCP Worker Event Listener
 webmcpWorker.onmessage = async (e) => {
   const { type, status, payload } = e.data;
 
@@ -289,7 +280,6 @@ webmcpWorker.onmessage = async (e) => {
     }
     await appendLog('TRAIN', `Training completed: ${payload.totalSteps} steps in ${payload.elapsedSec}s.`);
   } else if (type === 'EXPORT_JSONLLM_COMPLETE') {
-    // Offer JSONLLM download as file
     const blob = new Blob([payload.jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -308,7 +298,6 @@ webmcpWorker.onmessage = async (e) => {
   }
 };
 
-// Training Dataset Ingestion
 if (btnBrowseFile && fileDatasetInput) {
   btnBrowseFile.addEventListener('click', () => fileDatasetInput.click());
   fileDatasetInput.addEventListener('change', async (e) => {
@@ -354,7 +343,6 @@ async function processUploadedFiles(files) {
   await appendLog('TRAIN', `Loaded ${files.length} files into training buffer (~${approxTokens} tokens).`);
 }
 
-// Training Execution Controls
 if (btnStartTraining) {
   btnStartTraining.addEventListener('click', () => {
     const text = trainTextInput.value.trim();
@@ -394,7 +382,6 @@ if (btnStopTraining) {
   });
 }
 
-// JSONLLM Export & Import Triggers
 if (btnExportJsonllm) {
   btnExportJsonllm.addEventListener('click', () => {
     webmcpWorker.postMessage({
@@ -418,7 +405,6 @@ if (btnImportJsonllmBtn && fileJsonllmImport) {
   });
 }
 
-// Database View & Quota
 async function updateStorageMetrics() {
   const quota = await storage.getStorageQuota();
   const isPersisted = await storage.isPersistenceGranted();
@@ -549,7 +535,6 @@ function updateSegmentManifest(manifest, modelName) {
   `;
 }
 
-// WebMCP Buttons
 if (btnMcpInit) {
   btnMcpInit.addEventListener('click', () => {
     mcpRequestJson.value = JSON.stringify({
@@ -608,7 +593,6 @@ if (btnSendMcp) {
   });
 }
 
-// Hardware Dispatch
 if (btnDeviceCpu) {
   btnDeviceCpu.addEventListener('click', () => {
     computeWorker.postMessage({ type: 'SET_DEVICE', payload: { device: 'CPU' } });
@@ -627,7 +611,6 @@ if (btnDeviceGpu) {
   });
 }
 
-// Storage Reset
 if (btnClearCache) {
   btnClearCache.addEventListener('click', async () => {
     const confirmPurge = confirm('Clear all storage, segments, logs, and caches?');
@@ -661,7 +644,6 @@ if (btnClearCache) {
   });
 }
 
-// Chat Flow
 let currentBubble = null;
 
 function renderMessage(role, text) {
@@ -744,7 +726,6 @@ inputPrompt.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') executeChat();
 });
 
-// Mesh Setup
 const mesh = new MeshCoordinator(
   nodeId,
   async (msg, peerKey, channel) => {
