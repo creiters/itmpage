@@ -1,8 +1,15 @@
+/**
+ * storage.js - Production IndexedDB Service with Dedicated Dialogue Storage
+ */
+
 export class StorageService {
-  constructor(dbName = 'Clean_JSONLLM_Store', version = 1) {
+  constructor(dbName = 'Clean_JSONLLM_Store', version = 2) {
     this.dbName = dbName;
     this.version = version;
     this.db = null;
+    this.broadcast = typeof BroadcastChannel !== 'undefined'
+      ? new BroadcastChannel('jsonllm-sync')
+      : null;
   }
 
   async init() {
@@ -13,6 +20,9 @@ export class StorageService {
         const db = e.target.result;
         if (!db.objectStoreNames.contains('json_models')) {
           db.createObjectStore('json_models', { keyPath: 'modelName' });
+        }
+        if (!db.objectStoreNames.contains('dialogue_datasets')) {
+          db.createObjectStore('dialogue_datasets', { keyPath: 'datasetName' });
         }
         if (!db.objectStoreNames.contains('rag_docs')) {
           db.createObjectStore('rag_docs', { keyPath: 'docId' });
@@ -65,6 +75,42 @@ export class StorageService {
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction('json_models', 'readonly');
       const store = tx.objectStore('json_models');
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  // Dialogue Dataset Operations (< 2 KB payloads)
+  async putDialogueDataset(datasetName, jsonPayload) {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('dialogue_datasets', 'readwrite');
+      const store = tx.objectStore('dialogue_datasets');
+      const req = store.put({
+        datasetName,
+        jsonPayload,
+        bytes: jsonPayload.length,
+        updated: Date.now()
+      });
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async getDialogueDataset(datasetName) {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('dialogue_datasets', 'readonly');
+      const store = tx.objectStore('dialogue_datasets');
+      const req = store.get(datasetName);
+      req.onsuccess = () => resolve(req.result ? req.result.jsonPayload : null);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async getAllDialogueDatasets() {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('dialogue_datasets', 'readonly');
+      const store = tx.objectStore('dialogue_datasets');
       const req = store.getAll();
       req.onsuccess = () => resolve(req.result || []);
       req.onerror = () => reject(req.error);
@@ -133,7 +179,7 @@ export class StorageService {
 
   async clearAll() {
     return new Promise((resolve, reject) => {
-      const stores = ['json_models', 'rag_docs', 'chat_history', 'event_logs'];
+      const stores = ['json_models', 'dialogue_datasets', 'rag_docs', 'chat_history', 'event_logs'];
       const tx = this.db.transaction(stores, 'readwrite');
       for (const s of stores) tx.objectStore(s).clear();
       tx.oncomplete = () => resolve(true);
