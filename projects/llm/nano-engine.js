@@ -1,3 +1,5 @@
+import { JSONLLMCodec } from './jsonllm-codec.js';
+
 export class NanoTokenizer {
   constructor(vocabSize = 1024) {
     this.vocabSize = vocabSize;
@@ -54,7 +56,7 @@ export class NanoTransformer {
     this.grads = {};
     this.adamM = {};
     this.adamV = {};
-    this.stepCount = 0;
+    this.stepCount = config.stepCount || 0;
 
     this.tokenizer = new NanoTokenizer(this.vocabSize);
     this.initWeights();
@@ -442,16 +444,33 @@ export class NanoTransformer {
     return fullText;
   }
 
-  serializeToSegmentArray() {
-    let totalElements = 0;
-    for (const key in this.weights) totalElements += this.weights[key].length;
+  /**
+   * Apply restored weights from a JSONLLM container
+   */
+  loadFromJSONLLMPayload(imported) {
+    this.dim = imported.config.dim;
+    this.layers = imported.config.layers;
+    this.heads = imported.config.heads;
+    this.headDim = this.dim / this.heads;
+    this.vocabSize = imported.config.vocabSize;
+    this.maxSeqLen = imported.config.maxSeqLen;
+    this.stepCount = imported.config.stepCount || 0;
 
-    const buffer = new Float32Array(totalElements);
-    let offset = 0;
+    this.weights = imported.weights;
+    this.grads = {};
+    this.adamM = {};
+    this.adamV = {};
+
     for (const key in this.weights) {
-      buffer.set(this.weights[key], offset);
-      offset += this.weights[key].length;
+      const size = this.weights[key].length;
+      this.grads[key] = new Float32Array(size);
+      this.adamM[key] = new Float32Array(size);
+      this.adamV[key] = new Float32Array(size);
     }
-    return buffer.buffer;
+
+    if (imported.tokenizer) {
+      this.tokenizer.tokenToId = new Map(Object.entries(imported.tokenizer.tokenToId).map(([k, v]) => [k, Number(v)]));
+      this.tokenizer.idToToken = new Map(Object.entries(imported.tokenizer.idToToken).map(([k, v]) => [Number(k), v]));
+    }
   }
 }
