@@ -10,6 +10,10 @@ let rag = null;
 let server = null;
 let isTrainingActive = false;
 
+function log(category, text) {
+  self.postMessage({ type: 'LOG', category, text });
+}
+
 (async () => {
   storage = new StorageService();
   await storage.init();
@@ -26,7 +30,7 @@ let isTrainingActive = false;
   });
 
   server = new WebMCPServer(engine, storage, rag, JSONLLMCodec);
-  self.postMessage({ type: 'STATUS', status: 'WebMCP Ready (vimtoLLM FP16/FP4)' });
+  self.postMessage({ type: 'STATUS', status: 'WebMCP Ready' });
 })();
 
 self.onmessage = async (e) => {
@@ -38,13 +42,19 @@ self.onmessage = async (e) => {
     return;
   }
 
-  if (type === 'START_TRAIN') {
-    const { text, epochs = 5, lr = 0.003, seqLen = 48 } = payload;
+  // Train with Strict JSON Array of Dialogue Turns
+  if (type === 'START_TRAIN_JSON') {
+    const { targetAgent = 'vimto-dialog', pairs, epochs = 5, lr = 0.003, seqLen = 48 } = payload;
     isTrainingActive = true;
 
-    const allTokens = engine.tokenizer.encode(text);
+    log('TRAIN', `Preparing JSON training for ${targetAgent} on ${pairs.length} dialogue turns...`);
+
+    // Format strictly into sequence
+    const formattedText = pairs.map((p) => `<user> ${p.u} <bot> ${p.b} <eos>`).join(' ');
+    const allTokens = engine.tokenizer.encode(formattedText);
+
     if (allTokens.length < 4) {
-      self.postMessage({ type: 'LOG', category: 'ERROR', text: 'Text too short (min 4 tokens).' });
+      log('ERROR', 'Dataset too short (min 4 tokens).');
       return;
     }
 
@@ -54,12 +64,6 @@ self.onmessage = async (e) => {
       sequences.push(allTokens.slice(i, i + seqLen + 1));
     }
     if (sequences.length === 0) sequences.push(allTokens);
-
-    self.postMessage({
-      type: 'LOG',
-      category: 'TRAIN',
-      text: `Training vimtoLLM on ${allTokens.length} tokens across ${sequences.length} batches (${epochs} epochs)...`
-    });
 
     const tStart = performance.now();
     let totalSteps = 0;
@@ -105,21 +109,25 @@ self.onmessage = async (e) => {
     isTrainingActive = false;
     self.postMessage({
       type: 'TRAIN_DONE',
+      targetAgent,
       loss: (epLossSum / sequences.length).toFixed(4),
       ppl: Math.exp(Math.min(10, epLossSum / sequences.length)).toFixed(2)
     });
     return;
   }
 
+  // Save Agent-Scoped Compact Dialogue Dataset (< 2 KB)
   if (type === 'SAVE_COMPACT_DIALOGUE') {
-    const { datasetName, pairs } = payload;
+    const { datasetName, agentId = 'vimto-dialog', pairs } = payload;
+    log('STORAGE', `Compressing dialogue package "${datasetName}" for ${agentId}...`);
     const compactJSON = await JSONLLMCodec.exportDialogueDataset(engine.tokenizer, pairs);
-    await storage.putDialogueDataset(datasetName, compactJSON);
+    await storage.putDialogueDataset(datasetName, agentId, compactJSON);
 
     self.postMessage({
       type: 'SAVE_DIALOGUE_COMPLETE',
       payload: {
         datasetName,
+        agentId,
         pairCount: pairs.length,
         bytes: compactJSON.length,
         sizeKb: (compactJSON.length / 1024).toFixed(2)
@@ -128,11 +136,10 @@ self.onmessage = async (e) => {
     return;
   }
 
+  // Generate and Save Model
   if (type === 'GENERATE_JSONLLM') {
-    const modelName = payload?.modelName || 'vimtollm-4m';
-    const mode = payload?.mode || 'fp4';
-
-    self.postMessage({ type: 'LOG', category: 'STORAGE', text: `Quantizing vimtoLLM weights into ${mode.toUpperCase()} Deflate format...` });
+    const { modelName = 'vimto-dialog', mode = 'fp4' } = payload;
+    log('STORAGE', `Quantizing ${modelName} weights to ${mode.toUpperCase()}...`);
 
     const jsonString = await JSONLLMCodec.exportToJSONLLM(
       { dim: engine.dim, layers: engine.layers, heads: engine.heads, ffnDim: engine.ffnDim, vocabSize: engine.vocabSize, maxSeqLen: engine.maxSeqLen },
