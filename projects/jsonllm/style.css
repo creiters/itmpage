@@ -471,7 +471,3 @@ button:disabled {
 .nav-tab.active {
   color: var(--accent-glow);
 }
-
-.hidden-file-input {
-  display: none;
-}
