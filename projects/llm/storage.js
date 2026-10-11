@@ -46,13 +46,9 @@ export class StorageService {
     });
   }
 
-  /**
-   * Best Practice 1: Request persistent storage permission to prevent OS eviction
-   */
   async requestPersistence() {
     if (navigator.storage && navigator.storage.persist) {
-      const isPersisted = await navigator.storage.persist();
-      return isPersisted;
+      return await navigator.storage.persist();
     }
     return false;
   }
@@ -64,9 +60,6 @@ export class StorageService {
     return false;
   }
 
-  /**
-   * Best Practice 2: Query real-time device storage quota and usage
-   */
   async getStorageQuota() {
     if (navigator.storage && navigator.storage.estimate) {
       const { usage, quota } = await navigator.storage.estimate();
@@ -81,9 +74,6 @@ export class StorageService {
     return { usageBytes: 0, quotaBytes: 0, usageMB: '0', quotaMB: '0', percentUsed: '0' };
   }
 
-  /**
-   * Best Practice 3: Cross-context Mutual Exclusion via Web Locks API
-   */
   async withLock(lockName, fn) {
     if (navigator.locks) {
       return await navigator.locks.request(lockName, fn);
@@ -91,9 +81,6 @@ export class StorageService {
     return await fn();
   }
 
-  /**
-   * Best Practice 4: Single-transaction batch chunk write with broadcast notifications
-   */
   async batchPutChunks(chunks, onProgress) {
     return this.withLock('db-write-lock', async () => {
       return new Promise((resolve, reject) => {
@@ -113,7 +100,7 @@ export class StorageService {
         };
 
         tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(new Error('Batch chunk transaction aborted (quota exceeded or timeout).'));
+        tx.onabort = () => reject(new Error('Batch transaction aborted.'));
 
         for (const chunk of chunks) {
           const req = store.put({
