@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shared-llm-v8';
+const CACHE_NAME = 'shared-llm-v9';
 const ASSETS = [
   './',
   './index.html',
@@ -7,7 +7,7 @@ const ASSETS = [
   './webmcp.json',
   './app.js',
   './storage.js',
-  './merkle-chunker.js',
+  './chunk-indexer.js',
   './downloader.js',
   './mesh.js',
   './tokenizer.js',
