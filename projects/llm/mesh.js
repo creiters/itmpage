@@ -123,4 +123,12 @@ export class MeshCoordinator {
     if (channel.readyState !== 'open') return;
     channel.send(JSON.stringify({ type: 'INFERENCE_RESPONSE', taskId, text, isDone }));
   }
+
+  sendJSONLLMToPeer(channel, jsonString) {
+    if (channel.readyState !== 'open') return;
+    channel.send(JSON.stringify({
+      type: 'JSONLLM_TRANSFER',
+      payload: jsonString
+    }));
+  }
 }
