@@ -216,7 +216,7 @@ chunkWorker.onmessage = async (e) => {
   } else if (type === 'SPLIT_COMPLETE' || type === 'CHUNKS_READY') {
     if (engineStatus) engineStatus.textContent = `Engine: Loaded (${payload.chunkCount} Segments)`;
     if (progressText) progressText.textContent = `SI-Radix Ready: ${payload.chunkCount} segments mapped O(1).`;
-    updateDAGManifest(payload.manifest, payload.modelName);
+    updateSegmentManifest(payload.manifest, payload.modelName);
     if (metricActiveSlices) metricActiveSlices.textContent = `${payload.chunkCount}`;
     await renderDatabaseView();
     await updateStorageMetrics();
@@ -270,6 +270,10 @@ webmcpWorker.onmessage = async (e) => {
       trainProgressText.textContent = `Completed ${payload.totalSteps} steps in ${payload.elapsedSec}s.`;
     }
     await appendLog('TRAIN', `Training completed: ${payload.totalSteps} steps in ${payload.elapsedSec}s.`);
+  } else if (type === 'SAVE_COMPLETE') {
+    alert(`Model serialized into ${payload.chunksCount} SI-Radix segments!`);
+    await renderDatabaseView();
+    await updateStorageMetrics();
   }
 };
 
@@ -392,7 +396,7 @@ btnDownloadSplit.addEventListener('click', async () => {
   }
 });
 
-function updateDAGManifest(manifest, modelName) {
+function updateSegmentManifest(manifest, modelName) {
   if (!manifest || !graphManifest) return;
   graphManifest.innerHTML = `
     <strong>Model:</strong> ${modelName}<br>
@@ -401,6 +405,80 @@ function updateDAGManifest(manifest, modelName) {
     <strong>Resolution:</strong> O(1) Direct Offset Arithmetic Lookup<br>
     <strong>Verification:</strong> Murmur3 32-bit Checksum Vector
   `;
+}
+
+if (btnTrainStep) {
+  btnTrainStep.addEventListener('click', () => {
+    const text = trainTextInput.value.trim();
+    if (!text) return alert('Enter training text.');
+    btnTrainStep.disabled = true;
+    trainMetricsBadge.textContent = 'Training step in progress...';
+    webmcpWorker.postMessage({ type: 'START_DATASET_TRAINING', payload: { datasetText: text, epochs: 1, batchSize: 4 } });
+  });
+}
+
+if (btnSaveWeights) {
+  btnSaveWeights.addEventListener('click', () => {
+    webmcpWorker.postMessage({ type: 'SAVE_MODEL_TO_SI_RADIX', payload: { modelName: 'browser-nano-llm' } });
+  });
+}
+
+if (btnMcpInit) {
+  btnMcpInit.addEventListener('click', () => {
+    mcpRequestJson.value = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: { protocolVersion: '2024-11-05', clientInfo: { name: 'browser-ui', version: '1.0' } }
+    }, null, 2);
+  });
+}
+
+if (btnMcpTools) {
+  btnMcpTools.addEventListener('click', () => {
+    mcpRequestJson.value = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'tools/list',
+      params: {}
+    }, null, 2);
+  });
+}
+
+if (btnMcpResources) {
+  btnMcpResources.addEventListener('click', () => {
+    mcpRequestJson.value = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 3,
+      method: 'resources/list',
+      params: {}
+    }, null, 2);
+  });
+}
+
+if (btnMcpSample) {
+  btnMcpSample.addEventListener('click', () => {
+    mcpRequestJson.value = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 4,
+      method: 'sampling/createMessage',
+      params: {
+        messages: [{ role: 'user', content: { type: 'text', text: 'Hello model' } }],
+        maxTokens: 32
+      }
+    }, null, 2);
+  });
+}
+
+if (btnSendMcp) {
+  btnSendMcp.addEventListener('click', () => {
+    try {
+      const parsed = JSON.parse(mcpRequestJson.value);
+      webmcpWorker.postMessage({ type: 'WEBMCP_REQUEST', payload: parsed });
+    } catch (err) {
+      alert('Invalid JSON: ' + err.message);
+    }
+  });
 }
 
 if (btnDeviceCpu) {
