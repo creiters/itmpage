@@ -43,7 +43,7 @@ if ('serviceWorker' in navigator) {
             btnCheckUpdate.disabled = false;
           }, 800);
         } catch (err) {
-          if (updateStatusLabel) updateStatusLabel.textContent = 'Failed to check: ' + err.message;
+          if (updateStatusLabel) updateStatusLabel.textContent = 'Failed: ' + err.message;
           btnCheckUpdate.disabled = false;
         }
       });
@@ -63,14 +63,13 @@ if (btnApplyUpdate) {
     if (newWorkerWaiting) newWorkerWaiting.postMessage({ type: 'SKIP_WAITING' });
   });
 }
-
 if (btnDismissUpdate) {
   btnDismissUpdate.addEventListener('click', () => {
     if (updateToast) updateToast.classList.remove('show');
   });
 }
 
-// 2. Identity & DOM Selectors
+// 2. Identity & DOM References
 const nodeId = 'Node_' + Math.random().toString(36).substring(2, 7);
 const nodeLabel = document.getElementById('node-label');
 if (nodeLabel) nodeLabel.textContent = `Node ID: ${nodeId}`;
@@ -94,7 +93,6 @@ const btnConnectPin = document.getElementById('btn-connect-pin');
 const btnClearCache = document.getElementById('btn-clear-cache');
 const clearStatusLabel = document.getElementById('clear-status-label');
 
-// Diagnostics & Telemetry Elements
 const metricTPS = document.getElementById('metric-tps');
 const metricTTFT = document.getElementById('metric-ttft');
 const tokenTopKBars = document.getElementById('token-topk-bars');
@@ -114,7 +112,7 @@ if (btnClearLogs) {
   });
 }
 
-// 3. Tab Routing
+// 3. Tab Navigation
 const navTabs = document.querySelectorAll('.nav-tab');
 const appViews = document.querySelectorAll('.app-view');
 
@@ -135,7 +133,7 @@ navTabs.forEach((tab) => {
   });
 });
 
-// 4. Persistence & Worker Setup
+// 4. Persistence & WASM Worker Setup
 const storage = new StorageService();
 await storage.init();
 
@@ -146,7 +144,14 @@ const worker = new Worker('./llm-worker.js', { type: 'module' });
 let currentChunks = [];
 let pendingMeshChunk = null;
 
-// 5. Engine Bootstrapping
+// Helper: Fetch engine.wasm binary from origin
+async function getEngineWasmBinary() {
+  const res = await fetch('./engine.wasm');
+  if (!res.ok) throw new Error('Could not fetch engine.wasm binary.');
+  return await res.arrayBuffer();
+}
+
+// 5. Model Loading Pipeline
 async function loadSlicesFromCache() {
   const modelKey = selectModel.value;
   currentChunks = await storage.getModelChunks(modelKey);
@@ -156,21 +161,27 @@ async function loadSlicesFromCache() {
     const storedRoot = await storage.getSystemKey(`${modelKey}_merkle_root`);
 
     if (currentChunks.length !== expectedTotal) {
-      if (engineStatus) engineStatus.textContent = `Incomplete: ${currentChunks.length}/${expectedTotal} chunks. Please download again.`;
+      if (engineStatus) engineStatus.textContent = `Incomplete: ${currentChunks.length}/${expectedTotal} chunks.`;
       appendLog(`Incomplete chunks found: ${currentChunks.length}/${expectedTotal}`);
       return;
     }
 
     updateDAGManifest(currentChunks, storedRoot);
-    appendLog(`Reassembling ${currentChunks.length} chunks from IndexedDB...`);
+    appendLog(`Reassembling ${currentChunks.length} chunks via Merkle DAG...`);
 
     try {
       const unifiedBuffer = await MerkleChunker.reassemble(currentChunks, storedRoot);
+      const engineWasm = await getEngineWasmBinary();
+
       worker.postMessage({
         type: 'INIT_ENGINE',
-        payload: { wasmBinary: unifiedBuffer, modelName: modelKey }
+        payload: {
+          engineWasmBinary: engineWasm,
+          modelBinary: unifiedBuffer,
+          modelName: modelKey
+        }
       });
-      appendLog('Merkle verification passed. Weights sent to Worker.');
+      appendLog('Merkle verification passed. Models initialized in WASM heap.');
     } catch (err) {
       if (engineStatus) engineStatus.textContent = 'Assembly Failed: ' + err.message;
       appendLog('Assembly Error: ' + err.message);
@@ -178,7 +189,7 @@ async function loadSlicesFromCache() {
   } else {
     if (engineStatus) engineStatus.textContent = 'Engine: Standalone Mode';
     worker.postMessage({ type: 'INIT_ENGINE', payload: { modelName: 'Standalone Engine' } });
-    appendLog('No local chunks. Running standalone.');
+    appendLog('No local chunks. Running standalone engine.');
   }
 }
 await loadSlicesFromCache();
@@ -187,7 +198,7 @@ selectModel.addEventListener('change', async () => {
   await loadSlicesFromCache();
 });
 
-// 6. WebRTC Mesh Protocol
+// 6. WebRTC Mesh Network Protocol
 const mesh = new MeshCoordinator(
   nodeId,
   async (msg, peerKey, channel) => {
@@ -246,7 +257,7 @@ btnDownloadSplit.addEventListener('click', async () => {
       }
     );
 
-    appendLog('Download completed. Building Merkle DAG...');
+    appendLog('Download complete. Computing 4MB Merkle Tree...');
     const { rootHash, chunks } = await MerkleChunker.splitToMerkleChunks(
       downloadResult.blob,
       modelKey,
@@ -267,17 +278,23 @@ btnDownloadSplit.addEventListener('click', async () => {
     updateDAGManifest(chunks, rootHash);
 
     const binary = await MerkleChunker.reassemble(chunks, rootHash);
+    const engineWasm = await getEngineWasmBinary();
+
     worker.postMessage({
       type: 'INIT_ENGINE',
-      payload: { wasmBinary: binary, modelName: modelKey }
+      payload: {
+        engineWasmBinary: engineWasm,
+        modelBinary: binary,
+        modelName: modelKey
+      }
     });
 
     if (progressText) progressText.textContent = `Ready! Merkle Root: ${rootHash.slice(0, 10)}... (4MB verified)`;
-    appendLog(`Saved ${chunks.length} chunks. Merkle Root: ${rootHash}`);
+    appendLog(`Persisted ${chunks.length} chunks. Merkle Root: ${rootHash}`);
   } catch (err) {
     if (engineStatus) engineStatus.textContent = 'Operation Error: ' + err.message;
     if (progressText) progressText.textContent = err.message;
-    appendLog('Download/Slice Error: ' + err.message);
+    appendLog('Error: ' + err.message);
   } finally {
     btnDownloadSplit.disabled = false;
   }
@@ -292,7 +309,7 @@ function updateDAGManifest(chunks, rootHash) {
     <strong>Blocks:</strong> ${chunks.length} × 4MB Nodes<br>
     <strong>Context Links:</strong> ${first.context.targetNextContext}<br>
     <strong>Layer Spans:</strong> 0 to 30 mapped<br>
-    <strong>Engine:</strong> Static Alloc + KV Caching
+    <strong>Engine:</strong> Native C-WASM + SIMD
   `;
 }
 
@@ -436,13 +453,13 @@ if (btnConnectPin) {
       if (raw.sdp.type === 'offer') {
         const answer = await mesh.acceptTokenAndCreateAnswer(input);
         if (joinTokenIn) joinTokenIn.value = answer;
-        appendLog('Processed WebRTC offer; generated answer token.');
+        appendLog('Processed WebRTC offer; created answer token.');
       } else if (raw.sdp.type === 'answer') {
         await mesh.finalizeHostConnection(input);
         appendLog('Finalized WebRTC peer connection.');
       }
     } catch (err) {
-      alert('Signaling Handshake Failed: ' + err.message);
+      alert('Signaling Failed: ' + err.message);
       appendLog('WebRTC Error: ' + err.message);
     }
   });
