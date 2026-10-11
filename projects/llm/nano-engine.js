@@ -444,9 +444,6 @@ export class NanoTransformer {
     return fullText;
   }
 
-  /**
-   * Apply restored weights from a JSONLLM container
-   */
   loadFromJSONLLMPayload(imported) {
     this.dim = imported.config.dim;
     this.layers = imported.config.layers;
@@ -470,7 +467,7 @@ export class NanoTransformer {
 
     if (imported.tokenizer) {
       this.tokenizer.tokenToId = new Map(Object.entries(imported.tokenizer.tokenToId).map(([k, v]) => [k, Number(v)]));
-      this.tokenizer.idToToken = new Map(Object.entries(imported.tokenizer.idToToken).map(([k, v]) => [Number(k), v]));
+      this.tokenizer.idToToken = new Map(Object.entries(imported.tokenizer.idToToken).map(([Number(k), v]) => [Number(k), v]));
     }
   }
 }
