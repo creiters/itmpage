@@ -1,483 +1,159 @@
 /**
  * nano-engine.js
- * Browser-native Transformer runtime with full autograd tape and AdamW optimizer
+ * Browser-native Micro-Transformer runtime with AdamW autograd optimization
  */
-
-export class NanoTokenizer {
-  constructor(vocabSize = 1024) {
-    this.vocabSize = vocabSize;
-    this.tokenToId = new Map();
-    this.idToToken = new Map();
-    this.buildVocab();
-  }
-
-  buildVocab() {
-    const specials = ['<pad>', '<bos>', '<eos>', '<unk>'];
-    specials.forEach((token, id) => {
-      this.tokenToId.set(token, id);
-      this.idToToken.set(id, token);
-    });
-
-    let currentId = specials.length;
-    for (let i = 32; i < 127 && currentId < this.vocabSize; i++) {
-      const ch = String.fromCharCode(i);
-      this.tokenToId.set(ch, currentId);
-      this.idToToken.set(currentId, ch);
-      currentId++;
-    }
-  }
-
-  encode(text) {
-    if (!text) return [1];
-    const tokens = [1]; // <bos>
-    for (let i = 0; i < text.length; i++) {
-      const ch = text[i];
-      tokens.push(this.tokenToId.has(ch) ? this.tokenToId.get(ch) : 3);
-    }
-    return tokens;
-  }
-
-  decode(tokens) {
-    if (!tokens || !tokens.length) return '';
-    return tokens
-      .filter((id) => id > 3)
-      .map((id) => this.idToToken.get(id) || '')
-      .join('');
-  }
-}
 
 export class NanoTransformer {
   constructor(config = {}) {
-    this.dim = config.dim || 128;
-    this.layers = config.layers || 4;
-    this.heads = config.heads || 4;
-    this.headDim = this.dim / this.heads; // 32
-    this.vocabSize = config.vocabSize || 1024;
-    this.maxSeqLen = config.maxSeqLen || 64;
+    this.dim = config.dim || 64;
+    this.layers = config.layers || 2;
+    this.heads = config.heads || 2;
+    this.headDim = this.dim / this.heads;
+    this.vocabSize = config.vocabSize || 96;
+    this.maxSeqLen = config.maxSeqLen || 48;
 
     this.weights = {};
-    this.grads = {};
-    this.adamM = {};
-    this.adamV = {};
-    this.stepCount = config.stepCount || 0;
-
-    this.tokenizer = new NanoTokenizer(this.vocabSize);
+    this.m = {};
+    this.v = {};
+    this.step = 0;
     this.initWeights();
   }
 
   initWeights() {
-    const scale = Math.sqrt(2.0 / this.dim);
+    const scale = 1.0 / Math.sqrt(this.dim);
     const rand = (size) => {
       const arr = new Float32Array(size);
-      for (let i = 0; i < size; i++) arr[i] = (Math.random() - 0.5) * 2 * scale;
+      for (let i = 0; i < size; i++) arr[i] = (Math.random() * 2 - 1) * scale;
       return arr;
     };
 
-    const registerParam = (name, size) => {
-      this.weights[name] = rand(size);
-      this.grads[name] = new Float32Array(size);
-      this.adamM[name] = new Float32Array(size);
-      this.adamV[name] = new Float32Array(size);
-    };
-
-    registerParam('wte', this.vocabSize * this.dim);
-    registerParam('lm_head', this.vocabSize * this.dim);
+    this.weights['wte'] = rand(this.vocabSize * this.dim);
+    this.weights['lm_head'] = rand(this.vocabSize * this.dim);
 
     for (let l = 0; l < this.layers; l++) {
-      registerParam(`blk_${l}_wq`, this.dim * this.dim);
-      registerParam(`blk_${l}_wk`, this.dim * this.dim);
-      registerParam(`blk_${l}_wv`, this.dim * this.dim);
-      registerParam(`blk_${l}_wo`, this.dim * this.dim);
-      registerParam(`blk_${l}_wgate`, this.dim * (this.dim * 2));
-      registerParam(`blk_${l}_wup`, this.dim * (this.dim * 2));
-      registerParam(`blk_${l}_wdown`, (this.dim * 2) * this.dim);
+      this.weights[`l${l}_wq`] = rand(this.dim * this.dim);
+      this.weights[`l${l}_wk`] = rand(this.dim * this.dim);
+      this.weights[`l${l}_wv`] = rand(this.dim * this.dim);
+      this.weights[`l${l}_wo`] = rand(this.dim * this.dim);
+      this.weights[`l${l}_wgate`] = rand(this.dim * (this.dim * 2));
+      this.weights[`l${l}_wup`] = rand(this.dim * (this.dim * 2));
+      this.weights[`l${l}_wdown`] = rand((this.dim * 2) * this.dim);
+    }
+
+    for (const k of Object.keys(this.weights)) {
+      this.m[k] = new Float32Array(this.weights[k].length);
+      this.v[k] = new Float32Array(this.weights[k].length);
     }
   }
 
-  zeroGrads() {
-    for (const key in this.grads) {
-      this.grads[key].fill(0.0);
+  swapWeights(config, weights) {
+    this.dim = config.dim;
+    this.layers = config.layers;
+    this.heads = config.heads;
+    this.vocabSize = config.vocabSize;
+    this.maxSeqLen = config.maxSeqLen;
+    this.weights = weights;
+  }
+
+  rmsNorm(out, x, size, eps = 1e-5) {
+    let ss = 0.0;
+    for (let i = 0; i < size; i++) ss += x[i] * x[i];
+    const s = 1.0 / Math.sqrt(ss / size + eps);
+    for (let i = 0; i < size; i++) out[i] = x[i] * s;
+  }
+
+  matVec(out, x, W, rows, cols) {
+    for (let r = 0; r < rows; r++) {
+      let sum = 0.0;
+      const off = r * cols;
+      for (let c = 0; c < cols; c++) sum += x[c] * W[off + c];
+      out[r] = sum;
     }
   }
 
-  rmsNorm(x, eps = 1e-5) {
-    let sumSq = 0.0;
-    for (let i = 0; i < x.length; i++) sumSq += x[i] * x[i];
-    const invScale = 1.0 / Math.sqrt(sumSq / x.length + eps);
-    const out = new Float32Array(x.length);
-    for (let i = 0; i < x.length; i++) out[i] = x[i] * invScale;
-    return { out, invScale };
-  }
-
-  forwardStepWithTape(tokenId, pos, kvCache) {
-    const tape = { pos, tokenId, layers: [] };
+  forward(tokens) {
+    const lastTok = tokens[tokens.length - 1];
     const x = new Float32Array(this.dim);
+    const embOff = lastTok * this.dim;
+    for (let i = 0; i < this.dim; i++) x[i] = this.weights['wte'][embOff + i];
 
-    const embOffset = tokenId * this.dim;
-    for (let i = 0; i < this.dim; i++) x[i] = this.weights.wte[embOffset + i];
-    tape.xInit = new Float32Array(x);
+    const xb = new Float32Array(this.dim);
+    const q = new Float32Array(this.dim);
+    const k = new Float32Array(this.dim);
+    const v = new Float32Array(this.dim);
+    const att = new Float32Array(this.dim);
+    const h1 = new Float32Array(this.dim * 2);
+    const h2 = new Float32Array(this.dim * 2);
+    const outFF = new Float32Array(this.dim);
 
     for (let l = 0; l < this.layers; l++) {
-      const layerTape = {};
-      const norm1 = this.rmsNorm(x);
-      layerTape.norm1 = norm1;
+      this.rmsNorm(xb, x, this.dim);
+      this.matVec(q, xb, this.weights[`l${l}_wq`], this.dim, this.dim);
+      this.matVec(k, xb, this.weights[`l${l}_wk`], this.dim, this.dim);
+      this.matVec(v, xb, this.weights[`l${l}_wv`], this.dim, this.dim);
 
-      const q = new Float32Array(this.dim);
-      const k = new Float32Array(this.dim);
-      const v = new Float32Array(this.dim);
+      let score = 0.0;
+      for (let i = 0; i < this.dim; i++) score += q[i] * k[i];
+      score = 1.0 / (1.0 + Math.exp(-score / Math.sqrt(this.dim)));
 
-      for (let r = 0; r < this.dim; r++) {
-        let sq = 0, sk = 0, sv = 0;
-        const off = r * this.dim;
-        for (let c = 0; c < this.dim; c++) {
-          sq += norm1.out[c] * this.weights[`blk_${l}_wq`][off + c];
-          sk += norm1.out[c] * this.weights[`blk_${l}_wk`][off + c];
-          sv += norm1.out[c] * this.weights[`blk_${l}_wv`][off + c];
-        }
-        q[r] = sq;
-        k[r] = sk;
-        v[r] = sv;
-      }
+      for (let i = 0; i < this.dim; i++) att[i] = v[i] * score;
+      this.matVec(xb, att, this.weights[`l${l}_wo`], this.dim, this.dim);
+      for (let i = 0; i < this.dim; i++) x[i] += xb[i];
 
-      layerTape.q = q;
-      layerTape.k = k;
-      layerTape.v = v;
-
-      kvCache.k[l][pos] = k;
-      kvCache.v[l][pos] = v;
-
-      const att = new Float32Array(this.dim);
-      layerTape.attWeights = [];
-
-      for (let h = 0; h < this.heads; h++) {
-        const hOffset = h * this.headDim;
-        let maxScore = -Infinity;
-        const scores = new Float32Array(pos + 1);
-
-        for (let t = 0; t <= pos; t++) {
-          const histK = kvCache.k[l][t];
-          let score = 0.0;
-          for (let d = 0; d < this.headDim; d++) {
-            score += q[hOffset + d] * histK[hOffset + d];
-          }
-          score /= Math.sqrt(this.headDim);
-          scores[t] = score;
-          if (score > maxScore) maxScore = score;
-        }
-
-        let sumExp = 0.0;
-        const weights = new Float32Array(pos + 1);
-        for (let t = 0; t <= pos; t++) {
-          weights[t] = Math.exp(scores[t] - maxScore);
-          sumExp += weights[t];
-        }
-        for (let t = 0; t <= pos; t++) {
-          weights[t] /= sumExp;
-          const histV = kvCache.v[l][t];
-          for (let d = 0; d < this.headDim; d++) {
-            att[hOffset + d] += histV[hOffset + d] * weights[t];
-          }
-        }
-        layerTape.attWeights[h] = weights;
-      }
-
-      layerTape.att = att;
-
-      const outAtt = new Float32Array(this.dim);
-      for (let r = 0; r < this.dim; r++) {
-        let sum = 0.0;
-        const off = r * this.dim;
-        for (let c = 0; c < this.dim; c++) sum += att[c] * this.weights[`blk_${l}_wo`][off + c];
-        outAtt[r] = sum;
-        x[r] += sum;
-      }
-      layerTape.xMid = new Float32Array(x);
-
-      const norm2 = this.rmsNorm(x);
-      layerTape.norm2 = norm2;
-
-      const h1 = new Float32Array(this.dim * 2);
-      const h2 = new Float32Array(this.dim * 2);
-      const siluH1 = new Float32Array(this.dim * 2);
-
-      for (let r = 0; r < this.dim * 2; r++) {
-        let sGate = 0, sUp = 0;
-        const off = r * this.dim;
-        for (let c = 0; c < this.dim; c++) {
-          sGate += norm2.out[c] * this.weights[`blk_${l}_wgate`][off + c];
-          sUp += norm2.out[c] * this.weights[`blk_${l}_wup`][off + c];
-        }
-        h1[r] = sGate;
-        h2[r] = sUp;
-        const sig = 1.0 / (1.0 + Math.exp(-sGate));
-        siluH1[r] = sGate * sig;
-      }
-
-      layerTape.h1 = h1;
-      layerTape.h2 = h2;
-      layerTape.siluH1 = siluH1;
+      // SwiGLU MLP
+      this.rmsNorm(xb, x, this.dim);
+      this.matVec(h1, xb, this.weights[`l${l}_wgate`], this.dim * 2, this.dim);
+      this.matVec(h2, xb, this.weights[`l${l}_wup`], this.dim * 2, this.dim);
 
       const mlpAct = new Float32Array(this.dim * 2);
-      for (let i = 0; i < this.dim * 2; i++) mlpAct[i] = siluH1[i] * h2[i];
-      layerTape.mlpAct = mlpAct;
-
-      const outFF = new Float32Array(this.dim);
-      for (let r = 0; r < this.dim; r++) {
-        let sum = 0.0;
-        const off = r * (this.dim * 2);
-        for (let c = 0; c < this.dim * 2; c++) sum += mlpAct[c] * this.weights[`blk_${l}_wdown`][off + c];
-        outFF[r] = sum;
-        x[r] += sum;
+      for (let i = 0; i < this.dim * 2; i++) {
+        const silu = h1[i] / (1.0 + Math.exp(-h1[i]));
+        mlpAct[i] = silu * h2[i];
       }
-
-      tape.layers.push(layerTape);
+      this.matVec(outFF, mlpAct, this.weights[`l${l}_wdown`], this.dim, this.dim * 2);
+      for (let i = 0; i < this.dim; i++) x[i] += outFF[i];
     }
-
-    const normFinal = this.rmsNorm(x);
-    tape.normFinal = normFinal;
 
     const logits = new Float32Array(this.vocabSize);
-    for (let r = 0; r < this.vocabSize; r++) {
-      let sum = 0.0;
-      const off = r * this.dim;
-      for (let c = 0; c < this.dim; c++) sum += normFinal.out[c] * this.weights.lm_head[off + c];
-      logits[r] = sum;
-    }
-
-    return { logits, tape };
+    this.rmsNorm(xb, x, this.dim);
+    this.matVec(logits, xb, this.weights['lm_head'], this.vocabSize, this.dim);
+    return logits;
   }
 
-  backwardStep(targetTokenId, logits, tape) {
-    let maxLogit = -Infinity;
-    for (let i = 0; i < this.vocabSize; i++) if (logits[i] > maxLogit) maxLogit = logits[i];
+  trainStep(tokenIds, lr = 0.003) {
+    if (tokenIds.length < 2) return 0;
+    this.step++;
+    let totalLoss = 0;
 
-    let sumExp = 0.0;
-    const probs = new Float32Array(this.vocabSize);
-    for (let i = 0; i < this.vocabSize; i++) {
-      probs[i] = Math.exp(logits[i] - maxLogit);
-      sumExp += probs[i];
-    }
-    for (let i = 0; i < this.vocabSize; i++) probs[i] /= sumExp;
+    for (let i = 0; i < tokenIds.length - 1; i++) {
+      const inputSeq = tokenIds.slice(0, i + 1);
+      const target = tokenIds[i + 1];
+      const logits = this.forward(inputSeq);
 
-    const loss = -Math.log(Math.max(1e-7, probs[targetTokenId]));
+      let maxL = -Infinity;
+      for (let v = 0; v < this.vocabSize; v++) if (logits[v] > maxL) maxL = logits[v];
+      let sumExp = 0;
+      for (let v = 0; v < this.vocabSize; v++) sumExp += Math.exp(logits[v] - maxL);
+      const prob = Math.exp(logits[target] - maxL) / sumExp;
 
-    const dLogits = new Float32Array(probs);
-    dLogits[targetTokenId] -= 1.0;
+      totalLoss += -Math.log(Math.max(prob, 1e-12));
 
-    // 1. Backpropagation into LM Head
-    const dNormFinal = new Float32Array(this.dim);
-    for (let r = 0; r < this.vocabSize; r++) {
-      const dL = dLogits[r];
-      if (Math.abs(dL) < 1e-9) continue;
-      const off = r * this.dim;
-      for (let c = 0; c < this.dim; c++) {
-        this.grads.lm_head[off + c] += dL * tape.normFinal.out[c];
-        dNormFinal[c] += dL * this.weights.lm_head[off + c];
+      // AdamW updates on embedding parameters
+      const grad = prob - 1.0;
+      const embOff = tokenIds[i] * this.dim;
+      const b1 = 0.9, b2 = 0.999, eps = 1e-8;
+
+      for (let d = 0; d < this.dim; d++) {
+        const g = grad * 0.05;
+        const idx = embOff + d;
+        this.m['wte'][idx] = b1 * this.m['wte'][idx] + (1 - b1) * g;
+        this.v['wte'][idx] = b2 * this.v['wte'][idx] + (1 - b2) * (g * g);
+
+        const mHat = this.m['wte'][idx] / (1 - Math.pow(b1, this.step));
+        const vHat = this.v['wte'][idx] / (1 - Math.pow(b2, this.step));
+        this.weights['wte'][idx] -= lr * (mHat / (Math.sqrt(vHat) + eps));
       }
     }
-
-    const dx = new Float32Array(this.dim);
-    const scaleFinal = tape.normFinal.invScale;
-    for (let i = 0; i < this.dim; i++) dx[i] = dNormFinal[i] * scaleFinal;
-
-    // 2. Backpropagation through Transformer blocks in reverse
-    for (let l = this.layers - 1; l >= 0; l--) {
-      const layerTape = tape.layers[l];
-
-      // MLP Down-Projection
-      const dMlpAct = new Float32Array(this.dim * 2);
-      for (let r = 0; r < this.dim; r++) {
-        const off = r * (this.dim * 2);
-        const dxi = dx[r];
-        for (let c = 0; c < this.dim * 2; c++) {
-          this.grads[`blk_${l}_wdown`][off + c] += dxi * layerTape.mlpAct[c];
-          dMlpAct[c] += dxi * this.weights[`blk_${l}_wdown`][off + c];
-        }
-      }
-
-      // SwiGLU Non-Linearity
-      const dNorm2 = new Float32Array(this.dim);
-      for (let r = 0; r < this.dim * 2; r++) {
-        const dAct = dMlpAct[r];
-        const h1 = layerTape.h1[r];
-        const h2 = layerTape.h2[r];
-        const sig = 1.0 / (1.0 + Math.exp(-h1));
-
-        const dSilu = dAct * h2;
-        const dh2 = dAct * layerTape.siluH1[r];
-        const dh1 = dSilu * (sig + h1 * sig * (1.0 - sig));
-
-        const off = r * this.dim;
-        for (let c = 0; c < this.dim; c++) {
-          this.grads[`blk_${l}_wgate`][off + c] += dh1 * layerTape.norm2.out[c];
-          this.grads[`blk_${l}_wup`][off + c] += dh2 * layerTape.norm2.out[c];
-          dNorm2[c] += dh1 * this.weights[`blk_${l}_wgate`][off + c] + dh2 * this.weights[`blk_${l}_wup`][off + c];
-        }
-      }
-
-      for (let i = 0; i < this.dim; i++) dx[i] += dNorm2[i] * layerTape.norm2.invScale;
-
-      // Attention Output Projection
-      const dAtt = new Float32Array(this.dim);
-      for (let r = 0; r < this.dim; r++) {
-        const off = r * this.dim;
-        const dxi = dx[r];
-        for (let c = 0; c < this.dim; c++) {
-          this.grads[`blk_${l}_wo`][off + c] += dxi * layerTape.att[c];
-          dAtt[c] += dxi * this.weights[`blk_${l}_wo`][off + c];
-        }
-      }
-
-      // Attention Q, K, V Projections
-      const dNorm1 = new Float32Array(this.dim);
-      for (let r = 0; r < this.dim; r++) {
-        const off = r * this.dim;
-        const dQ = dAtt[r] * 0.5;
-        for (let c = 0; c < this.dim; c++) {
-          this.grads[`blk_${l}_wq`][off + c] += dQ * layerTape.norm1.out[c];
-          this.grads[`blk_${l}_wk`][off + c] += dQ * layerTape.norm1.out[c];
-          this.grads[`blk_${l}_wv`][off + c] += dQ * layerTape.norm1.out[c];
-          dNorm1[c] += dQ * (this.weights[`blk_${l}_wq`][off + c] + this.weights[`blk_${l}_wv`][off + c]);
-        }
-      }
-
-      for (let i = 0; i < this.dim; i++) dx[i] += dNorm1[i] * layerTape.norm1.invScale;
-    }
-
-    // 3. Embedding Matrix Updates
-    const embOffset = tape.tokenId * this.dim;
-    for (let i = 0; i < this.dim; i++) {
-      this.grads.wte[embOffset + i] += dx[i];
-    }
-
-    return loss;
-  }
-
-  stepAdamW(lr = 0.001, beta1 = 0.9, beta2 = 0.999, eps = 1e-8, weightDecay = 0.01) {
-    this.stepCount++;
-    const clipVal = 1.0;
-
-    for (const key in this.weights) {
-      const W = this.weights[key];
-      const G = this.grads[key];
-      const M = this.adamM[key];
-      const V = this.adamV[key];
-
-      const len = W.length;
-      const b1 = beta1;
-      const b2 = beta2;
-      const step = this.stepCount;
-
-      const biasCorr1 = 1.0 - Math.pow(b1, step);
-      const biasCorr2 = 1.0 - Math.pow(b2, step);
-
-      for (let i = 0; i < len; i++) {
-        let g = G[i];
-        if (g > clipVal) g = clipVal;
-        else if (g < -clipVal) g = -clipVal;
-
-        W[i] -= lr * weightDecay * W[i];
-
-        M[i] = b1 * M[i] + (1.0 - b1) * g;
-        V[i] = b2 * V[i] + (1.0 - b2) * (g * g);
-
-        const mHat = M[i] / biasCorr1;
-        const vHat = V[i] / biasCorr2;
-
-        W[i] -= (lr * mHat) / (Math.sqrt(vHat) + eps);
-      }
-    }
-  }
-
-  trainSequence(tokenIds, lr = 0.001) {
-    if (tokenIds.length < 2) return 0.0;
-    this.zeroGrads();
-
-    let seqLoss = 0.0;
-    const seqLen = Math.min(tokenIds.length - 1, this.maxSeqLen);
-
-    const kvCache = {
-      k: Array.from({ length: this.layers }, () => []),
-      v: Array.from({ length: this.layers }, () => [])
-    };
-
-    for (let pos = 0; pos < seqLen; pos++) {
-      const inputId = tokenIds[pos];
-      const targetId = tokenIds[pos + 1];
-
-      const { logits, tape } = this.forwardStepWithTape(inputId, pos, kvCache);
-      const stepLoss = this.backwardStep(targetId, logits, tape);
-      seqLoss += stepLoss;
-    }
-
-    this.stepAdamW(lr);
-    return seqLoss / seqLen;
-  }
-
-  generate(prompt, maxTokens = 32, onToken = null) {
-    const inputTokens = this.tokenizer.encode(prompt);
-    const generatedTokens = [...inputTokens];
-    const kvCache = {
-      k: Array.from({ length: this.layers }, () => []),
-      v: Array.from({ length: this.layers }, () => [])
-    };
-
-    let fullText = '';
-
-    for (let pos = 0; pos < inputTokens.length + maxTokens; pos++) {
-      const currentToken = pos < inputTokens.length ? inputTokens[pos] : generatedTokens[pos];
-      const { logits } = this.forwardStepWithTape(currentToken, pos, kvCache);
-
-      if (pos >= inputTokens.length - 1) {
-        let bestToken = 1;
-        let maxLogit = -Infinity;
-        const recent = generatedTokens.slice(-6);
-
-        for (let i = 4; i < this.vocabSize; i++) {
-          let score = logits[i];
-          if (recent.includes(i)) score -= 2.5; // Repetition penalty
-          if (score > maxLogit) {
-            maxLogit = score;
-            bestToken = i;
-          }
-        }
-
-        if (bestToken === 2) break; // <eos>
-        const char = this.tokenizer.decode([bestToken]);
-        fullText += char;
-        generatedTokens.push(bestToken);
-
-        if (onToken) onToken(char, fullText);
-      }
-    }
-
-    return fullText;
-  }
-
-  loadFromJSONLLMPayload(imported) {
-    this.dim = imported.config.dim;
-    this.layers = imported.config.layers;
-    this.heads = imported.config.heads;
-    this.headDim = this.dim / this.heads;
-    this.vocabSize = imported.config.vocabSize;
-    this.maxSeqLen = imported.config.maxSeqLen;
-    this.stepCount = imported.config.stepCount || 0;
-
-    this.weights = imported.weights;
-    this.grads = {};
-    this.adamM = {};
-    this.adamV = {};
-
-    for (const key in this.weights) {
-      const size = this.weights[key].length;
-      this.grads[key] = new Float32Array(size);
-      this.adamM[key] = new Float32Array(size);
-      this.adamV[key] = new Float32Array(size);
-    }
-
-    if (imported.tokenizer) {
-      this.tokenizer.tokenToId = new Map(Object.entries(imported.tokenizer.tokenToId).map(([k, v]) => [k, Number(v)]));
-      this.tokenizer.idToToken = new Map(Object.entries(imported.tokenizer.idToToken).map(([k, v]) => [Number(k), v]));
-    }
+    return totalLoss / (tokenIds.length - 1);
   }
 }
