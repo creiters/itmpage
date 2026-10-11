@@ -1,5 +1,5 @@
 export class StorageService {
-  constructor(dbName = 'SharedLLM_Store', version = 4) {
+  constructor(dbName = 'SharedLLM_Store', version = 5) {
     this.dbName = dbName;
     this.version = version;
     this.db = null;
@@ -15,10 +15,12 @@ export class StorageService {
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
 
+        // Chat session log store
         if (!db.objectStoreNames.contains('chat_history')) {
           db.createObjectStore('chat_history', { keyPath: 'id', autoIncrement: true });
         }
 
+        // 4 MB binary/text slice store
         if (!db.objectStoreNames.contains('model_chunks')) {
           const chunkStore = db.createObjectStore('model_chunks', { keyPath: 'chunkId' });
           chunkStore.createIndex('by_model', 'metadata.modelName', { unique: false });
@@ -26,6 +28,13 @@ export class StorageService {
           chunkStore.createIndex('by_checksum', 'metadata.checksum', { unique: false });
         }
 
+        // Dedicated JSONLLM container store
+        if (!db.objectStoreNames.contains('jsonllm_models')) {
+          const jsonStore = db.createObjectStore('jsonllm_models', { keyPath: 'modelName' });
+          jsonStore.createIndex('by_date', 'createdAt', { unique: false });
+        }
+
+        // SI-Radix segment manifest index store
         if (!db.objectStoreNames.contains('si_radix_manifests')) {
           db.createObjectStore('si_radix_manifests', { keyPath: 'modelName' });
         }
@@ -83,6 +92,93 @@ export class StorageService {
       return await navigator.locks.request(lockName, fn);
     }
     return await fn();
+  }
+
+  /**
+   * Stores a complete JSONLLM model envelope
+   */
+  async putJSONLLM(modelRecord) {
+    return this.withLock('db-write-lock', async () => {
+      return new Promise((resolve, reject) => {
+        const tx = this.db.transaction('jsonllm_models', 'readwrite');
+        const store = tx.objectStore('jsonllm_models');
+        const req = store.put(modelRecord);
+
+        req.onsuccess = () => {
+          if (this.broadcast) {
+            this.broadcast.postMessage({
+              type: 'JSONLLM_STORED',
+              modelName: modelRecord.modelName
+            });
+          }
+          resolve(req.result);
+        };
+        req.onerror = () => reject(req.error);
+      });
+    });
+  }
+
+  /**
+   * Retrieves a converted JSONLLM package by model identifier
+   */
+  async getJSONLLM(modelName) {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('jsonllm_models', 'readonly');
+      const store = tx.objectStore('jsonllm_models');
+      const req = store.get(modelName);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  /**
+   * Returns a directory listing of all converted JSONLLM packages
+   */
+  async listJSONLLMModels() {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('jsonllm_models', 'readonly');
+      const store = tx.objectStore('jsonllm_models');
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const records = req.result || [];
+        resolve(records.map(r => ({
+          modelName: r.modelName,
+          format: r.format,
+          createdAt: r.createdAt,
+          config: r.config,
+          sizeBytes: r.jsonString ? r.jsonString.length : 0
+        })));
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async deleteJSONLLM(modelName) {
+    return this.withLock('db-write-lock', async () => {
+      return new Promise((resolve, reject) => {
+        const tx = this.db.transaction(['jsonllm_models', 'model_chunks', 'si_radix_manifests'], 'readwrite');
+        tx.objectStore('jsonllm_models').delete(modelName);
+        tx.objectStore('si_radix_manifests').delete(modelName);
+
+        const chunkStore = tx.objectStore('model_chunks');
+        const index = chunkStore.index('by_model');
+        const req = index.openKeyCursor(IDBKeyRange.only(modelName));
+
+        req.onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (cursor) {
+            chunkStore.delete(cursor.primaryKey);
+            cursor.continue();
+          } else {
+            if (this.broadcast) {
+              this.broadcast.postMessage({ type: 'MODEL_PURGED', modelName });
+            }
+            resolve(true);
+          }
+        };
+        req.onerror = () => reject(req.error);
+      });
+    });
   }
 
   async saveManifest(manifest) {
@@ -205,34 +301,6 @@ export class StorageService {
     }));
   }
 
-  async deleteModelChunks(modelName) {
-    return this.withLock('db-write-lock', async () => {
-      return new Promise((resolve, reject) => {
-        const tx = this.db.transaction(['model_chunks', 'si_radix_manifests'], 'readwrite');
-        const store = tx.objectStore('model_chunks');
-        const manifestStore = tx.objectStore('si_radix_manifests');
-        manifestStore.delete(modelName);
-
-        const index = store.index('by_model');
-        const req = index.openKeyCursor(IDBKeyRange.only(modelName));
-
-        req.onsuccess = (e) => {
-          const cursor = e.target.result;
-          if (cursor) {
-            store.delete(cursor.primaryKey);
-            cursor.continue();
-          } else {
-            if (this.broadcast) {
-              this.broadcast.postMessage({ type: 'MODEL_PURGED', modelName });
-            }
-            resolve(true);
-          }
-        };
-        req.onerror = () => reject(req.error);
-      });
-    });
-  }
-
   async logEvent(category, message, details = null) {
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction('event_logs', 'readwrite');
@@ -311,7 +379,14 @@ export class StorageService {
   async clearAll() {
     return this.withLock('db-write-lock', async () => {
       return new Promise((resolve, reject) => {
-        const storeNames = ['chat_history', 'model_chunks', 'si_radix_manifests', 'system_state', 'event_logs'];
+        const storeNames = [
+          'chat_history',
+          'model_chunks',
+          'jsonllm_models',
+          'si_radix_manifests',
+          'system_state',
+          'event_logs'
+        ];
         const tx = this.db.transaction(storeNames, 'readwrite');
         storeNames.forEach((name) => tx.objectStore(name).clear());
         tx.oncomplete = () => {
