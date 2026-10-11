@@ -1,7 +1,7 @@
 {
-  "name": "WebLLM JSON Studio",
-  "short_name": "WebLLM",
-  "description": "Offline-first browser LLM generating native JSONLLM envelopes with Vector RAG and WebRTC mesh",
+  "name": "vimtoLLM - all space inside! 10 on minus 84.",
+  "short_name": "vimtoLLM",
+  "description": "Offline-first browser LLM engine in pure FP16/FP4 JSON format with Vector RAG and WebRTC mesh",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait-primary",
