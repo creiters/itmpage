@@ -123,34 +123,4 @@ export class MeshCoordinator {
     if (channel.readyState !== 'open') return;
     channel.send(JSON.stringify({ type: 'INFERENCE_RESPONSE', taskId, text, isDone }));
   }
-
-  /**
-   * P2P Shared Storage Protocol: Request chunk from connected peers
-   */
-  requestChunkFromPeers(chunkId, modelName) {
-    const active = Array.from(this.peers.values()).filter((p) => p.channel.readyState === 'open');
-    if (active.length === 0) return false;
-
-    for (const peer of active) {
-      peer.channel.send(JSON.stringify({
-        type: 'STORAGE_CHUNK_REQUEST',
-        chunkId,
-        modelName,
-        from: this.localNodeId
-      }));
-    }
-    return true;
-  }
-
-  /**
-   * P2P Shared Storage Protocol: Send requested chunk binary to peer
-   */
-  sendChunkToPeer(channel, metadata, binaryBuffer) {
-    if (channel.readyState !== 'open') return;
-    channel.send(JSON.stringify({
-      type: 'STORAGE_CHUNK_HEADER',
-      metadata
-    }));
-    channel.send(binaryBuffer);
-  }
 }
