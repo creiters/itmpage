@@ -2,6 +2,7 @@ import { WasiRuntime } from './wasm-engine.js';
 import { GGUFParser } from './gguf-parser.js';
 import { SimpleBPETokenizer } from './tokenizer.js';
 import { GPUKernel } from './gpu-kernel.js';
+import { ChunkIndexer } from './chunk-indexer.js';
 
 let wasi = null;
 let wasmInstance = null;
@@ -12,7 +13,7 @@ let isLoaded = false;
 let activeModelName = 'Unloaded';
 let executionDevice = 'CPU';
 let modelBuffer = null;
-let chunkManifest = [];
+let segmentManifest = null;
 let chunkWorkerPort = null;
 
 let xPtr = 0;
@@ -25,12 +26,6 @@ function setupChunkWorkerPort(port) {
     const { type, payload } = e.data;
     if (type === 'LOAD_MODEL_PAYLOAD') {
       initializeWithTransferredBinary(payload);
-    } else if (type === 'DELIVER_PAGED_CHUNK') {
-      self.postMessage({
-        type: 'LOG',
-        category: 'PAGING',
-        text: `Received paged 4MB chunk #${payload.index} directly from Chunk Worker.`
-      });
     }
   };
 }
@@ -38,10 +33,10 @@ function setupChunkWorkerPort(port) {
 async function initializeWithTransferredBinary(payload) {
   try {
     activeModelName = payload.modelName;
-    chunkManifest = payload.manifest;
+    segmentManifest = payload.manifest;
     modelBuffer = payload.modelBinary;
 
-    self.postMessage({ type: 'LOG', category: 'WASM', text: 'Parsing GGUF metadata...' });
+    self.postMessage({ type: 'LOG', category: 'WASM', text: 'Parsing GGUF metadata from unified segment heap...' });
     const parser = new GGUFParser(modelBuffer);
     parsedModel = parser.parse();
 
@@ -61,11 +56,11 @@ async function initializeWithTransferredBinary(payload) {
     self.postMessage({
       type: 'LOG',
       category: 'INIT',
-      text: `Engine loaded directly with ${chunkManifest.length} DAG slices.`
+      text: `SI-Radix initialized: ${segmentManifest.totalSegments} segments mapped in O(1) interval table.`
     });
   } catch (err) {
     isLoaded = false;
-    self.postMessage({ type: 'ERROR', message: `Load failed: ${err.message}` });
+    self.postMessage({ type: 'ERROR', message: `Initialization failed: ${err.message}` });
   }
 }
 
@@ -74,7 +69,6 @@ self.onmessage = async (e) => {
 
   if (type === 'CONNECT_CHUNK_PORT') {
     setupChunkWorkerPort(e.ports[0]);
-    self.postMessage({ type: 'LOG', category: 'WASM', text: 'Direct MessageChannel linked to Chunk Worker.' });
     return;
   }
 
@@ -110,7 +104,6 @@ self.onmessage = async (e) => {
       wasi.setDevice(executionDevice);
 
       if (payload?.engineWasmBinary) {
-        self.postMessage({ type: 'LOG', category: 'WASM', text: 'Compiling WASI C-WASM module...' });
         wasmInstance = await wasi.compileAndInstantiate(payload.engineWasmBinary, (log) => {
           self.postMessage({ type: 'LOG', category: 'WASM_OUT', text: log });
         });
@@ -146,6 +139,16 @@ self.onmessage = async (e) => {
     const exports = wasmInstance.exports;
     exports.init_engine();
 
+    // Constant-time check across the Segment Table
+    if (segmentManifest) {
+      const activeSegs = ChunkIndexer.findSegmentsByLayer(segmentManifest, 0);
+      self.postMessage({
+        type: 'LOG',
+        category: 'CHUNK_SEARCH',
+        text: `SI-Radix O(1) Lookup: Active initial segments [${activeSegs.join(', ')}]`
+      });
+    }
+
     const embedTensor = parsedModel.tensors.get('token_embd.weight') || parsedModel.tensors.get('model.embed_tokens.weight');
     const lmHeadTensor = parsedModel.tensors.get('output.weight') || embedTensor;
     const rowBytes = Math.ceil((576 * 4.5) / 8) + 32;
@@ -157,6 +160,7 @@ self.onmessage = async (e) => {
     for (let pos = 0; pos < promptTokens.length + maxGenTokens; pos++) {
       let currentToken = pos < promptTokens.length ? promptTokens[pos] : generatedTokens[pos];
 
+      // Fast embedding lookup
       const embOffset = tensorStart + embedTensor.offset + (currentToken * rowBytes);
       const wasmFloatView = new Float32Array(wasi.memory.buffer);
       const wasmByteView = new Uint8Array(wasi.memory.buffer);
@@ -250,7 +254,7 @@ self.onmessage = async (e) => {
     self.postMessage({
       type: 'LOG',
       category: 'INFERENCE_COMPLETE',
-      text: `Inference finished on ${executionDevice}: ${tokensGeneratedCount} tokens in ${((performance.now() - tStart) / 1000).toFixed(2)}s`
+      text: `Inference completed on ${executionDevice}: ${tokensGeneratedCount} tokens in ${((performance.now() - tStart) / 1000).toFixed(2)}s`
     });
   }
 };
