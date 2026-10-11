@@ -3,7 +3,7 @@ export class MeshCoordinator {
     this.localNodeId = localNodeId;
     this.onMessage = onMessage;
     this.onPeersChanged = onPeersChanged;
-    this.peers = new Map(); // pin -> { pc, channel, role }
+    this.peers = new Map();
     this.pendingHosts = new Map();
   }
 
@@ -21,7 +21,7 @@ export class MeshCoordinator {
 
   async generateHostToken(pin) {
     const pc = new RTCPeerConnection({ iceServers: [] });
-    const channel = pc.createDataChannel('shared-llm-channel');
+    const channel = pc.createDataChannel('shared-llm-mesh');
     channel.binaryType = 'arraybuffer';
 
     this.bindChannel(channel, `peer-${pin}`);
@@ -38,12 +38,7 @@ export class MeshCoordinator {
       }
     });
 
-    const envelope = {
-      pin,
-      sender: this.localNodeId,
-      sdp: pc.localDescription
-    };
-
+    const envelope = { pin, sender: this.localNodeId, sdp: pc.localDescription };
     this.pendingHosts.set(pin, { pc, channel });
     return MeshCoordinator.encodePayload(envelope);
   }
@@ -105,12 +100,6 @@ export class MeshCoordinator {
     };
   }
 
-  distributeChunk(channel, metadata, arrayBuffer) {
-    if (channel.readyState !== 'open') return;
-    channel.send(JSON.stringify({ type: 'CHUNK_HEADER', metadata }));
-    channel.send(arrayBuffer);
-  }
-
   dispatchCompute(prompt) {
     const active = Array.from(this.peers.entries()).filter(
       ([, item]) => item.channel.readyState === 'open'
@@ -132,11 +121,6 @@ export class MeshCoordinator {
 
   returnComputeResult(channel, taskId, text, isDone) {
     if (channel.readyState !== 'open') return;
-    channel.send(JSON.stringify({
-      type: 'INFERENCE_RESPONSE',
-      taskId,
-      text,
-      isDone
-    }));
+    channel.send(JSON.stringify({ type: 'INFERENCE_RESPONSE', taskId, text, isDone }));
   }
 }
