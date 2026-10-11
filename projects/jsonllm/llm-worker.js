@@ -1,5 +1,5 @@
 /**
- * llm-worker.js - 4M Parameter Inference Worker with FP4 / Q4 Execution
+ * llm-worker.js - vimtoLLM Inference Worker
  */
 
 import { NanoTransformer } from './nano-engine.js';
@@ -10,29 +10,45 @@ import { LocalRAG } from './rag-store.js';
 let storage = null;
 let rag = null;
 let engine = null;
-let activeModelName = 'dialogue-4m';
+let activeModelName = 'vimtollm-4m';
 let activeQuantMode = 'fp4';
 
+// Updated foundational training pairs embedding the new name & identity
 const SEED_CORPUS = [
   { u: "Hi", b: "Hello! How can I assist you today?" },
-  { u: "Hello", b: "Hi there! I am your offline 4M dialogue agent." },
-  { u: "Who are you?", b: "I am an autonomous 4M browser language model running locally in JavaScript." },
+  { u: "Hello", b: "Hi there! I am vimtoLLM - all space inside! 10 on minus 84." },
+  { u: "Who are you?", b: "I am vimtoLLM - all space inside! 10 on minus 84., running locally in your browser." },
+  { u: "What is your name?", b: "My name is vimtoLLM." },
+  { u: "Name?", b: "My name is vimtoLLM." },
   { u: "What is your architecture?", b: "I am a 4M parameter transformer using pure FP16 and FP4 E2M1 quantization." },
-  { u: "Are you online?", b: "No, all 4M weights run strictly offline inside your browser tab." },
-  { u: "What is your name?", b: "My name is JSONLLM." },
+  { u: "Where do you run?", b: "I run entirely offline inside your browser tab without any external servers." },
   { u: "How are weights stored?", b: "My weights are stored in FP4 E2M1 and Q4 formats directly in IndexedDB." },
   { u: "Can you help me with code?", b: "Yes, I can assist with dialogue, HTML5, C code, and algorithms." },
   { u: "Thank you", b: "You are very welcome! Let me know if you need anything else." }
 ];
 
-async function trainBaseline(transformer, epochs = 28) {
+function log(category, text) {
+  self.postMessage({ type: 'LOG', category, text });
+}
+
+async function trainBaselineNonBlocking(transformer, epochs = 16) {
+  log('TRAIN', `Starting non-blocking baseline initialization for vimtoLLM (${epochs} epochs)...`);
   for (let ep = 0; ep < epochs; ep++) {
-    for (const pair of SEED_CORPUS) {
+    for (let i = 0; i < SEED_CORPUS.length; i++) {
+      const pair = SEED_CORPUS[i];
       const fullText = `<user> ${pair.u} <bot> ${pair.b} <eos>`;
       const tokens = transformer.tokenizer.encode(fullText);
-      transformer.trainSequence(tokens, 0.0035);
+      transformer.trainSequence(tokens, 0.004);
+
+      if ((i + 1) % 3 === 0) {
+        await new Promise((r) => setTimeout(r, 0));
+      }
+    }
+    if ((ep + 1) % 4 === 0) {
+      log('TRAIN', `Baseline initialization progress: Epoch ${ep + 1}/${epochs}`);
     }
   }
+  log('TRAIN', 'vimtoLLM baseline initialization converged.');
 }
 
 function sampleNextToken(logits, vocabSize, specialsCount, recentTokens = []) {
@@ -74,7 +90,6 @@ function sampleNextToken(logits, vocabSize, specialsCount, recentTokens = []) {
   const pPool = [];
   for (const c of kPool) {
     cumSum += c.prob;
-    pPool.push(c);
     if (cumSum >= 0.85) break;
   }
 
@@ -87,7 +102,7 @@ function sampleNextToken(logits, vocabSize, specialsCount, recentTokens = []) {
 }
 
 async function initModel() {
-  self.postMessage({ type: 'STATUS', status: 'Allocating 4M parameter pure FP16 memory pool...' });
+  log('COMPUTE', 'Allocating 4M parameter pure FP16 memory pool for vimtoLLM...');
 
   engine = new NanoTransformer({
     dim: 192,
@@ -101,20 +116,22 @@ async function initModel() {
   const cached = await storage.getModel(activeModelName);
   if (cached) {
     try {
+      log('STORAGE', `Found cached model "${activeModelName}" in IndexedDB. Dequantizing...`);
       const dec = await JSONLLMCodec.importFromJSONLLM(cached);
       engine.weights = dec.weights;
       activeQuantMode = dec.quantMode;
-      self.postMessage({ type: 'STATUS', status: `Ready: ${activeModelName} (${activeQuantMode.toUpperCase()} Cached)` });
+      log('STORAGE', `Model "${activeModelName}" loaded successfully (${activeQuantMode.toUpperCase()}).`);
+      self.postMessage({ type: 'STATUS', status: `Ready: ${activeModelName} (${activeQuantMode.toUpperCase()})` });
       return;
-    } catch {
-      // Fall through to initial training
+    } catch (err) {
+      log('ERROR', `Cache restore failed: ${err.message}. Rebuilding baseline...`);
     }
   }
 
-  self.postMessage({ type: 'STATUS', status: 'Training 4M baseline dialogue...' });
-  await trainBaseline(engine, 32);
+  self.postMessage({ type: 'STATUS', status: 'Training vimtoLLM baseline dialogue...' });
+  await trainBaselineNonBlocking(engine, 16);
 
-  // Default serialization to FP4 (E2M1)
+  log('STORAGE', `Serializing initialized model "${activeModelName}" to IndexedDB...`);
   const jsonStr = await JSONLLMCodec.exportToJSONLLM(
     { dim: engine.dim, layers: engine.layers, heads: engine.heads, ffnDim: engine.ffnDim, vocabSize: engine.vocabSize, maxSeqLen: engine.maxSeqLen },
     engine.tokenizer,
@@ -122,35 +139,45 @@ async function initModel() {
     'fp4'
   );
   await storage.putModel(activeModelName, jsonStr);
+  log('STORAGE', `Model "${activeModelName}" committed to IndexedDB (${(jsonStr.length / 1024).toFixed(1)} KB).`);
   self.postMessage({ type: 'STATUS', status: `Ready: ${activeModelName} (FP4 Ready)` });
 }
 
 (async () => {
-  storage = new StorageService();
-  await storage.init();
-  rag = new LocalRAG(64);
-  await rag.init(storage);
-
-  await initModel();
+  try {
+    storage = new StorageService();
+    await storage.init();
+    log('STORAGE', 'IndexedDB service initialized in vimtoLLM worker.');
+    rag = new LocalRAG(64);
+    await rag.init(storage);
+    log('RAG', 'Vector RAG store ready in vimtoLLM worker.');
+    await initModel();
+  } catch (err) {
+    log('ERROR', `Worker boot fatal: ${err.message}`);
+    self.postMessage({ type: 'STATUS', status: `Error: ${err.message}` });
+  }
 })();
 
 self.onmessage = async (e) => {
   const { type, payload } = e.data;
+  log('COMPUTE', `LLM Worker received action: ${type}`);
 
   if (type === 'INFER') {
     const { prompt, maxTokens = 32 } = payload;
     const tStart = performance.now();
+    log('INFER', `Starting inference for prompt: "${prompt}"`);
 
     try {
       const matches = await rag.retrieve(prompt, 1);
       let augmented = prompt;
       if (matches.length > 0 && matches[0].score > 0.18) {
         augmented = `[Fact: ${matches[0].text.slice(0, 36)}] ${prompt}`;
-        self.postMessage({ type: 'LOG', category: 'INFER', text: `RAG Context Applied: "${matches[0].text}"` });
+        log('RAG', `Context match score ${matches[0].score.toFixed(3)} applied: "${matches[0].text}"`);
       }
 
       const turnPrompt = `<user> ${augmented.trim()} <bot>`;
       const promptTokens = engine.tokenizer.encode(turnPrompt);
+      log('INFER', `Encoded prompt into ${promptTokens.length} tokens.`);
 
       const generated = [...promptTokens];
       const outputWords = [];
@@ -160,17 +187,19 @@ self.onmessage = async (e) => {
         v: Array.from({ length: engine.layers }, () => [])
       };
 
-      // 1. Prefill
       let lastLogits = null;
       for (let p = 0; p < promptTokens.length; p++) {
         const res = engine.forwardStepWithTape(promptTokens[p], p, kvCache);
         lastLogits = res.logits;
       }
+      log('INFER', `Prefill complete in ${(performance.now() - tStart).toFixed(1)} ms. Beginning autoregression...`);
 
-      // 2. Autoregressive loop
       for (let t = 0; t < maxTokens; t++) {
         const nextPos = promptTokens.length + t;
-        if (nextPos >= engine.maxSeqLen) break;
+        if (nextPos >= engine.maxSeqLen) {
+          log('INFER', 'Reached max sequence length boundary.');
+          break;
+        }
 
         const bestToken = sampleNextToken(
           lastLogits,
@@ -179,7 +208,10 @@ self.onmessage = async (e) => {
           generated
         );
 
-        if (bestToken === 2) break;
+        if (bestToken === 2) {
+          log('INFER', 'Generated <eos> token. Halting sequence.');
+          break;
+        }
 
         generated.push(bestToken);
         const word = engine.tokenizer.idToToken.get(bestToken) || '';
@@ -208,6 +240,9 @@ self.onmessage = async (e) => {
         await new Promise((r) => setTimeout(r, 6));
       }
 
+      const totalTime = ((performance.now() - tStart) / 1000).toFixed(2);
+      log('INFER', `Generation complete: ${outputWords.length} tokens generated in ${totalTime}s.`);
+
       self.postMessage({
         type: 'TOKEN',
         token: '',
@@ -216,6 +251,7 @@ self.onmessage = async (e) => {
       });
 
     } catch (err) {
+      log('ERROR', `Inference failed: ${err.message}`);
       self.postMessage({
         type: 'TOKEN',
         token: '',
@@ -227,13 +263,17 @@ self.onmessage = async (e) => {
 
   if (type === 'HOT_RELOAD') {
     const { modelName } = payload;
+    log('STORAGE', `Hot reloading model "${modelName}"...`);
     const jsonStr = await storage.getModel(modelName);
     if (jsonStr) {
       const dec = await JSONLLMCodec.importFromJSONLLM(jsonStr);
       engine.weights = dec.weights;
       activeModelName = modelName;
       activeQuantMode = dec.quantMode;
-      self.postMessage({ type: 'STATUS', status: `Ready: ${modelName} (${activeQuantMode.toUpperCase()} Reloaded)` });
+      log('STORAGE', `Hot reload complete for "${modelName}".`);
+      self.postMessage({ type: 'STATUS', status: `Ready: ${modelName} (${activeQuantMode.toUpperCase()})` });
+    } else {
+      log('ERROR', `Model "${modelName}" not found in storage for hot reload.`);
     }
   }
 };
