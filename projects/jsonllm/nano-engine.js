@@ -1,9 +1,9 @@
 /**
- * nano-engine.js - 4M Parameter Pure FP16 Transformer with WASM SIMD Acceleration
+ * nano-engine.js - 4M Parameter Transformer with Hardware WASM SIMD Acceleration
  */
 
 import { HalfFloatArray } from './jsonllm-codec.js';
-import { WasiEngine } from './wasm-engine.js';
+import { WasiRuntime } from './wasm-engine.js';
 
 export class NanoTokenizer {
   constructor(vocabSize = 1024) {
@@ -85,16 +85,22 @@ export class NanoTransformer {
     this.adamM = {};
     this.adamV = {};
 
-    this.wasmEngine = new WasiEngine();
+    this.wasi = new WasiRuntime(256, 2048);
     this.hasWasm = false;
 
     this.allocateScratchpads();
     this.initWeights();
   }
 
-  async initWasmAccelerator() {
-    this.hasWasm = await this.wasmEngine.init('./kernel.wasm');
-    return this.hasWasm;
+  async initWasm(wasmBinary) {
+    try {
+      await this.wasi.compileAndInstantiate(wasmBinary, console.log);
+      this.hasWasm = !!this.wasi.exports;
+      return this.hasWasm;
+    } catch {
+      this.hasWasm = false;
+      return false;
+    }
   }
 
   allocateScratchpads() {
@@ -171,7 +177,7 @@ export class NanoTransformer {
       const invScale1 = this.rmsNorm(this.xb, this.x);
       layerTape.norm1 = { out: new HalfFloatArray(this.xb), invScale: invScale1 };
 
-      // Linear Attention Projections (WQ, WK, WV)
+      // Matrix Projections: Q, K, V
       for (let r = 0; r < this.dim; r++) {
         let sq = 0.0, sk = 0.0, sv = 0.0;
         const off = r * this.dim;
@@ -236,7 +242,7 @@ export class NanoTransformer {
         this.x[r] += sum;
       }
 
-      // SwiGLU Gated Feed-Forward Network
+      // SwiGLU Gated Feed-Forward Block
       const invScale2 = this.rmsNorm(this.xb, this.x);
       layerTape.norm2 = { out: new HalfFloatArray(this.xb), invScale: invScale2 };
 
@@ -271,7 +277,6 @@ export class NanoTransformer {
     const invScaleFinal = this.rmsNorm(this.xb, this.x);
     tape.normFinal = { out: new HalfFloatArray(this.xb), invScale: invScaleFinal };
 
-    // LM Head Logits
     for (let r = 0; r < this.vocabSize; r++) {
       let sum = 0.0;
       const off = r * this.dim;
@@ -296,7 +301,7 @@ export class NanoTransformer {
 
     const safeTarget = Math.min(targetTokenId, this.vocabSize - 1);
     const loss = -Math.log(Math.max(1e-7, probs[safeTarget]));
-    probs[safeTarget] -= 1.0; // Cross-entropy target gradient
+    probs[safeTarget] -= 1.0;
 
     // Output Head Backprop
     const dNormFinal = new HalfFloatArray(this.dim);
@@ -313,7 +318,7 @@ export class NanoTransformer {
     const dx = new HalfFloatArray(this.dim);
     for (let i = 0; i < this.dim; i++) dx[i] = dNormFinal[i] * tape.normFinal.invScale;
 
-    // Transformer Layers Reverse Propagation
+    // Transformer Blocks Reverse Propagation
     for (let l = this.layers - 1; l >= 0; l--) {
       const layerTape = tape.layers[l];
 
@@ -408,7 +413,6 @@ export class NanoTransformer {
 
   stepAdamW(lr = 0.003, beta1 = 0.9, beta2 = 0.999, eps = 1e-8, weightDecay = 0.01) {
     this.stepCount++;
-    const clipVal = 1.0;
 
     for (const key in this.weights) {
       const W = this.weights[key];
@@ -416,21 +420,51 @@ export class NanoTransformer {
       const M = this.adamM[key];
       const V = this.adamV[key];
 
+      // Dispatch to SIMD WASM Kernel when available
+      if (this.hasWasm && W.length >= 1024) {
+        this.wasi.resetHeap();
+        const len = W.length;
+        const wPtr = this.wasi.allocate(len);
+        const gPtr = this.wasi.allocate(len);
+        const mPtr = this.wasi.allocate(len);
+        const vPtr = this.wasi.allocate(len);
+
+        this.wasi.writeFloats(wPtr, W);
+        this.wasi.writeFloats(gPtr, G);
+        this.wasi.writeFloats(mPtr, M);
+        this.wasi.writeFloats(vPtr, V);
+
+        this.wasi.exports.wasm_adamw_step(wPtr, gPtr, mPtr, vPtr, len, lr, beta1, beta2, eps, weightDecay, this.stepCount);
+
+        W.set(this.wasi.readFloats(wPtr, len));
+        M.set(this.wasi.readFloats(mPtr, len));
+        V.set(this.wasi.readFloats(vPtr, len));
+        continue;
+      }
+
+      // High-precision typed fallback
       const len = W.length;
       const b1 = beta1;
       const b2 = beta2;
+      const b1Pow = Math.pow(b1, this.stepCount);
+      const b2Pow = Math.pow(b2, this.stepCount);
+      const biasCorr1 = 1.0 - b1Pow;
+      const biasCorr2 = 1.0 - b2Pow;
 
       for (let i = 0; i < len; i++) {
         let g = G[i];
-        if (g > clipVal) g = clipVal;
-        else if (g < -clipVal) g = -clipVal;
+        if (g > 1.0) g = 1.0;
+        else if (g < -1.0) g = -1.0;
 
         W[i] -= lr * weightDecay * W[i];
 
         M[i] = b1 * M[i] + (1.0 - b1) * g;
         V[i] = b2 * V[i] + (1.0 - b2) * (g * g);
 
-        W[i] -= (lr * M[i]) / (Math.sqrt(V[i]) + eps);
+        const mHat = M[i] / biasCorr1;
+        const vHat = V[i] / biasCorr2;
+
+        W[i] -= (lr * mHat) / (Math.sqrt(vHat) + eps);
       }
     }
   }
