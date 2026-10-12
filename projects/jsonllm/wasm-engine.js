@@ -1,39 +1,78 @@
 /**
- * wasm-engine.js - WASI & WASM SIMD Hardware Accelerator Bridge
+ * wasm-engine.js - WASI Snapshot Preview 1 Runtime & SIMD Hardware Bridge
  */
 
-export class WasiEngine {
-  constructor(initialPages = 128, maxPages = 1024) {
+export class WasiRuntime {
+  constructor(initialPages = 256, maxPages = 2048) {
     this.memory = new WebAssembly.Memory({ initial: initialPages, maximum: maxPages });
     this.exports = null;
-    this.heapPtr = 65536; // Start dynamic allocations past reserved scratchpads
+    this.heapPtr = 65536; // Reserve first 64KB for internal kernel scratchpads
   }
 
-  async init(wasmPath = './kernel.wasm') {
-    const importObject = {
+  createImports(logHandler) {
+    const mem = this.memory;
+
+    return {
       wasi_snapshot_preview1: {
+        args_get: () => 0,
+        args_sizes_get: (argcPtr, argvBufSizePtr) => {
+          const view = new DataView(mem.buffer);
+          view.setUint32(argcPtr, 0, true);
+          view.setUint32(argvBufSizePtr, 0, true);
+          return 0;
+        },
+        environ_get: () => 0,
+        environ_sizes_get: (countPtr, bufSizePtr) => {
+          const view = new DataView(mem.buffer);
+          view.setUint32(countPtr, 0, true);
+          view.setUint32(bufSizePtr, 0, true);
+          return 0;
+        },
         clock_time_get: (clockId, precision, timePtr) => {
-          const view = new DataView(this.memory.buffer);
+          const view = new DataView(mem.buffer);
           view.setBigUint64(timePtr, BigInt(Date.now()) * 1000000n, true);
           return 0;
         },
-        proc_exit: (status) => status
+        fd_write: (fd, iovs, iovsLen, nwritten) => {
+          const view = new DataView(mem.buffer);
+          let totalBytes = 0;
+          let output = '';
+
+          for (let i = 0; i < iovsLen; i++) {
+            const ptr = view.getUint32(iovs + i * 8, true);
+            const len = view.getUint32(iovs + i * 8 + 4, true);
+            const chunk = new Uint8Array(mem.buffer, ptr, len);
+            output += new TextDecoder('utf-8').decode(chunk);
+            totalBytes += len;
+          }
+
+          view.setUint32(nwritten, totalBytes, true);
+          if (output.trim() && logHandler) logHandler(output);
+          return 0;
+        },
+        fd_read: () => 0,
+        fd_seek: () => 0,
+        fd_close: () => 0,
+        proc_exit: (status) => {
+          if (logHandler) logHandler(`[WASI] Process exit: ${status}`);
+          return 0;
+        }
       },
       env: {
-        memory: this.memory
+        memory: this.memory,
+        abort: () => {
+          if (logHandler) logHandler('[WASM] Abort execution triggered.');
+        }
       }
     };
+  }
 
-    try {
-      const response = await fetch(wasmPath);
-      const bytes = await response.arrayBuffer();
-      const module = await WebAssembly.compile(bytes);
-      const instance = await WebAssembly.instantiate(module, importObject);
-      this.exports = instance.exports;
-      return true;
-    } catch {
-      return false; // Fallback to JS engine if binary is unavailable
-    }
+  async compileAndInstantiate(binaryBuffer, logHandler) {
+    const imports = this.createImports(logHandler);
+    const module = await WebAssembly.compile(binaryBuffer);
+    const instance = await WebAssembly.instantiate(module, imports);
+    this.exports = instance.exports;
+    return instance;
   }
 
   allocate(numFloats) {
@@ -53,25 +92,5 @@ export class WasiEngine {
 
   readFloats(ptr, length) {
     return new Float32Array(this.memory.buffer, ptr, length);
-  }
-
-  gemv(outPtr, wPtr, xPtr, rows, cols) {
-    this.exports.wasm_gemv(outPtr, wPtr, xPtr, rows, cols);
-  }
-
-  gemvTranspose(dxPtr, wPtr, dyPtr, rows, cols) {
-    this.exports.wasm_gemv_transpose(dxPtr, wPtr, dyPtr, rows, cols);
-  }
-
-  accumGrad(dwPtr, dyPtr, xPtr, rows, cols) {
-    this.exports.wasm_accum_grad(dwPtr, dyPtr, xPtr, rows, cols);
-  }
-
-  rmsnormBackward(dxPtr, doutPtr, outPtr, size, invScale) {
-    this.exports.wasm_rmsnorm_backward(dxPtr, doutPtr, outPtr, size, invScale);
-  }
-
-  adamwStep(wPtr, gPtr, mPtr, vPtr, size, lr, beta1, beta2, eps, decay, step) {
-    this.exports.wasm_adamw_step(wPtr, gPtr, mPtr, vPtr, size, lr, beta1, beta2, eps, decay, step);
   }
 }
