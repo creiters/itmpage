@@ -9,7 +9,7 @@
 </head>
 <body>
   <div id="layout">
-    <!-- Clean Minimalist Studio Header -->
+    <!-- Studio Header -->
     <header class="app-header">
       <div class="brand-wrap">
         <div class="brand-dot"></div>
@@ -22,7 +22,7 @@
         <select id="select-active-agent" style="width: auto; padding: 6px 12px; font-size: 0.75rem;">
           <option value="vimto-dialog" selected>Agent: vimto-dialog</option>
           <option value="vimto-code">Agent: vimto-code</option>
-          <option value="vimto-reasoner">Agent: vimto-reasoner</option>
+          <option value="miriam">Agent: Miriam</option>
         </select>
       </div>
     </header>
@@ -33,30 +33,32 @@
       <section id="view-chat" class="app-view active">
         <div id="chat-stream"></div>
         <div class="chat-input-bar">
-          <input type="text" id="input-prompt" placeholder="Message active vimtoLLM agent (RAG context enabled)...">
+          <input type="text" id="input-prompt" placeholder="Message active agent (Coroutine execution enabled)...">
           <button id="btn-send">Send</button>
         </div>
       </section>
 
-      <!-- 2. Train & Dialogues Tab (JSON format only) -->
+      <!-- 2. Train & Dialogues Tab -->
       <section id="view-train" class="app-view">
         <div class="settings-content">
-          <!-- Training Studio Card -->
+          <!-- Model Training Studio Card -->
           <div class="settings-card">
             <div class="card-header-row">
-              <h3>Model Training Studio (Pure JSON Format)</h3>
+              <h3>Training Studio (Concurrent Epoch Coroutines)</h3>
               <span class="badge" id="train-agent-badge">Target: vimto-dialog</span>
             </div>
-            <span class="field-label">Target Agent Architecture for Training</span>
+            
             <div class="grid-two-col">
               <div>
+                <span class="field-label">Target Architecture</span>
                 <select id="select-train-target-agent">
                   <option value="vimto-dialog" selected>vimto-dialog</option>
                   <option value="vimto-code">vimto-code</option>
-                  <option value="vimto-reasoner">vimto-reasoner</option>
+                  <option value="miriam">Miriam (Thinking Companion)</option>
                 </select>
               </div>
               <div>
+                <span class="field-label">Quantization Mode</span>
                 <select id="select-quant-mode">
                   <option value="fp4" selected>FP4 (E2M1 Microscaled)</option>
                   <option value="q4">Q4 (Q4_0 Block Uniform)</option>
@@ -64,25 +66,26 @@
               </div>
             </div>
 
-            <span class="field-label">Training Corpus (Strict JSON Array format)</span>
-            <textarea id="train-json-input" class="console-input" placeholder='[
-  {"u": "Hi", "b": "Hello! How can I assist you today?"},
-  {"u": "What is your name?", "b": "My name is vimtoLLM."}
-]'></textarea>
-
             <div class="grid-two-col">
               <div>
-                <span class="field-label">Epochs</span>
-                <input type="number" id="input-epochs" value="5" min="1" max="50">
+                <span class="field-label">Total Epochs</span>
+                <input type="number" id="input-epochs" value="12" min="1" max="50">
               </div>
               <div>
-                <span class="field-label">Learning Rate</span>
-                <input type="number" id="input-lr" value="0.003" step="0.0005" min="0.0001">
+                <span class="field-label">Concurrent Epoch Streams</span>
+                <input type="number" id="input-concurrency" value="3" min="1" max="8">
               </div>
             </div>
 
+            <span class="field-label">Training Corpus (JSON Array Format)</span>
+            <textarea id="train-json-input" class="console-input" placeholder='[
+  {"u": "Hi", "b": "Hello! How can I assist you today?"},
+  {"u": "What is your architecture?", "b": "I am a 4M parameter transformer using pure FP16."}
+]'></textarea>
+
             <div class="flex-btn-row">
-              <button id="btn-start-training" class="flex-1">Start Model Training</button>
+              <button id="btn-start-training" class="flex-1">Start Concurrent Training</button>
+              <button id="btn-stop-training" class="danger-btn small-btn">Stop</button>
               <button id="btn-generate-jsonllm" class="secondary-btn flex-1">Save Model to JSONLLM</button>
             </div>
 
@@ -111,32 +114,29 @@
           <div class="settings-card">
             <div class="card-header-row">
               <h3>Dialogue Dataset Studio (&lt; 2 KB Format)</h3>
-              <button id="btn-load-preset-dialogue" class="secondary-btn small-btn">Load Big Preset Dataset</button>
+              <button id="btn-load-preset-dialogue" class="secondary-btn small-btn">Load Preset</button>
             </div>
-            <span class="field-label">Select Agent for this Dialogue Package</span>
             <div class="grid-two-col">
               <div>
                 <select id="select-dataset-agent">
-                  <option value="vimto-dialog" selected>For Agent: vimto-dialog</option>
-                  <option value="vimto-code">For Agent: vimto-code</option>
-                  <option value="vimto-reasoner">For Agent: vimto-reasoner</option>
+                  <option value="vimto-dialog" selected>For: vimto-dialog</option>
+                  <option value="vimto-code">For: vimto-code</option>
+                  <option value="miriam">For: Miriam</option>
                 </select>
               </div>
               <div>
-                <input type="text" id="input-dataset-name" placeholder="Dataset Name" value="vimto-master-dialogue">
+                <input type="text" id="input-dataset-name" placeholder="Dataset Name" value="vimto-conversations">
               </div>
             </div>
 
-            <span class="field-label">Dataset JSON Payload</span>
             <textarea id="dialog-pairs-input" class="console-input" placeholder='[
-  {"u": "Hi", "b": "Hello! I am vimtoLLM - all space inside! 10 on minus 84."},
-  {"u": "Who are you?", "b": "I am an autonomous 4M browser language model."}
+  {"u": "Hi", "b": "Hello! I am vimtoLLM - all space inside! 10 on minus 84."}
 ]'></textarea>
 
             <div class="flex-btn-row">
               <button id="btn-save-dialog-dataset" class="flex-1">Compress & Save Dataset</button>
               <button id="btn-load-into-training" class="secondary-btn flex-1">Copy to Training Editor</button>
-              <button id="btn-export-dialog-file" class="secondary-btn small-btn">Export .dialog.jsonllm</button>
+              <button id="btn-export-dialog-file" class="secondary-btn small-btn">Export File</button>
             </div>
             <span id="dialog-save-status" class="status-label">Ready to serialize</span>
 
@@ -154,22 +154,20 @@
         </div>
       </section>
 
-      <!-- 3. DB & Vector RAG Tab (Agent-Scoped) -->
+      <!-- 3. DB & Vector RAG Tab -->
       <section id="view-db" class="app-view">
         <div class="settings-content">
-          <!-- Vector RAG Card -->
           <div class="settings-card">
             <div class="card-header-row">
               <h3>Vector Knowledge Store (RAG)</h3>
-              <span class="badge">FP16 Hypersphere</span>
+              <span class="badge">FP16 Scoped</span>
             </div>
-            <span class="field-label">Associate Fact with Specific Agent Target</span>
             <div class="grid-two-col">
               <div>
                 <select id="select-rag-agent">
                   <option value="vimto-dialog" selected>Target: vimto-dialog</option>
                   <option value="vimto-code">Target: vimto-code</option>
-                  <option value="vimto-reasoner">Target: vimto-reasoner</option>
+                  <option value="miriam">Target: Miriam</option>
                   <option value="all">Universal (All Agents)</option>
                 </select>
               </div>
@@ -182,7 +180,7 @@
             
             <div class="flex-btn-row">
               <button id="btn-index-rag" class="flex-1">Index Document</button>
-              <button id="btn-test-rag-search" class="secondary-btn flex-1">Test RAG Cosine Search</button>
+              <button id="btn-test-rag-search" class="secondary-btn flex-1">Test RAG Search</button>
             </div>
             <span class="status-label" id="rag-index-status">Store Ready</span>
 
@@ -198,7 +196,6 @@
             </div>
           </div>
 
-          <!-- IndexedDB Models Card -->
           <div class="settings-card">
             <div class="card-header-row">
               <h3>IndexedDB Model Store</h3>
@@ -257,10 +254,9 @@
       <!-- 5. Logs & Node Status Tab -->
       <section id="view-diagnostics" class="app-view">
         <div class="settings-content">
-          <!-- Relocated Node & Engine Status Banner -->
           <div class="settings-card">
             <div class="card-header-row">
-              <h3>Runtime Status & Node Identity</h3>
+              <h3>Runtime Status & Memory Garbage Collector</h3>
               <span id="engine-status" class="badge ready">Engine: Standby</span>
             </div>
             <div class="grid-two-col">
@@ -275,10 +271,9 @@
             </div>
           </div>
 
-          <!-- Telemetry & Top Candidates -->
           <div class="settings-card">
             <div class="card-header-row">
-              <h3>Inference Telemetry</h3>
+              <h3>Telemetry & Live Debug Logs</h3>
               <div class="flex-btn-row">
                 <button id="btn-filter-logs" class="secondary-btn small-btn">All Logs</button>
                 <button id="btn-clear-logs" class="secondary-btn small-btn">Clear Logs</button>
@@ -296,7 +291,7 @@
               </div>
               <div class="telemetry-item">
                 <span class="telemetry-val" id="metric-rag-hits">0</span>
-                <span class="telemetry-lbl">RAG Ingested Docs</span>
+                <span class="telemetry-lbl">RAG Docs</span>
               </div>
             </div>
 
@@ -305,14 +300,14 @@
               <div id="token-topk-bars">No active search data.</div>
             </div>
 
-            <span class="field-label">Complete Debug Event Stream (All Layers)</span>
+            <span class="field-label">Complete Event Stream</span>
             <div id="diagnostics-log" class="console-box tall"></div>
           </div>
         </div>
       </section>
     </div>
 
-    <!-- Bottom Navigation Bar (5 Consolidated Views) -->
+    <!-- Navigation -->
     <nav class="bottom-nav">
       <button class="nav-tab active" data-target="view-chat"><span>Chat</span></button>
       <button class="nav-tab" data-target="view-train"><span>Train</span></button>
