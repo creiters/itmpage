@@ -1,5 +1,5 @@
 /**
- * nano-engine.js - 4M Pure FP16 Transformer with Positional Embeddings, Autograd & GC
+ * nano-engine.js - 4M Parameter Pure FP16 Transformer with Dual Forward Engine
  */
 
 import { NanoJsonTokenizer } from './nano-json-tokenizer.js';
@@ -25,8 +25,32 @@ export class NanoTransformer {
     this.adamM = {};
     this.adamV = {};
 
+    this.wasmInstance = null;
+    this.wasmMemory = null;
+    this.hasWasm = false;
+
     this.allocateScratchpads();
     this.initWeights();
+  }
+
+  async initWasmSIMD(wasmBinary) {
+    try {
+      this.wasmMemory = new WebAssembly.Memory({ initial: 256, maximum: 2048 });
+      const importObj = {
+        wasi_snapshot_preview1: {
+          clock_time_get: () => 0,
+          proc_exit: () => 0
+        },
+        env: { memory: this.wasmMemory, get_active_device: () => 0 }
+      };
+      const module = await WebAssembly.compile(wasmBinary);
+      this.wasmInstance = await WebAssembly.instantiate(module, importObj);
+      this.hasWasm = true;
+      return true;
+    } catch {
+      this.hasWasm = false;
+      return false;
+    }
   }
 
   allocateScratchpads() {
@@ -41,6 +65,8 @@ export class NanoTransformer {
     this.siluH1 = new HalfFloatArray(this.ffnDim);
     this.mlpAct = new HalfFloatArray(this.ffnDim);
     this.logits = new HalfFloatArray(this.vocabSize);
+    this.scratchScores = new Float32Array(this.maxSeqLen);
+    this.scratchWeights = new Float32Array(this.maxSeqLen);
   }
 
   initWeights() {
@@ -83,6 +109,127 @@ export class NanoTransformer {
     const invScale = 1.0 / Math.sqrt(ss / src.length + eps);
     for (let i = 0; i < src.length; i++) out[i] = src[i] * invScale;
     return invScale;
+  }
+
+  /**
+   * Tape-Free Fast Forward Inference for High-Speed Autoregressive Generation
+   */
+  forwardInferenceFast(tokenId, pos, historyContext) {
+    const safeTok = Math.max(0, Math.min(tokenId, this.vocabSize - 1));
+    const embOffset = safeTok * this.dim;
+    const posOffset = Math.min(pos, this.maxSeqLen - 1) * this.dim;
+
+    for (let i = 0; i < this.dim; i++) {
+      this.x[i] = this.weights.wte[embOffset + i] + this.weights.wpe[posOffset + i];
+    }
+
+    for (let l = 0; l < this.layers; l++) {
+      this.rmsNorm(this.xb, this.x);
+
+      const wq = this.weights[`blk_${l}_wq`];
+      const wk = this.weights[`blk_${l}_wk`];
+      const wv = this.weights[`blk_${l}_wv`];
+      const wo = this.weights[`blk_${l}_wo`];
+
+      for (let r = 0; r < this.dim; r++) {
+        let sq = 0.0, sk = 0.0, sv = 0.0;
+        const off = r * this.dim;
+        for (let c = 0; c < this.dim; c++) {
+          sq += this.xb[c] * wq[off + c];
+          sk += this.xb[c] * wk[off + c];
+          sv += this.xb[c] * wv[off + c];
+        }
+        this.q[r] = sq;
+        this.k[r] = sk;
+        this.v[r] = sv;
+      }
+
+      if (historyContext) {
+        if (!historyContext.k[l][pos]) {
+          historyContext.k[l][pos] = new Float32Array(this.dim);
+          historyContext.v[l][pos] = new Float32Array(this.dim);
+        }
+        historyContext.k[l][pos].set(this.k);
+        historyContext.v[l][pos].set(this.v);
+      }
+
+      this.att.fill(0.0);
+      const sqrtHeadDim = Math.sqrt(this.headDim);
+
+      for (let h = 0; h < this.heads; h++) {
+        const hOffset = h * this.headDim;
+        let maxScore = -Infinity;
+
+        for (let t = 0; t <= pos; t++) {
+          const histK = historyContext.k[l][t];
+          let score = 0.0;
+          for (let d = 0; d < this.headDim; d++) {
+            score += this.q[hOffset + d] * histK[hOffset + d];
+          }
+          score /= sqrtHeadDim;
+          this.scratchScores[t] = score;
+          if (score > maxScore) maxScore = score;
+        }
+
+        let sumExp = 0.0;
+        for (let t = 0; t <= pos; t++) {
+          const expVal = Math.exp(this.scratchScores[t] - maxScore);
+          this.scratchWeights[t] = expVal;
+          sumExp += expVal;
+        }
+
+        const invSum = 1.0 / (sumExp || 1.0);
+        for (let t = 0; t <= pos; t++) {
+          const weight = this.scratchWeights[t] * invSum;
+          const histV = historyContext.v[l][t];
+          for (let d = 0; d < this.headDim; d++) {
+            this.att[hOffset + d] += histV[hOffset + d] * weight;
+          }
+        }
+      }
+
+      for (let r = 0; r < this.dim; r++) {
+        let sum = 0.0;
+        const off = r * this.dim;
+        for (let c = 0; c < this.dim; c++) sum += this.att[c] * wo[off + c];
+        this.x[r] += sum;
+      }
+
+      this.rmsNorm(this.xb, this.x);
+
+      const wgate = this.weights[`blk_${l}_wgate`];
+      const wup = this.weights[`blk_${l}_wup`];
+      const wdown = this.weights[`blk_${l}_wdown`];
+
+      for (let r = 0; r < this.ffnDim; r++) {
+        let sGate = 0.0, sUp = 0.0;
+        const off = r * this.dim;
+        for (let c = 0; c < this.dim; c++) {
+          sGate += this.xb[c] * wgate[off + c];
+          sUp += this.xb[c] * wup[off + c];
+        }
+        const silu = sGate / (1.0 + Math.exp(-sGate));
+        this.mlpAct[r] = silu * sUp;
+      }
+
+      for (let r = 0; r < this.dim; r++) {
+        let sum = 0.0;
+        const off = r * this.ffnDim;
+        for (let c = 0; c < this.ffnDim; c++) sum += this.mlpAct[c] * wdown[off + c];
+        this.x[r] += sum;
+      }
+    }
+
+    this.rmsNorm(this.xb, this.x);
+    const lmHead = this.weights.lm_head;
+    for (let r = 0; r < this.vocabSize; r++) {
+      let sum = 0.0;
+      const off = r * this.dim;
+      for (let c = 0; c < this.dim; c++) sum += this.xb[c] * lmHead[off + c];
+      this.logits[r] = sum;
+    }
+
+    return this.logits;
   }
 
   forwardStepWithTape(tokenId, pos, historyContext = null) {
@@ -338,6 +485,30 @@ export class NanoTransformer {
       const M = this.adamM[key];
       const V = this.adamV[key];
       const len = W.length;
+
+      // Fast SIMD WebAssembly kernel dispatch when available
+      if (this.hasWasm && len >= 1024) {
+        const bytes = len * 4;
+        const wPtr = 65536;
+        const gPtr = wPtr + bytes;
+        const mPtr = gPtr + bytes;
+        const vPtr = mPtr + bytes;
+
+        const f32View = new Float32Array(this.wasmMemory.buffer);
+        f32View.set(W, wPtr / 4);
+        f32View.set(G, gPtr / 4);
+        f32View.set(M, mPtr / 4);
+        f32View.set(V, vPtr / 4);
+
+        this.wasmInstance.exports.wasm_adamw_step(
+          wPtr, gPtr, mPtr, vPtr, len, lr, beta1, beta2, eps, weightDecay, this.stepCount
+        );
+
+        W.set(new Float32Array(this.wasmMemory.buffer, wPtr, len));
+        M.set(new Float32Array(this.wasmMemory.buffer, mPtr, len));
+        V.set(new Float32Array(this.wasmMemory.buffer, vPtr, len));
+        continue;
+      }
 
       for (let i = 0; i < len; i++) {
         let g = G[i];
