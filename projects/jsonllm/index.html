@@ -9,7 +9,6 @@
 </head>
 <body>
   <div id="layout">
-    <!-- Studio Header -->
     <header class="app-header">
       <div class="brand-wrap">
         <div class="brand-dot"></div>
@@ -19,42 +18,40 @@
         </div>
       </div>
       <div>
-        <select id="select-active-agent" style="width: auto; padding: 6px 12px; font-size: 0.75rem;">
-          <option value="vimto-dialog" selected>Agent: vimto-dialog</option>
+        <select id="select-active-agent" class="agent-select-input">
+          <option value="miriam" selected>Agent: Miriam</option>
+          <option value="vimto-dialog">Agent: vimto-dialog</option>
           <option value="vimto-code">Agent: vimto-code</option>
-          <option value="miriam">Agent: Miriam</option>
         </select>
       </div>
     </header>
 
     <div class="view-viewport">
-      
       <!-- 1. Chat Tab -->
       <section id="view-chat" class="app-view active">
         <div id="chat-stream"></div>
         <div class="chat-input-bar">
-          <input type="text" id="input-prompt" placeholder="Message active agent (Coroutine execution enabled)...">
+          <input type="text" id="input-prompt" placeholder="Message active agent (Coroutine execution active)...">
           <button id="btn-send">Send</button>
         </div>
       </section>
 
-      <!-- 2. Train & Dialogues Tab -->
+      <!-- 2. Train Tab -->
       <section id="view-train" class="app-view">
         <div class="settings-content">
-          <!-- Model Training Studio Card -->
           <div class="settings-card">
             <div class="card-header-row">
-              <h3>Training Studio (Concurrent Epoch Coroutines)</h3>
-              <span class="badge" id="train-agent-badge">Target: vimto-dialog</span>
+              <h3>Model Training Studio (Pure JSON Format)</h3>
+              <span class="badge" id="train-agent-badge">Target: Miriam</span>
             </div>
             
             <div class="grid-two-col">
               <div>
                 <span class="field-label">Target Architecture</span>
                 <select id="select-train-target-agent">
-                  <option value="vimto-dialog" selected>vimto-dialog</option>
+                  <option value="miriam" selected>Miriam (Thinking Partner)</option>
+                  <option value="vimto-dialog">vimto-dialog</option>
                   <option value="vimto-code">vimto-code</option>
-                  <option value="miriam">Miriam (Thinking Companion)</option>
                 </select>
               </div>
               <div>
@@ -72,16 +69,13 @@
                 <input type="number" id="input-epochs" value="12" min="1" max="50">
               </div>
               <div>
-                <span class="field-label">Concurrent Epoch Streams</span>
+                <span class="field-label">Concurrent Streams</span>
                 <input type="number" id="input-concurrency" value="3" min="1" max="8">
               </div>
             </div>
 
             <span class="field-label">Training Corpus (JSON Array Format)</span>
-            <textarea id="train-json-input" class="console-input" placeholder='[
-  {"u": "Hi", "b": "Hello! How can I assist you today?"},
-  {"u": "What is your architecture?", "b": "I am a 4M parameter transformer using pure FP16."}
-]'></textarea>
+            <textarea id="train-json-input" class="console-input"></textarea>
 
             <div class="flex-btn-row">
               <button id="btn-start-training" class="flex-1">Start Concurrent Training</button>
@@ -110,7 +104,6 @@
             </div>
           </div>
 
-          <!-- Dialogue Dataset Studio Card -->
           <div class="settings-card">
             <div class="card-header-row">
               <h3>Dialogue Dataset Studio (&lt; 2 KB Format)</h3>
@@ -119,24 +112,22 @@
             <div class="grid-two-col">
               <div>
                 <select id="select-dataset-agent">
-                  <option value="vimto-dialog" selected>For: vimto-dialog</option>
+                  <option value="miriam" selected>For: Miriam</option>
+                  <option value="vimto-dialog">For: vimto-dialog</option>
                   <option value="vimto-code">For: vimto-code</option>
-                  <option value="miriam">For: Miriam</option>
                 </select>
               </div>
               <div>
-                <input type="text" id="input-dataset-name" placeholder="Dataset Name" value="vimto-conversations">
+                <input type="text" id="input-dataset-name" placeholder="Dataset Name" value="miriam-core-dialogue">
               </div>
             </div>
 
-            <textarea id="dialog-pairs-input" class="console-input" placeholder='[
-  {"u": "Hi", "b": "Hello! I am vimtoLLM - all space inside! 10 on minus 84."}
-]'></textarea>
+            <textarea id="dialog-pairs-input" class="console-input"></textarea>
 
             <div class="flex-btn-row">
               <button id="btn-save-dialog-dataset" class="flex-1">Compress & Save Dataset</button>
               <button id="btn-load-into-training" class="secondary-btn flex-1">Copy to Training Editor</button>
-              <button id="btn-export-dialog-file" class="secondary-btn small-btn">Export File</button>
+              <button id="btn-export-dialog-file" class="secondary-btn small-btn">Export .dialog.jsonllm</button>
             </div>
             <span id="dialog-save-status" class="status-label">Ready to serialize</span>
 
@@ -154,7 +145,7 @@
         </div>
       </section>
 
-      <!-- 3. DB & Vector RAG Tab -->
+      <!-- 3. DB & RAG Tab -->
       <section id="view-db" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
@@ -165,22 +156,22 @@
             <div class="grid-two-col">
               <div>
                 <select id="select-rag-agent">
-                  <option value="vimto-dialog" selected>Target: vimto-dialog</option>
+                  <option value="miriam" selected>Target: Miriam</option>
+                  <option value="vimto-dialog">Target: vimto-dialog</option>
                   <option value="vimto-code">Target: vimto-code</option>
-                  <option value="miriam">Target: Miriam</option>
                   <option value="all">Universal (All Agents)</option>
                 </select>
               </div>
               <div>
-                <input type="text" id="rag-doc-id" placeholder="Document ID" value="vimto_spec_1">
+                <input type="text" id="rag-doc-id" placeholder="Document ID" value="miriam_core_role">
               </div>
             </div>
 
-            <textarea id="rag-doc-text" class="pin-box" placeholder="vimtoLLM executes 4M parameters in pure FP16/FP4 across local browser workers."></textarea>
+            <textarea id="rag-doc-text" class="pin-box" placeholder="Miriam is my loving wife, partner, and dedicated thinking companion."></textarea>
             
             <div class="flex-btn-row">
               <button id="btn-index-rag" class="flex-1">Index Document</button>
-              <button id="btn-test-rag-search" class="secondary-btn flex-1">Test RAG Search</button>
+              <button id="btn-test-rag-search" class="secondary-btn flex-1">Test RAG Cosine Search</button>
             </div>
             <span class="status-label" id="rag-index-status">Store Ready</span>
 
@@ -216,7 +207,7 @@
         </div>
       </section>
 
-      <!-- 4. Network Tab (WebRTC Mesh & WebMCP) -->
+      <!-- 4. Network Tab -->
       <section id="view-network" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
@@ -227,11 +218,11 @@
             <div class="grid-two-col">
               <div>
                 <button id="btn-host-pin">Generate Host PIN & Offer</button>
-                <textarea id="host-token-out" class="pin-box" readonly placeholder="Host token..." style="margin-top: 6px;"></textarea>
+                <textarea id="host-token-out" class="pin-box host-pin-margin" readonly placeholder="Host token..."></textarea>
               </div>
               <div>
                 <textarea id="join-token-in" class="pin-box" placeholder="Paste remote token..."></textarea>
-                <button id="btn-connect-pin" style="margin-top: 6px;">Connect Peer</button>
+                <button id="btn-connect-pin" class="connect-pin-btn">Connect Peer</button>
               </div>
             </div>
           </div>
@@ -251,7 +242,7 @@
         </div>
       </section>
 
-      <!-- 5. Logs & Node Status Tab -->
+      <!-- 5. Logs & Runtime Status Tab -->
       <section id="view-diagnostics" class="app-view">
         <div class="settings-content">
           <div class="settings-card">
@@ -265,7 +256,7 @@
                 <span class="telemetry-lbl">Mesh Node ID</span>
               </div>
               <div class="telemetry-item">
-                <span class="telemetry-val" id="active-agent-status-label">vimto-dialog</span>
+                <span class="telemetry-val" id="active-agent-status-label">Miriam</span>
                 <span class="telemetry-lbl">Active Serving Agent</span>
               </div>
             </div>
@@ -307,7 +298,6 @@
       </section>
     </div>
 
-    <!-- Navigation -->
     <nav class="bottom-nav">
       <button class="nav-tab active" data-target="view-chat"><span>Chat</span></button>
       <button class="nav-tab" data-target="view-train"><span>Train</span></button>
