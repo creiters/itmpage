@@ -1,3 +1,7 @@
+/**
+ * storage.js - Single-Record Atomic IndexedDB Store with Web Locks Protection
+ */
+
 export class StorageService {
   constructor(dbName = 'Clean_JSONLLM_Store', version = 3) {
     this.dbName = dbName;
@@ -40,7 +44,7 @@ export class StorageService {
   }
 
   async putModel(modelName, jsonString) {
-    return new Promise((resolve, reject) => {
+    const exec = () => new Promise((resolve, reject) => {
       const tx = this.db.transaction('json_models', 'readwrite');
       const store = tx.objectStore('json_models');
       const req = store.put({
@@ -52,6 +56,11 @@ export class StorageService {
       req.onsuccess = () => resolve(true);
       req.onerror = () => reject(req.error);
     });
+
+    if (navigator.locks) {
+      return await navigator.locks.request('jsonllm_model_lock', exec);
+    }
+    return await exec();
   }
 
   async getModel(modelName) {
