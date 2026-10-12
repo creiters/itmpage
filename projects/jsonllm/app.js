@@ -1,52 +1,50 @@
+/**
+ * app.js - Master Application Coordinator with Multi-Epoch Coroutines & GC Controls
+ */
+
 import { StorageService } from './storage.js';
 import { MeshCoordinator } from './mesh.js';
 
 let currentLogFilter = 'ALL';
 
-// Preset Big Dialogue Dataset (JSON format)
-const BIG_PRESET_DIALOGUE = [
-  { "u": "Hi", "b": "Hello! How can I assist you today?" },
-  { "u": "Hello", "b": "Hi there! I am vimtoLLM - all space inside! 10 on minus 84." },
-  { "u": "Who are you?", "b": "I am vimtoLLM, a local browser language model." },
-  { "u": "What is your architecture?", "b": "I am a 4M parameter transformer using pure FP16 with FP4 E2M1 quantization." },
-  { "u": "Where do you run?", "b": "I run completely offline inside your browser tab without servers." },
-  { "u": "What is your name?", "b": "My name is vimtoLLM." },
-  { "u": "How are weights stored?", b: "My weights are saved as single-document JSONLLM records in IndexedDB." },
-  { "u": "Are you online?", "b": "No, I operate completely offline on your device." },
-  { "u": "How does RAG work?", "b": "Vector RAG retrieves relevant facts before generating response tokens." },
-  { "u": "What is WebMCP?", "b": "WebMCP is the browser-native Model Context Protocol interface." },
-  { "u": "Can you code C?", "b": "Yes, I understand C syntax, pointers, and stdio functions." },
-  { "u": "Can you write HTML?", "b": "Yes, I can generate modern semantic HTML5 and CSS3." },
-  { "u": "Thank you", "b": "You are very welcome! Let me know if you need anything else." },
-  { "u": "Goodbye", "b": "Goodbye! Have a productive day." }
-];
-
 const storage = new StorageService();
 await storage.init();
 
 const nodeId = 'Node_' + Math.random().toString(36).substring(2, 7);
+document.getElementById('node-label').textContent = nodeId;
 
-// DOM Handles
+const diagnosticsLog = document.getElementById('diagnostics-log');
+const btnClearLogs = document.getElementById('btn-clear-logs');
+const btnFilterLogs = document.getElementById('btn-filter-logs');
+
+async function appendLog(category, text) {
+  await storage.logEvent(category, text);
+  if (!diagnosticsLog) return;
+  if (currentLogFilter !== 'ALL' && currentLogFilter !== category) return;
+
+  const time = new Date().toLocaleTimeString();
+  const el = document.createElement('div');
+  el.className = 'log-entry';
+  el.innerHTML = `<span style="color:var(--text-dim); flex-shrink:0;">[${time}]</span> <span class="log-tag ${category}">${category}</span> <span>${text}</span>`;
+  diagnosticsLog.appendChild(el);
+  diagnosticsLog.scrollTop = diagnosticsLog.scrollHeight;
+}
+
 const chatStream = document.getElementById('chat-stream');
 const inputPrompt = document.getElementById('input-prompt');
 const btnSend = document.getElementById('btn-send');
 const selectActiveAgent = document.getElementById('select-active-agent');
-
-// Relocated Banner Handles
-const nodeLabel = document.getElementById('node-label');
 const engineStatus = document.getElementById('engine-status');
 const activeAgentStatusLabel = document.getElementById('active-agent-status-label');
 
-nodeLabel.textContent = nodeId;
-
-// Training Handles
 const selectTrainTargetAgent = document.getElementById('select-train-target-agent');
 const trainAgentBadge = document.getElementById('train-agent-badge');
 const selectQuantMode = document.getElementById('select-quant-mode');
 const trainJsonInput = document.getElementById('train-json-input');
 const inputEpochs = document.getElementById('input-epochs');
-const inputLr = document.getElementById('input-lr');
+const inputConcurrency = document.getElementById('input-concurrency');
 const btnStartTraining = document.getElementById('btn-start-training');
+const btnStopTraining = document.getElementById('btn-stop-training');
 const btnGenerateJsonllm = document.getElementById('btn-generate-jsonllm');
 const trainProgressFill = document.getElementById('train-progress-fill');
 const trainProgressText = document.getElementById('train-progress-text');
@@ -54,7 +52,6 @@ const metricTrainLoss = document.getElementById('metric-train-loss');
 const metricTrainPpl = document.getElementById('metric-train-ppl');
 const metricModelSize = document.getElementById('metric-model-size');
 
-// Dialogue Studio Handles
 const btnLoadPresetDialogue = document.getElementById('btn-load-preset-dialogue');
 const selectDatasetAgent = document.getElementById('select-dataset-agent');
 const inputDatasetName = document.getElementById('input-dataset-name');
@@ -65,7 +62,6 @@ const btnExportDialogFile = document.getElementById('btn-export-dialog-file');
 const dialogSaveStatus = document.getElementById('dialog-save-status');
 const dbDialogsTbody = document.getElementById('db-dialogs-tbody');
 
-// RAG Handles
 const selectRagAgent = document.getElementById('select-rag-agent');
 const ragDocId = document.getElementById('rag-doc-id');
 const ragDocText = document.getElementById('rag-doc-text');
@@ -75,12 +71,10 @@ const ragIndexStatus = document.getElementById('rag-index-status');
 const dbRagTbody = document.getElementById('db-rag-tbody');
 const metricRagHits = document.getElementById('metric-rag-hits');
 
-// DB Handles
 const dbModelsTbody = document.getElementById('db-models-tbody');
 const btnRefreshDb = document.getElementById('btn-refresh-db');
 const btnClearDb = document.getElementById('btn-clear-db');
 
-// Network Handles
 const btnHostPin = document.getElementById('btn-host-pin');
 const hostTokenOut = document.getElementById('host-token-out');
 const joinTokenIn = document.getElementById('join-token-in');
@@ -94,15 +88,10 @@ const btnMcpInit = document.getElementById('btn-mcp-init');
 const btnMcpTools = document.getElementById('btn-mcp-tools');
 const btnMcpResources = document.getElementById('btn-mcp-resources');
 
-// Telemetry & Logs Handles
 const metricTPS = document.getElementById('metric-tps');
 const metricTTFT = document.getElementById('metric-ttft');
 const tokenTopKBars = document.getElementById('token-topk-bars');
-const diagnosticsLog = document.getElementById('diagnostics-log');
-const btnClearLogs = document.getElementById('btn-clear-logs');
-const btnFilterLogs = document.getElementById('btn-filter-logs');
 
-// Tab Routing
 const navTabs = document.querySelectorAll('.nav-tab');
 const appViews = document.querySelectorAll('.app-view');
 
@@ -123,21 +112,6 @@ navTabs.forEach((tab) => {
   });
 });
 
-async function appendLog(category, text) {
-  await storage.logEvent(category, text);
-  if (!diagnosticsLog) return;
-
-  if (currentLogFilter !== 'ALL' && currentLogFilter !== category) return;
-
-  const time = new Date().toLocaleTimeString();
-  const el = document.createElement('div');
-  el.className = 'log-entry';
-  el.innerHTML = `<span style="color:var(--text-dim); flex-shrink:0;">[${time}]</span> <span class="log-tag ${category}">${category}</span> <span>${text}</span>`;
-  diagnosticsLog.appendChild(el);
-  diagnosticsLog.scrollTop = diagnosticsLog.scrollHeight;
-}
-
-// Background Workers
 const llmWorker = new Worker('./llm-worker.js', { type: 'module' });
 const webmcpWorker = new Worker('./webmcp-worker.js', { type: 'module' });
 
@@ -207,7 +181,7 @@ webmcpWorker.onmessage = async (e) => {
     metricTrainLoss.textContent = payload.loss.toFixed(4);
     metricTrainPpl.textContent = payload.perplexity.toFixed(1);
     trainProgressFill.style.width = `${payload.progressPct}%`;
-    trainProgressText.textContent = `Epoch ${payload.epoch}/${payload.totalEpochs} — ${payload.progressPct}% (${payload.tokensPerSec} tok/s)`;
+    trainProgressText.textContent = `Epoch ${payload.epoch}/${payload.totalEpochs} (${payload.activeConcurrentStreams} coroutine streams) — ${payload.progressPct}% (${payload.tokensPerSec} tok/s)`;
   }
 
   if (type === 'TRAIN_DONE') {
@@ -229,12 +203,11 @@ webmcpWorker.onmessage = async (e) => {
 
   if (type === 'SAVE_DIALOGUE_COMPLETE') {
     dialogSaveStatus.textContent = `Saved ${payload.datasetName} for ${payload.agentId} (${payload.sizeKb} KB)!`;
-    await appendLog('STORAGE', `Dialogue package "${payload.datasetName}" saved for ${payload.agentId} (${payload.sizeKb} KB).`);
+    await appendLog('STORAGE', `Dialogue package "${payload.datasetName}" saved (${payload.sizeKb} KB).`);
     await renderDialogueListView();
   }
 };
 
-// Agent Selection in Header
 selectActiveAgent.addEventListener('change', () => {
   const agentId = selectActiveAgent.value;
   activeAgentStatusLabel.textContent = agentId;
@@ -246,7 +219,6 @@ selectTrainTargetAgent.addEventListener('change', () => {
   trainAgentBadge.textContent = `Target: ${selectTrainTargetAgent.value}`;
 });
 
-// Chat Actions
 function executeChat() {
   const text = inputPrompt.value.trim();
   if (!text) return;
@@ -271,7 +243,7 @@ function executeChat() {
 btnSend.addEventListener('click', executeChat);
 inputPrompt.addEventListener('keydown', (e) => { if (e.key === 'Enter') executeChat(); });
 
-// Training with Strict JSON Array
+// Concurrent Epoch Training Trigger
 btnStartTraining.addEventListener('click', () => {
   const jsonStr = trainJsonInput.value.trim();
   if (!jsonStr) return alert('Enter training JSON dialogue array.');
@@ -285,18 +257,25 @@ btnStartTraining.addEventListener('click', () => {
   }
 
   const targetAgent = selectTrainTargetAgent.value;
-  const epochs = parseInt(inputEpochs.value, 10) || 5;
-  const lr = parseFloat(inputLr.value) || 0.003;
+  const epochs = parseInt(inputEpochs.value, 10) || 12;
+  const concurrency = parseInt(inputConcurrency.value, 10) || 3;
 
   btnStartTraining.disabled = true;
   trainProgressFill.style.width = '0%';
-  trainProgressText.textContent = `Training ${targetAgent} on ${pairs.length} JSON turns...`;
+  trainProgressText.textContent = `Training ${targetAgent} (${epochs} epochs, ${concurrency} coroutines)...`;
 
-  appendLog('TRAIN', `Training task: ${targetAgent}, ${pairs.length} turns, ${epochs} epochs`);
+  appendLog('TRAIN', `Training task: ${targetAgent}, ${pairs.length} turns, ${epochs} epochs, ${concurrency} streams`);
   webmcpWorker.postMessage({
     type: 'START_TRAIN_JSON',
-    payload: { targetAgent, pairs, epochs, lr }
+    payload: { targetAgent, pairs, epochs, concurrency, lr: 0.003 }
   });
+});
+
+btnStopTraining.addEventListener('click', () => {
+  webmcpWorker.postMessage({ type: 'STOP_TRAINING' });
+  btnStartTraining.disabled = false;
+  trainProgressText.textContent = 'Training stopped by user.';
+  appendLog('TRAIN', 'Training aborted.');
 });
 
 btnGenerateJsonllm.addEventListener('click', () => {
@@ -310,12 +289,17 @@ btnGenerateJsonllm.addEventListener('click', () => {
   });
 });
 
-// Dialogue Studio Actions
 btnLoadPresetDialogue.addEventListener('click', () => {
-  const formatted = JSON.stringify(BIG_PRESET_DIALOGUE, null, 2);
+  const sample = [
+    { u: "Hi", b: "Hello! How can I assist you today?" },
+    { u: "Who are you?", b: "I am vimtoLLM - all space inside! 10 on minus 84." },
+    { u: "What is your architecture?", b: "I am an autograd transformer with WASM SIMD execution." },
+    { u: "How do coroutines help?", b: "Coroutines interleave training epochs concurrently without UI thread freezes." }
+  ];
+  const formatted = JSON.stringify(sample, null, 2);
   dialogPairsInput.value = formatted;
   trainJsonInput.value = formatted;
-  appendLog('UI', `Loaded big dialogue dataset preset (${BIG_PRESET_DIALOGUE.length} turns).`);
+  appendLog('UI', 'Loaded dialogue dataset preset.');
 });
 
 btnSaveDialogDataset.addEventListener('click', () => {
@@ -388,7 +372,6 @@ async function renderDialogueListView() {
   });
 }
 
-// Agent-Scoped Vector RAG Actions
 btnIndexRAG.addEventListener('click', async () => {
   const id = ragDocId.value.trim();
   const text = ragDocText.value.trim();
@@ -405,7 +388,6 @@ btnIndexRAG.addEventListener('click', async () => {
     }
   });
 
-  // Persist locally with agent association
   await storage.putRAGDoc({ docId: id, agentId, text, vector: [] });
 
   ragIndexStatus.textContent = `Indexed for ${agentId}: ${id}`;
@@ -440,7 +422,6 @@ async function renderRAGView() {
   `).join('');
 }
 
-// Database Actions
 async function renderDatabaseView() {
   const models = await storage.getAllModels();
   if (!dbModelsTbody) return;
@@ -473,7 +454,6 @@ btnClearDb.addEventListener('click', async () => {
   window.location.reload();
 });
 
-// Network Actions (WebRTC PIN Mesh)
 const mesh = new MeshCoordinator(
   nodeId,
   (msg) => {
@@ -534,7 +514,6 @@ btnSendMcp.addEventListener('click', () => {
   }
 });
 
-// Logs Tab Actions
 btnClearLogs.addEventListener('click', async () => {
   await storage.clearLogs();
   diagnosticsLog.innerHTML = '';
@@ -561,10 +540,6 @@ async function hydrateLogs() {
   });
   diagnosticsLog.scrollTop = diagnosticsLog.scrollHeight;
 }
-
-// Initial Boot
-dialogPairsInput.value = JSON.stringify(BIG_PRESET_DIALOGUE.slice(0, 4), null, 2);
-trainJsonInput.value = JSON.stringify(BIG_PRESET_DIALOGUE.slice(0, 4), null, 2);
 
 await hydrateLogs();
 await renderDatabaseView();
