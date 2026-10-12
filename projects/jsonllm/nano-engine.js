@@ -1,76 +1,12 @@
 /**
- * nano-engine.js - 4M Parameter Pure FP16 Transformer with GC & WASM SIMD Hooks
+ * nano-engine.js - 4M Pure FP16 Transformer with Positional Embeddings, Autograd & GC
  */
 
+import { NanoJsonTokenizer } from './nano-json-tokenizer.js';
 import { HalfFloatArray } from './jsonllm-codec.js';
-import { WasiRuntime } from './wasm-engine.js';
 import { MemoryGarbageCollector } from './garbage-collector.js';
 
 export const gc = new MemoryGarbageCollector();
-
-export class NanoTokenizer {
-  constructor(vocabSize = 1024) {
-    this.vocabSize = vocabSize;
-    this.tokenToId = new Map();
-    this.idToToken = new Map();
-    this.specials = ['<pad>', '<bos>', '<eos>', '<unk>', '<user>', '<bot>'];
-    this.buildVocab();
-  }
-
-  buildVocab() {
-    this.specials.forEach((tok, id) => {
-      this.tokenToId.set(tok, id);
-      this.idToToken.set(id, tok);
-    });
-
-    const foundational = [
-      "Hello", "Hi", "Hey", "How", "are", "you", "I", "am", "doing", "well",
-      "great", "fine", "good", "What", "is", "your", "name", "My", "vimtoLLM",
-      "Miriam", "wife", "partner", "woman", "love", "darling", "think", "help",
-      "together", "an", "offline", "browser", "AI", "assistant", "Yes", "No",
-      "code", "HTML", "C", "space", "inside", "minus", "84", "10", "WASM", "SIMD",
-      "epoch", "epochs", "coroutine", "garbage", "collector", "memory", "clean",
-      ".", ",", "!", "?", ":", ";", "'", "\"", "\n", "-", "(", ")"
-    ];
-
-    let id = this.specials.length;
-    for (const w of foundational) {
-      if (!this.tokenToId.has(w)) {
-        this.tokenToId.set(w, id);
-        this.idToToken.set(id, w);
-        id++;
-      }
-    }
-  }
-
-  encode(text) {
-    if (!text) return [1];
-    const tokens = [1];
-    const regex = /(<user>|<bot>|<eos>|<bos>|[a-zA-Z0-9_-]+|[.,!?:;'"()\n])/g;
-    const matches = text.match(regex) || [];
-
-    for (const piece of matches) {
-      if (this.tokenToId.has(piece)) {
-        tokens.push(this.tokenToId.get(piece));
-      } else {
-        const id = this.tokenToId.size;
-        this.tokenToId.set(piece, id);
-        this.idToToken.set(id, piece);
-        tokens.push(id);
-      }
-    }
-    return tokens;
-  }
-
-  decode(tokens) {
-    if (!tokens || !tokens.length) return '';
-    return tokens
-      .filter((id) => id >= this.specials.length)
-      .map((id) => this.idToToken.get(id) || '')
-      .join(' ')
-      .replace(/ ([.,!?:;'")])/g, '$1');
-  }
-}
 
 export class NanoTransformer {
   constructor(config = {}) {
@@ -79,32 +15,18 @@ export class NanoTransformer {
     this.heads = config.heads || 6;
     this.headDim = this.dim / this.heads; // 32
     this.ffnDim = config.ffnDim || 512;
-    this.vocabSize = config.vocabSize || 1024;
-    this.maxSeqLen = config.maxSeqLen || 128;
-    this.stepCount = config.stepCount || 0;
+    this.vocabSize = 1024;
+    this.maxSeqLen = 128;
+    this.stepCount = 0;
 
-    this.tokenizer = new NanoTokenizer(this.vocabSize);
+    this.tokenizer = new NanoJsonTokenizer({ vocabSize: this.vocabSize });
     this.weights = {};
     this.grads = {};
     this.adamM = {};
     this.adamV = {};
 
-    this.wasi = new WasiRuntime(256, 2048);
-    this.hasWasm = false;
-
     this.allocateScratchpads();
     this.initWeights();
-  }
-
-  async initWasm(wasmBinary) {
-    try {
-      await this.wasi.compileAndInstantiate(wasmBinary, console.log);
-      this.hasWasm = !!this.wasi.exports;
-      return this.hasWasm;
-    } catch {
-      this.hasWasm = false;
-      return false;
-    }
   }
 
   allocateScratchpads() {
@@ -129,32 +51,30 @@ export class NanoTransformer {
       return arr;
     };
 
-    const register = (name, size) => {
+    const registerParam = (name, size) => {
       this.weights[name] = randFP16(size);
       this.grads[name] = new HalfFloatArray(size);
       this.adamM[name] = new HalfFloatArray(size);
       this.adamV[name] = new HalfFloatArray(size);
     };
 
-    register('wte', this.vocabSize * this.dim);
-    register('wpe', this.maxSeqLen * this.dim);
-    register('lm_head', this.vocabSize * this.dim);
+    registerParam('wte', this.vocabSize * this.dim);
+    registerParam('wpe', this.maxSeqLen * this.dim);
+    registerParam('lm_head', this.vocabSize * this.dim);
 
     for (let l = 0; l < this.layers; l++) {
-      register(`blk_${l}_wq`, this.dim * this.dim);
-      register(`blk_${l}_wk`, this.dim * this.dim);
-      register(`blk_${l}_wv`, this.dim * this.dim);
-      register(`blk_${l}_wo`, this.dim * this.dim);
-      register(`blk_${l}_wgate`, this.dim * this.ffnDim);
-      register(`blk_${l}_wup`, this.dim * this.ffnDim);
-      register(`blk_${l}_wdown`, this.ffnDim * this.dim);
+      registerParam(`blk_${l}_wq`, this.dim * this.dim);
+      registerParam(`blk_${l}_wk`, this.dim * this.dim);
+      registerParam(`blk_${l}_wv`, this.dim * this.dim);
+      registerParam(`blk_${l}_wo`, this.dim * this.dim);
+      registerParam(`blk_${l}_wgate`, this.dim * this.ffnDim);
+      registerParam(`blk_${l}_wup`, this.dim * this.ffnDim);
+      registerParam(`blk_${l}_wdown`, this.ffnDim * this.dim);
     }
   }
 
   zeroGrads() {
-    for (const key in this.grads) {
-      this.grads[key].fill(0.0);
-    }
+    for (const key in this.grads) this.grads[key].fill(0.0);
   }
 
   rmsNorm(out, src, eps = 1e-5) {
@@ -181,7 +101,6 @@ export class NanoTransformer {
       const invScale1 = this.rmsNorm(this.xb, this.x);
       layerTape.norm1 = { out: new HalfFloatArray(this.xb), invScale: invScale1 };
 
-      // Multi-Head Attention Projections
       for (let r = 0; r < this.dim; r++) {
         let sq = 0.0, sk = 0.0, sv = 0.0;
         const off = r * this.dim;
@@ -214,9 +133,7 @@ export class NanoTransformer {
           const histK = historyContext ? historyContext.k[l][t] : this.k;
           if (!histK) continue;
           let score = 0.0;
-          for (let d = 0; d < this.headDim; d++) {
-            score += this.q[hOffset + d] * histK[hOffset + d];
-          }
+          for (let d = 0; d < this.headDim; d++) score += this.q[hOffset + d] * histK[hOffset + d];
           score /= Math.sqrt(this.headDim);
           scores[t] = score;
           if (score > maxScore) maxScore = score;
@@ -232,9 +149,7 @@ export class NanoTransformer {
           weights[t] /= (sumExp || 1.0);
           const histV = historyContext ? historyContext.v[l][t] : this.v;
           if (!histV) continue;
-          for (let d = 0; d < this.headDim; d++) {
-            this.att[hOffset + d] += histV[hOffset + d] * weights[t];
-          }
+          for (let d = 0; d < this.headDim; d++) this.att[hOffset + d] += histV[hOffset + d] * weights[t];
         }
       }
 
@@ -246,7 +161,6 @@ export class NanoTransformer {
         this.x[r] += sum;
       }
 
-      // SwiGLU Gated Feed-Forward Block
       const invScale2 = this.rmsNorm(this.xb, this.x);
       layerTape.norm2 = { out: new HalfFloatArray(this.xb), invScale: invScale2 };
 
@@ -281,7 +195,6 @@ export class NanoTransformer {
     const invScaleFinal = this.rmsNorm(this.xb, this.x);
     tape.normFinal = { out: new HalfFloatArray(this.xb), invScale: invScaleFinal };
 
-    // LM Head Logits
     for (let r = 0; r < this.vocabSize; r++) {
       let sum = 0.0;
       const off = r * this.dim;
@@ -308,7 +221,6 @@ export class NanoTransformer {
     const loss = -Math.log(Math.max(1e-7, probs[safeTarget]));
     probs[safeTarget] -= 1.0;
 
-    // Output Head Backprop
     const dNormFinal = new HalfFloatArray(this.dim);
     for (let r = 0; r < this.vocabSize; r++) {
       const dL = probs[r];
@@ -323,11 +235,10 @@ export class NanoTransformer {
     const dx = new HalfFloatArray(this.dim);
     for (let i = 0; i < this.dim; i++) dx[i] = dNormFinal[i] * tape.normFinal.invScale;
 
-    // Transformer Blocks Reverse Propagation
     for (let l = this.layers - 1; l >= 0; l--) {
       const layerTape = tape.layers[l];
-
       const dMlpAct = new HalfFloatArray(this.ffnDim);
+
       for (let r = 0; r < this.dim; r++) {
         const off = r * this.ffnDim;
         const dxi = dx[r];
@@ -390,9 +301,7 @@ export class NanoTransformer {
       this.grads.wpe[posOffset + i] += dx[i];
     }
 
-    // Immediately recycle tape buffers via explicit Garbage Collector
     gc.sweepTape(tape);
-
     return loss;
   }
 
@@ -410,7 +319,6 @@ export class NanoTransformer {
     for (let pos = 0; pos < len; pos++) {
       const inputId = tokenIds[pos];
       const targetId = tokenIds[pos + 1];
-
       const { logits, tape } = this.forwardStepWithTape(inputId, pos, history);
       totalLoss += this.backwardStep(targetId, logits, tape);
     }
@@ -421,39 +329,15 @@ export class NanoTransformer {
 
   stepAdamW(lr = 0.003, beta1 = 0.9, beta2 = 0.999, eps = 1e-8, weightDecay = 0.01) {
     this.stepCount++;
+    const biasCorr1 = 1.0 - Math.pow(beta1, this.stepCount);
+    const biasCorr2 = 1.0 - Math.pow(beta2, this.stepCount);
 
     for (const key in this.weights) {
       const W = this.weights[key];
       const G = this.grads[key];
       const M = this.adamM[key];
       const V = this.adamV[key];
-
-      if (this.hasWasm && W.length >= 1024) {
-        this.wasi.resetHeap();
-        const len = W.length;
-        const wPtr = this.wasi.allocate(len);
-        const gPtr = this.wasi.allocate(len);
-        const mPtr = this.wasi.allocate(len);
-        const vPtr = this.wasi.allocate(len);
-
-        this.wasi.writeFloats(wPtr, W);
-        this.wasi.writeFloats(gPtr, G);
-        this.wasi.writeFloats(mPtr, M);
-        this.wasi.writeFloats(vPtr, V);
-
-        this.wasi.exports.wasm_adamw_step(wPtr, gPtr, mPtr, vPtr, len, lr, beta1, beta2, eps, weightDecay, this.stepCount);
-
-        W.set(this.wasi.readFloats(wPtr, len));
-        M.set(this.wasi.readFloats(mPtr, len));
-        V.set(this.wasi.readFloats(vPtr, len));
-        continue;
-      }
-
       const len = W.length;
-      const b1 = beta1;
-      const b2 = beta2;
-      const biasCorr1 = 1.0 - Math.pow(b1, this.stepCount);
-      const biasCorr2 = 1.0 - Math.pow(b2, this.stepCount);
 
       for (let i = 0; i < len; i++) {
         let g = G[i];
@@ -461,13 +345,11 @@ export class NanoTransformer {
         else if (g < -1.0) g = -1.0;
 
         W[i] -= lr * weightDecay * W[i];
-
-        M[i] = b1 * M[i] + (1.0 - b1) * g;
-        V[i] = b2 * V[i] + (1.0 - b2) * (g * g);
+        M[i] = beta1 * M[i] + (1.0 - beta1) * g;
+        V[i] = beta2 * V[i] + (1.0 - beta2) * (g * g);
 
         const mHat = M[i] / biasCorr1;
         const vHat = V[i] / biasCorr2;
-
         W[i] -= (lr * mHat) / (Math.sqrt(vHat) + eps);
       }
     }
