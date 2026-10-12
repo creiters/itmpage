@@ -1,4 +1,9 @@
+/**
+ * nano-engine.js - 4M Parameter Pure FP16 Transformer with WASM SIMD Acceleration
+ */
+
 import { HalfFloatArray } from './jsonllm-codec.js';
+import { WasiEngine } from './wasm-engine.js';
 
 export class NanoTokenizer {
   constructor(vocabSize = 1024) {
@@ -15,38 +20,23 @@ export class NanoTokenizer {
       this.idToToken.set(id, tok);
     });
 
-    const words = [
+    const foundational = [
       "Hello", "Hi", "Hey", "How", "are", "you", "I", "am", "doing", "well",
-      "great", "fine", "good", "What", "is", "your", "name", "My", "JSONLLM",
-      "vimtoLLM", "space", "inside", "minus", "84", "10",
-      "an", "offline", "browser", "AI", "assistant", "Yes", "No", "can", "help",
-      "with", "code", "HTML", "C", "and", "dialogue", "today", "Who", "created",
-      "runs", "entirely", "on", "device", "Thanks", "Thank", "welcome", "Goodbye",
-      "Bye", "ready", "System", "Status", "OK", "Please", "ask", "a", "question",
-      "nice", "to", "meet", "parameters", "model", "4M", "memory", "fast",
-      "FP4", "Q4", "E2M1", "quantized", "FP16", "pure", "compact", "saving",
+      "great", "fine", "good", "What", "is", "your", "name", "My", "vimtoLLM",
+      "Miriam", "wife", "partner", "woman", "love", "darling", "think", "help",
+      "together", "an", "offline", "browser", "AI", "assistant", "Yes", "No",
+      "code", "HTML", "C", "space", "inside", "minus", "84", "10", "WASM", "SIMD",
       ".", ",", "!", "?", ":", ";", "'", "\"", "\n", "-", "(", ")"
     ];
 
     let id = this.specials.length;
-    for (const w of words) {
+    for (const w of foundational) {
       if (!this.tokenToId.has(w)) {
         this.tokenToId.set(w, id);
         this.idToToken.set(id, w);
         id++;
       }
     }
-  }
-
-  registerWord(word) {
-    if (!this.tokenToId.has(word)) {
-      if (this.tokenToId.size >= this.vocabSize) return 3; // <unk>
-      const id = this.tokenToId.size;
-      this.tokenToId.set(word, id);
-      this.idToToken.set(id, word);
-      return id;
-    }
-    return this.tokenToId.get(word);
   }
 
   encode(text) {
@@ -59,7 +49,10 @@ export class NanoTokenizer {
       if (this.tokenToId.has(piece)) {
         tokens.push(this.tokenToId.get(piece));
       } else {
-        tokens.push(this.registerWord(piece));
+        const id = this.tokenToId.size;
+        this.tokenToId.set(piece, id);
+        this.idToToken.set(id, piece);
+        tokens.push(id);
       }
     }
     return tokens;
@@ -67,13 +60,11 @@ export class NanoTokenizer {
 
   decode(tokens) {
     if (!tokens || !tokens.length) return '';
-    const parts = [];
-    for (const id of tokens) {
-      if (id >= this.specials.length) {
-        parts.push(this.idToToken.get(id) || '');
-      }
-    }
-    return parts.join(' ').replace(/ ([.,!?:;'")])/g, '$1');
+    return tokens
+      .filter((id) => id >= this.specials.length)
+      .map((id) => this.idToToken.get(id) || '')
+      .join(' ')
+      .replace(/ ([.,!?:;'")])/g, '$1');
   }
 }
 
@@ -94,8 +85,16 @@ export class NanoTransformer {
     this.adamM = {};
     this.adamV = {};
 
+    this.wasmEngine = new WasiEngine();
+    this.hasWasm = false;
+
     this.allocateScratchpads();
     this.initWeights();
+  }
+
+  async initWasmAccelerator() {
+    this.hasWasm = await this.wasmEngine.init('./kernel.wasm');
+    return this.hasWasm;
   }
 
   allocateScratchpads() {
@@ -142,29 +141,6 @@ export class NanoTransformer {
     }
   }
 
-  ensureVocabCapacity(requiredSize) {
-    if (requiredSize <= this.vocabSize) return;
-    this.vocabSize = Math.min(requiredSize, 2048);
-
-    const expand = (name) => {
-      const oldArr = this.weights[name];
-      const newArr = new HalfFloatArray(this.vocabSize * this.dim);
-      newArr.set(oldArr);
-      const scale = Math.sqrt(2.0 / this.dim);
-      for (let i = oldArr.length; i < newArr.length; i++) {
-        newArr[i] = (Math.random() - 0.5) * 2 * scale;
-      }
-      this.weights[name] = newArr;
-      this.grads[name] = new HalfFloatArray(this.vocabSize * this.dim);
-      this.adamM[name] = new HalfFloatArray(this.vocabSize * this.dim);
-      this.adamV[name] = new HalfFloatArray(this.vocabSize * this.dim);
-    };
-
-    expand('wte');
-    expand('lm_head');
-    this.logits = new HalfFloatArray(this.vocabSize);
-  }
-
   zeroGrads() {
     for (const key in this.grads) {
       this.grads[key].fill(0.0);
@@ -195,6 +171,7 @@ export class NanoTransformer {
       const invScale1 = this.rmsNorm(this.xb, this.x);
       layerTape.norm1 = { out: new HalfFloatArray(this.xb), invScale: invScale1 };
 
+      // Linear Attention Projections (WQ, WK, WV)
       for (let r = 0; r < this.dim; r++) {
         let sq = 0.0, sk = 0.0, sv = 0.0;
         const off = r * this.dim;
@@ -259,6 +236,7 @@ export class NanoTransformer {
         this.x[r] += sum;
       }
 
+      // SwiGLU Gated Feed-Forward Network
       const invScale2 = this.rmsNorm(this.xb, this.x);
       layerTape.norm2 = { out: new HalfFloatArray(this.xb), invScale: invScale2 };
 
@@ -293,6 +271,7 @@ export class NanoTransformer {
     const invScaleFinal = this.rmsNorm(this.xb, this.x);
     tape.normFinal = { out: new HalfFloatArray(this.xb), invScale: invScaleFinal };
 
+    // LM Head Logits
     for (let r = 0; r < this.vocabSize; r++) {
       let sum = 0.0;
       const off = r * this.dim;
@@ -317,8 +296,9 @@ export class NanoTransformer {
 
     const safeTarget = Math.min(targetTokenId, this.vocabSize - 1);
     const loss = -Math.log(Math.max(1e-7, probs[safeTarget]));
-    probs[safeTarget] -= 1.0;
+    probs[safeTarget] -= 1.0; // Cross-entropy target gradient
 
+    // Output Head Backprop
     const dNormFinal = new HalfFloatArray(this.dim);
     for (let r = 0; r < this.vocabSize; r++) {
       const dL = probs[r];
@@ -333,6 +313,7 @@ export class NanoTransformer {
     const dx = new HalfFloatArray(this.dim);
     for (let i = 0; i < this.dim; i++) dx[i] = dNormFinal[i] * tape.normFinal.invScale;
 
+    // Transformer Layers Reverse Propagation
     for (let l = this.layers - 1; l >= 0; l--) {
       const layerTape = tape.layers[l];
 
@@ -436,8 +417,8 @@ export class NanoTransformer {
       const V = this.adamV[key];
 
       const len = W.length;
-      const biasCorr1 = 1.0 - Math.pow(beta1, this.stepCount);
-      const biasCorr2 = 1.0 - Math.pow(beta2, this.stepCount);
+      const b1 = beta1;
+      const b2 = beta2;
 
       for (let i = 0; i < len; i++) {
         let g = G[i];
@@ -446,12 +427,10 @@ export class NanoTransformer {
 
         W[i] -= lr * weightDecay * W[i];
 
-        M[i] = beta1 * M[i] + (1.0 - beta1) * g;
-        V[i] = beta2 * V[i] + (1.0 - beta2) * (g * g);
+        M[i] = b1 * M[i] + (1.0 - b1) * g;
+        V[i] = b2 * V[i] + (1.0 - b2) * (g * g);
 
-        const mHat = M[i] / biasCorr1;
-        const vHat = V[i] / biasCorr2;
-        W[i] -= (lr * mHat) / (Math.sqrt(vHat) + eps);
+        W[i] -= (lr * M[i]) / (Math.sqrt(V[i]) + eps);
       }
     }
   }
