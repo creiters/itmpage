@@ -1,9 +1,12 @@
 /**
- * nano-engine.js - 4M Parameter Transformer with Hardware WASM SIMD Acceleration
+ * nano-engine.js - 4M Parameter Pure FP16 Transformer with GC & WASM SIMD Hooks
  */
 
 import { HalfFloatArray } from './jsonllm-codec.js';
 import { WasiRuntime } from './wasm-engine.js';
+import { MemoryGarbageCollector } from './garbage-collector.js';
+
+export const gc = new MemoryGarbageCollector();
 
 export class NanoTokenizer {
   constructor(vocabSize = 1024) {
@@ -26,6 +29,7 @@ export class NanoTokenizer {
       "Miriam", "wife", "partner", "woman", "love", "darling", "think", "help",
       "together", "an", "offline", "browser", "AI", "assistant", "Yes", "No",
       "code", "HTML", "C", "space", "inside", "minus", "84", "10", "WASM", "SIMD",
+      "epoch", "epochs", "coroutine", "garbage", "collector", "memory", "clean",
       ".", ",", "!", "?", ":", ";", "'", "\"", "\n", "-", "(", ")"
     ];
 
@@ -177,7 +181,7 @@ export class NanoTransformer {
       const invScale1 = this.rmsNorm(this.xb, this.x);
       layerTape.norm1 = { out: new HalfFloatArray(this.xb), invScale: invScale1 };
 
-      // Matrix Projections: Q, K, V
+      // Multi-Head Attention Projections
       for (let r = 0; r < this.dim; r++) {
         let sq = 0.0, sk = 0.0, sv = 0.0;
         const off = r * this.dim;
@@ -277,6 +281,7 @@ export class NanoTransformer {
     const invScaleFinal = this.rmsNorm(this.xb, this.x);
     tape.normFinal = { out: new HalfFloatArray(this.xb), invScale: invScaleFinal };
 
+    // LM Head Logits
     for (let r = 0; r < this.vocabSize; r++) {
       let sum = 0.0;
       const off = r * this.dim;
@@ -385,6 +390,9 @@ export class NanoTransformer {
       this.grads.wpe[posOffset + i] += dx[i];
     }
 
+    // Immediately recycle tape buffers via explicit Garbage Collector
+    gc.sweepTape(tape);
+
     return loss;
   }
 
@@ -420,7 +428,6 @@ export class NanoTransformer {
       const M = this.adamM[key];
       const V = this.adamV[key];
 
-      // Dispatch to SIMD WASM Kernel when available
       if (this.hasWasm && W.length >= 1024) {
         this.wasi.resetHeap();
         const len = W.length;
@@ -442,14 +449,11 @@ export class NanoTransformer {
         continue;
       }
 
-      // High-precision typed fallback
       const len = W.length;
       const b1 = beta1;
       const b2 = beta2;
-      const b1Pow = Math.pow(b1, this.stepCount);
-      const b2Pow = Math.pow(b2, this.stepCount);
-      const biasCorr1 = 1.0 - b1Pow;
-      const biasCorr2 = 1.0 - b2Pow;
+      const biasCorr1 = 1.0 - Math.pow(b1, this.stepCount);
+      const biasCorr2 = 1.0 - Math.pow(b2, this.stepCount);
 
       for (let i = 0; i < len; i++) {
         let g = G[i];
